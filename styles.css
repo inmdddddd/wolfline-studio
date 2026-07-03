@@ -5610,3 +5610,361 @@ body[data-hero-auth="login"] .beca-hero-copy {
     width: max-content;
   }
 }
+
+/* Global mobile polish pass */
+@media (max-width: 760px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .beca-header,
+  .admin-topbar,
+  .account-topbar {
+    width: calc(100% - 20px);
+    min-height: 58px;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    padding: 8px 10px;
+    border-radius: 22px;
+  }
+
+  .beca-logo,
+  .auth-brand {
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .beca-logo-img,
+  .auth-brand img:first-child {
+    width: 42px;
+    height: 42px;
+  }
+
+  .beca-logo-wolfline,
+  .auth-brand img:last-child {
+    width: clamp(116px, 36vw, 160px);
+    max-width: 42vw;
+  }
+
+  .beca-header-x,
+  .auth-brand span {
+    font-size: 1.15rem;
+  }
+
+  .beca-header nav {
+    gap: 6px;
+  }
+
+  .beca-header nav > a:not([data-auth-open]),
+  .product-page .beca-header nav a {
+    display: none;
+  }
+
+  .profile-dropdown {
+    width: min(292px, calc(100vw - 24px));
+    max-height: calc(100dvh - 92px);
+    overflow-y: auto;
+  }
+
+  .floating-shop-actions {
+    right: 10px;
+    bottom: 10px;
+    gap: 8px;
+    transform: scale(0.92);
+    transform-origin: right bottom;
+  }
+
+  .cart-drawer-panel {
+    width: min(100% - 18px, 390px);
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+    margin: 10px;
+    padding: 18px;
+  }
+
+  .beca-hero,
+  .brand-section {
+    width: min(100% - 20px, 1180px);
+  }
+
+  .beca-hero {
+    min-height: auto;
+    gap: 18px;
+    padding-top: 92px;
+    padding-bottom: 32px;
+  }
+
+  .beca-hero-copy {
+    min-height: auto;
+    padding: 22px;
+    border-radius: 22px;
+  }
+
+  .beca-hero-copy h1 {
+    font-size: clamp(2.25rem, 12vw, 4.1rem);
+    line-height: 0.94;
+  }
+
+  .beca-actions,
+  .hero-auth-tabs,
+  .studio-actions,
+  .product-card-footer {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .beca-actions a,
+  .hero-auth-tabs button,
+  .studio-actions button,
+  .product-card button,
+  .checkout-form button,
+  .product-detail-info button,
+  .account-settings button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .beca-shirt-stage {
+    min-height: 440px;
+  }
+
+  .shirt-scene {
+    min-height: 440px;
+  }
+
+  .brand-section {
+    margin-top: 20px;
+  }
+
+  .feature-grid,
+  .drop-strip,
+  .product-grid,
+  .design-section,
+  .design-notes,
+  .shop-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading h2,
+  .design-copy h2,
+  .contact-section h2 {
+    font-size: clamp(2.15rem, 11vw, 4rem);
+    line-height: 0.95;
+  }
+
+  .product-card,
+  .feature-card,
+  .contact-section,
+  .design-section {
+    border-radius: 22px;
+    padding: 20px;
+  }
+
+  .product-media {
+    height: clamp(280px, 58vw, 360px);
+  }
+
+  .product-card p {
+    min-height: 0;
+  }
+
+  .auth-shell,
+  .admin-shell,
+  .account-shell {
+    width: min(100% - 20px, 720px);
+    padding: 92px 0 42px;
+  }
+
+  .auth-brand {
+    top: 14px;
+    left: 10px;
+    right: 10px;
+  }
+
+  .auth-card,
+  .admin-panel,
+  .account-hero-card,
+  .account-panel {
+    border-radius: 22px;
+    padding: 20px;
+  }
+
+  .auth-card h1,
+  .admin-sidebar h1,
+  .account-hero-card h1 {
+    font-size: clamp(2.45rem, 13vw, 4.4rem);
+    line-height: 0.92;
+  }
+
+  .admin-app-shell {
+    width: min(100% - 20px, 820px);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding-top: 92px;
+  }
+
+  .admin-sidebar {
+    position: relative;
+    top: auto;
+    min-height: auto;
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .admin-sidebar h1 {
+    margin-bottom: 14px;
+  }
+
+  .admin-side-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .admin-side-nav button {
+    min-width: max-content;
+    scroll-snap-align: start;
+  }
+
+  .admin-workspace,
+  .admin-view {
+    min-width: 0;
+  }
+
+  .admin-view-head,
+  .cart-head,
+  .account-topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    justify-items: start;
+  }
+
+  .admin-metrics,
+  .admin-note-grid,
+  .admin-form-grid,
+  .studio-sliders,
+  .account-grid,
+  .account-hero-card {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-viewer {
+    min-height: clamp(390px, 58vh, 540px);
+  }
+
+  .studio-controls {
+    padding: 18px;
+  }
+
+  .admin-product,
+  .admin-users li {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .admin-product > div:last-child {
+    justify-items: stretch;
+  }
+
+  .admin-product-media {
+    width: 100%;
+    height: 220px;
+  }
+
+  .account-topbar {
+    position: relative;
+    width: min(100% - 20px, 1180px);
+    margin: 10px auto 0;
+    left: auto;
+    right: auto;
+    top: auto;
+  }
+
+  .account-topbar-actions {
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .account-home-link,
+  .account-topbar-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .member-chip,
+  .account-drop-card a,
+  .drop-status {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .beca-logo-wolfline,
+  .auth-brand img:last-child {
+    width: 124px;
+  }
+
+  .floating-shop-actions {
+    max-width: calc(100vw - 20px);
+  }
+
+  .floating-cart-button {
+    min-width: 114px;
+    padding-inline: 12px;
+  }
+
+  .language-switch {
+    min-width: 82px;
+  }
+
+  .beca-hero-copy,
+  .auth-card,
+  .admin-panel,
+  .admin-sidebar,
+  .account-hero-card,
+  .account-panel,
+  .product-detail-info {
+    padding: 18px;
+  }
+
+  .product-detail-shell {
+    width: min(100% - 14px, 520px);
+    padding-top: 82px;
+  }
+
+  .product-detail-viewer {
+    min-height: clamp(340px, 54vh, 470px);
+  }
+
+  .product-detail-viewer model-viewer {
+    height: clamp(340px, 54vh, 470px);
+  }
+
+  .admin-topbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    position: relative;
+    margin: 10px auto 0;
+    left: auto;
+    right: auto;
+    top: auto;
+  }
+
+  .admin-topbar button {
+    width: 100%;
+  }
+}
