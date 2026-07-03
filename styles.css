@@ -2477,8 +2477,13 @@ body.beca-minimal {
 .intro-logo-line {
   position: relative;
   z-index: 2;
-  --beca-shift: clamp(136px, 16vw, 210px);
-  width: min(860px, 92vw);
+  --intro-beca-size: min(315px, 29vw);
+  --intro-wolf-size: min(450px, 39vw);
+  --intro-x-size: clamp(4.4rem, 7.2vw, 6.8rem);
+  --intro-x-gap: clamp(58px, 5vw, 78px);
+  --intro-center-nudge: clamp(12px, 2vw, 26px);
+  --beca-shift: clamp(138px, 15vw, 188px);
+  width: min(980px, 94vw);
   height: 300px;
   transform: translateY(72px);
 }
@@ -2507,10 +2512,10 @@ body.beca-minimal {
 
 .intro-beca-logo {
   position: absolute;
-  left: 50%;
+  left: calc(50% - var(--intro-center-nudge));
   top: 50%;
   z-index: 3;
-  width: min(315px, 29vw);
+  width: var(--intro-beca-size);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.76);
   transform-origin: center;
@@ -2522,11 +2527,11 @@ body.beca-minimal {
 
 .intro-x {
   position: absolute;
-  left: calc(50% - 8px);
+  left: calc(50% - var(--intro-center-nudge));
   top: 50%;
   z-index: 3;
   color: var(--accent);
-  font-size: clamp(4.4rem, 7.2vw, 6.8rem);
+  font-size: var(--intro-x-size);
   font-weight: 950;
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.72);
@@ -2539,10 +2544,10 @@ body.beca-minimal {
 
 .intro-wolfline-logo {
   position: absolute;
-  left: calc(50% + 70px);
+  left: calc(50% + var(--intro-x-gap) - var(--intro-center-nudge));
   top: 50%;
   z-index: 3;
-  width: min(450px, 39vw);
+  width: var(--intro-wolf-size);
   opacity: 0;
   filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.24));
   transform: translate(36px, -50%) scale(0.9);
@@ -5966,5 +5971,85 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
   .admin-topbar button {
     width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .intro-logo-line {
+    --intro-beca-size: clamp(118px, 34vw, 176px);
+    --intro-wolf-size: clamp(168px, 43vw, 236px);
+    --intro-x-size: clamp(2.8rem, 10vw, 4.1rem);
+    --intro-x-gap: clamp(34px, 9vw, 52px);
+    --intro-center-nudge: clamp(4px, 1.5vw, 10px);
+    --beca-shift: clamp(82px, 23vw, 122px);
+    width: min(560px, 96vw);
+    height: 210px;
+    transform: translateY(22px);
+  }
+
+  .intro-beca-logo {
+    width: var(--intro-beca-size);
+  }
+
+  .intro-x {
+    font-size: var(--intro-x-size);
+  }
+
+  .intro-wolfline-logo {
+    width: var(--intro-wolf-size);
+  }
+
+  .intro-logo-line::after {
+    width: min(420px, 82vw);
+  }
+
+  .beca-header {
+    align-items: center;
+    gap: 10px;
+  }
+
+  .beca-logo {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 5px;
+  }
+
+  .beca-logo-img {
+    width: 44px;
+    height: 44px;
+    margin-right: -12px;
+    flex: 0 0 auto;
+  }
+
+  .beca-logo-wolfline {
+    width: clamp(108px, 31vw, 152px);
+    max-width: 34vw;
+    height: 30px;
+    flex: 0 1 auto;
+    object-position: left center;
+  }
+
+  .beca-header-x {
+    margin: 0 -3px;
+    flex: 0 0 auto;
+  }
+
+  .product-detail-viewer model-viewer {
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 420px) {
+  .intro-logo-line {
+    --intro-beca-size: clamp(102px, 31vw, 138px);
+    --intro-wolf-size: clamp(140px, 42vw, 184px);
+    --intro-x-size: clamp(2.45rem, 9vw, 3.4rem);
+    --intro-x-gap: clamp(28px, 8vw, 38px);
+    --beca-shift: clamp(72px, 22vw, 94px);
+  }
+
+  .beca-logo-wolfline {
+    width: clamp(96px, 28vw, 122px);
+    max-width: 31vw;
   }
 }
