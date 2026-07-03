@@ -59,6 +59,9 @@ async function initProductPage() {
 
   if (product.studio?.model) {
     viewer.src = product.studio.model;
+    if (product.imageUrl) {
+      viewer.setAttribute("poster", product.imageUrl);
+    }
     applyProductTexture(viewer, product.studio.textureUrl).catch(() => {});
   }
 
