@@ -74,6 +74,10 @@ function hydrateHeader(user) {
     element.hidden = !user;
   });
 
+  document.querySelectorAll("[data-admin-only]").forEach((element) => {
+    element.hidden = user?.role !== "admin";
+  });
+
   if (!user) return;
 
   if (typeof closeHeroAuth === "function") {
@@ -122,6 +126,10 @@ async function hydrateAccount() {
   });
   slot.querySelectorAll("[data-account-role]").forEach((element) => {
     element.textContent = getDisplayRole(user.role);
+  });
+
+  document.querySelectorAll("[data-admin-only]").forEach((element) => {
+    element.hidden = user.role !== "admin";
   });
 
   slot.querySelectorAll("[data-profile-name]").forEach((element) => {
