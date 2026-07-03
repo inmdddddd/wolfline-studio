@@ -11,7 +11,7 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=mobile-header-3d-1">
+  <link rel="stylesheet" href="styles.css?v=mobile-drawer-1">
   <script>
     if (location.protocol === "file:") {
       location.replace("http://127.0.0.1:4189/");
@@ -91,7 +91,61 @@
         </div>
       </div>
     </nav>
+    <button class="mobile-menu-trigger" type="button" data-mobile-menu-open aria-expanded="false" aria-label="Open menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
   </header>
+
+  <div class="mobile-menu" data-mobile-menu aria-hidden="true">
+    <button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Close menu"></button>
+    <aside class="mobile-menu-panel" aria-label="Mobile menu">
+      <div class="mobile-menu-head">
+        <a class="beca-logo mobile-menu-logo" href="#top" data-mobile-menu-link aria-label="BeCa x Wolfline Studio">
+          <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+          <span class="beca-header-x">x</span>
+          <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+        </a>
+        <button type="button" data-mobile-menu-close aria-label="Close menu" data-i18n="mobile.close">Close</button>
+      </div>
+
+      <div class="mobile-menu-section">
+        <a href="#drop" data-mobile-menu-link data-i18n="nav.drop">Drop</a>
+        <a href="#quality" data-mobile-menu-link data-i18n="nav.quality">Quality</a>
+        <a href="#contact" data-mobile-menu-link data-i18n="nav.contact">Contact</a>
+        <button type="button" data-cart-toggle data-mobile-menu-link data-i18n="cart.title">Cart</button>
+      </div>
+
+      <div class="mobile-menu-section" data-guest-only>
+        <a href="#login" data-auth-open="login" data-mobile-menu-link data-i18n="auth.login.tab">Login</a>
+        <a href="#register" data-auth-open="register" data-mobile-menu-link data-i18n="auth.register.tab">Register</a>
+      </div>
+
+      <div class="mobile-profile-card" data-user-only hidden>
+        <div class="profile-dropdown-head">
+          <span class="profile-avatar" data-user-initial>U</span>
+          <div>
+            <strong data-user-name>Client</strong>
+            <span data-user-email></span>
+          </div>
+        </div>
+        <div class="profile-dropdown-list">
+          <a href="/account.html" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-user.png" alt=""></span>My Profile</a>
+          <a href="/admin/dashboard.html" data-admin-only hidden data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Admin Panel</a>
+          <a href="/account.html#settings" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Settings</a>
+          <a href="/account.html#settings" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-privacy.png" alt=""></span>Privacy & Security</a>
+          <a href="/#contact" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span>Help & Support</a>
+        </div>
+        <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span>Logout</button>
+      </div>
+
+      <div class="mobile-language-row" aria-label="Language">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="ro" aria-pressed="false">RO</button>
+      </div>
+    </aside>
+  </div>
 
   <div class="floating-shop-actions" aria-label="Shop shortcuts">
     <button class="floating-cart-button" type="button" data-cart-toggle aria-expanded="false" aria-label="Open cart">
@@ -282,7 +336,7 @@
   </main>
 
   <script src="locale.js?v=global-i18n-1"></script>
-  <script src="script.js?v=global-i18n-1"></script>
+  <script src="script.js?v=mobile-drawer-1"></script>
   <script src="shop.js?v=global-i18n-1"></script>
   <script src="model-loader.js?v=preopt-visual-1"></script>
   <script src="intro.js?v=profile-menu-1"></script>

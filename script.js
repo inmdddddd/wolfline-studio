@@ -85,6 +85,7 @@ const copy = {
     "cart.phone": "Phone",
     "cart.address": "Address",
     "cart.placeOrder": "Place order",
+    "mobile.close": "Close",
     "quality.kicker": "Quality first",
     "quality.title": "Built to feel good, not just look good.",
     "quality.card1.title": "Clean blanks",
@@ -177,6 +178,7 @@ const copy = {
     "cart.phone": "Telefon",
     "cart.address": "Adresa",
     "cart.placeOrder": "Plaseaza comanda",
+    "mobile.close": "Inchide",
     "quality.kicker": "Calitate prima data",
     "quality.title": "Facute sa se simta bine, nu doar sa arate bine.",
     "quality.card1.title": "Piese curate",
@@ -340,6 +342,27 @@ document.querySelectorAll("[data-auth-tab]").forEach((button) => {
 });
 
 document.querySelector("[data-auth-close]")?.addEventListener("click", closeHeroAuth);
+
+const mobileMenu = document.querySelector("[data-mobile-menu]");
+const mobileMenuOpen = document.querySelector("[data-mobile-menu-open]");
+
+function setMobileMenu(open) {
+  if (!mobileMenu || !mobileMenuOpen) return;
+  document.body.classList.toggle("is-mobile-menu-open", open);
+  mobileMenu.classList.toggle("is-open", open);
+  mobileMenu.setAttribute("aria-hidden", String(!open));
+  mobileMenuOpen.setAttribute("aria-expanded", String(open));
+}
+
+mobileMenuOpen?.addEventListener("click", () => setMobileMenu(true));
+
+document.querySelectorAll("[data-mobile-menu-close], [data-mobile-menu-link]").forEach((element) => {
+  element.addEventListener("click", () => setMobileMenu(false));
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setMobileMenu(false);
+});
 
 if (location.hash === "#login" || location.hash === "#register") {
   window.requestAnimationFrame(() => setHeroAuthMode(location.hash.slice(1)));

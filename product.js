@@ -108,3 +108,24 @@ initProductPage().catch((error) => {
   const message = document.querySelector("[data-product-message]");
   if (message) message.textContent = error.message;
 });
+
+const productMobileMenu = document.querySelector("[data-mobile-menu]");
+const productMobileMenuOpen = document.querySelector("[data-mobile-menu-open]");
+
+function setProductMobileMenu(open) {
+  if (!productMobileMenu || !productMobileMenuOpen) return;
+  document.body.classList.toggle("is-mobile-menu-open", open);
+  productMobileMenu.classList.toggle("is-open", open);
+  productMobileMenu.setAttribute("aria-hidden", String(!open));
+  productMobileMenuOpen.setAttribute("aria-expanded", String(open));
+}
+
+productMobileMenuOpen?.addEventListener("click", () => setProductMobileMenu(true));
+
+document.querySelectorAll("[data-mobile-menu-close], [data-mobile-menu-link]").forEach((element) => {
+  element.addEventListener("click", () => setProductMobileMenu(false));
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setProductMobileMenu(false);
+});

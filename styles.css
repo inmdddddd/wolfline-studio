@@ -2630,6 +2630,11 @@ body.beca-minimal {
   display: flex;
 }
 
+.mobile-menu-trigger,
+.mobile-menu {
+  display: none;
+}
+
 .beca-header::before,
 .beca-header::after {
   clip-path: inset(0 round 24px);
@@ -5975,6 +5980,10 @@ body[data-hero-auth="login"] .beca-hero-copy {
 }
 
 @media (max-width: 760px) {
+  body.is-mobile-menu-open {
+    overflow: hidden;
+  }
+
   .intro-logo-line {
     --intro-beca-size: clamp(118px, 34vw, 176px);
     --intro-wolf-size: clamp(168px, 43vw, 236px);
@@ -6006,6 +6015,195 @@ body[data-hero-auth="login"] .beca-hero-copy {
   .beca-header {
     align-items: center;
     gap: 10px;
+  }
+
+  .beca-header nav {
+    display: none;
+  }
+
+  .mobile-menu-trigger {
+    width: 44px;
+    height: 44px;
+    display: inline-grid;
+    place-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    border: 1px solid rgba(242, 242, 236, 0.2);
+    border-radius: 999px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.04)),
+      rgba(4, 6, 5, 0.58);
+    color: var(--text);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 14px 34px rgba(0, 0, 0, 0.24);
+    cursor: pointer;
+  }
+
+  .mobile-menu-trigger span {
+    width: 18px;
+    height: 2px;
+    display: block;
+    border-radius: 999px;
+    background: var(--text);
+    box-shadow: 0 0 10px rgba(199, 255, 97, 0.12);
+  }
+
+  .mobile-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 180;
+    display: block;
+    pointer-events: none;
+  }
+
+  .mobile-menu.is-open {
+    pointer-events: auto;
+  }
+
+  .mobile-menu-backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: rgba(0, 0, 0, 0.52);
+    opacity: 0;
+    transition: opacity 220ms ease;
+  }
+
+  .mobile-menu.is-open .mobile-menu-backdrop {
+    opacity: 1;
+  }
+
+  .mobile-menu-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: min(350px, calc(100vw - 20px));
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 24px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.045)),
+      rgba(7, 10, 8, 0.9);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 28px 90px rgba(0, 0, 0, 0.48);
+    backdrop-filter: blur(24px) saturate(1.32);
+    -webkit-backdrop-filter: blur(24px) saturate(1.32);
+    opacity: 0;
+    transform: translate3d(22px, 0, 0) scale(0.98);
+    transition: opacity 220ms ease, transform 220ms ease;
+  }
+
+  .mobile-menu.is-open .mobile-menu-panel {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .mobile-menu-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 4px;
+  }
+
+  .mobile-menu-head > button {
+    min-height: 36px;
+    padding: 0 13px;
+    border: 1px solid rgba(242, 242, 236, 0.2);
+    border-radius: 999px;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 950;
+    text-transform: uppercase;
+  }
+
+  .mobile-menu-logo {
+    height: 46px;
+    transform: scale(0.92);
+    transform-origin: left center;
+  }
+
+  .mobile-menu-section,
+  .mobile-profile-card,
+  .mobile-language-row {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.055);
+  }
+
+  .mobile-menu-section[hidden],
+  .mobile-profile-card[hidden] {
+    display: none;
+  }
+
+  .mobile-menu-section a,
+  .mobile-menu-section button,
+  .mobile-profile-card a,
+  .mobile-profile-card button {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border: 1px solid rgba(242, 242, 236, 0.14);
+    border-radius: 999px;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.055);
+    text-decoration: none;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 950;
+    text-transform: uppercase;
+  }
+
+  .mobile-menu-section button {
+    cursor: pointer;
+  }
+
+  .mobile-profile-card {
+    padding: 8px;
+  }
+
+  .mobile-profile-card .profile-dropdown-head {
+    padding: 8px 8px 12px;
+  }
+
+  .mobile-profile-card .profile-dropdown-list {
+    gap: 7px;
+  }
+
+  .mobile-profile-card .profile-logout-row {
+    width: 100%;
+  }
+
+  .mobile-language-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mobile-language-row button {
+    min-height: 38px;
+    border: 0;
+    border-radius: 999px;
+    color: rgba(242, 242, 236, 0.72);
+    background: rgba(255, 255, 255, 0.06);
+    font: inherit;
+    font-weight: 950;
+  }
+
+  .mobile-language-row button[aria-pressed="true"] {
+    color: #10140b;
+    background: var(--accent);
   }
 
   .beca-logo {

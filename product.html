@@ -11,7 +11,7 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=mobile-header-3d-1">
+  <link rel="stylesheet" href="styles.css?v=mobile-drawer-1">
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body class="beca-minimal product-page">
@@ -28,7 +28,56 @@
       <a href="/#quality">Quality</a>
       <a href="/#contact">Contact</a>
     </nav>
+    <button class="mobile-menu-trigger" type="button" data-mobile-menu-open aria-expanded="false" aria-label="Open menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
   </header>
+
+  <div class="mobile-menu" data-mobile-menu aria-hidden="true">
+    <button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Close menu"></button>
+    <aside class="mobile-menu-panel" aria-label="Mobile menu">
+      <div class="mobile-menu-head">
+        <a class="beca-logo mobile-menu-logo" href="/" data-mobile-menu-link aria-label="BeCa x Wolfline Studio">
+          <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+          <span class="beca-header-x">x</span>
+          <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+        </a>
+        <button type="button" data-mobile-menu-close aria-label="Close menu">Close</button>
+      </div>
+
+      <div class="mobile-menu-section">
+        <a href="/#drop" data-mobile-menu-link>Drop</a>
+        <a href="/#quality" data-mobile-menu-link>Quality</a>
+        <a href="/#contact" data-mobile-menu-link>Contact</a>
+        <a href="/" data-mobile-menu-link>Home</a>
+      </div>
+
+      <div class="mobile-menu-section" data-guest-only>
+        <a href="/#login" data-mobile-menu-link>Login</a>
+        <a href="/#register" data-mobile-menu-link>Register</a>
+      </div>
+
+      <div class="mobile-profile-card" data-user-only hidden>
+        <div class="profile-dropdown-head">
+          <span class="profile-avatar" data-user-initial>U</span>
+          <div>
+            <strong data-user-name>Client</strong>
+            <span data-user-email></span>
+          </div>
+        </div>
+        <div class="profile-dropdown-list">
+          <a href="/account.html" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-user.png" alt=""></span>My Profile</a>
+          <a href="/admin/dashboard.html" data-admin-only hidden data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Admin Panel</a>
+          <a href="/account.html#settings" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Settings</a>
+          <a href="/account.html#settings" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-privacy.png" alt=""></span>Privacy & Security</a>
+          <a href="/#contact" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span>Help & Support</a>
+        </div>
+        <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span>Logout</button>
+      </div>
+    </aside>
+  </div>
 
   <main class="product-detail-shell" data-product-page>
     <section class="product-detail-viewer">
@@ -65,7 +114,8 @@
   </main>
 
   <script src="locale.js?v=global-i18n-1"></script>
-  <script src="product.js?v=global-i18n-1"></script>
+  <script src="product.js?v=mobile-drawer-1"></script>
   <script src="security.js?v=profile-menu-1"></script>
+  <script src="auth.js?v=mobile-drawer-1"></script>
 </body>
 </html>
