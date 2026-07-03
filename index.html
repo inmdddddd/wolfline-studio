@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BeCa x Wolfline Studio</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="stylesheet" href="styles.css?v=product-3d-1">
+  <script>
+    if (location.protocol === "file:") {
+      location.replace("http://127.0.0.1:4189/");
+    }
+  </script>
+  <script type="module" src="https://unpkg.com/@splinetool/viewer/build/spline-viewer.js"></script>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body class="beca-minimal">
+  <svg class="glass-filter" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="liquid-glass-refraction">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018 0.045" numOctaves="2" seed="7" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="16" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
+  <div class="beca-intro" id="becaIntro" aria-hidden="true">
+    <div class="intro-logo-line">
+      <img class="intro-beca-logo" src="assets/beca-logo.png" alt="">
+      <span class="intro-x">x</span>
+      <img class="intro-wolfline-logo" src="assets/wolfline-intro-logo.png" alt="">
+    </div>
+    <div class="intro-exit-x" aria-hidden="true">
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <div class="site-scene" aria-hidden="true">
+    <div class="scene-aurora"></div>
+    <div class="scene-particles"></div>
+    <div class="scene-beams"></div>
+    <spline-viewer
+      class="spline-scene"
+      url="https://prod.spline.design/TYyY2u0qmz166kwH/scene.splinecode"
+      loading-anim-type="none"
+    ></spline-viewer>
+  </div>
+
+  <header class="header beca-header">
+    <a class="beca-logo" href="#top" aria-label="BeCa x Wolfline Studio">
+      <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+      <span class="beca-header-x">x</span>
+      <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#drop" data-i18n="nav.drop">Drop</a>
+      <a href="#quality" data-i18n="nav.quality">Quality</a>
+      <a href="#contact" data-i18n="nav.contact">Contact</a>
+      <a href="#login" data-auth-open="login" data-guest-only>Login</a>
+      <div class="profile-menu" data-user-only hidden>
+        <button type="button" class="profile-trigger" data-profile-toggle aria-expanded="false" aria-label="Profile menu">
+          <span data-user-initial>U</span>
+        </button>
+        <div class="profile-dropdown" data-profile-dropdown>
+          <div class="profile-dropdown-head">
+            <span class="profile-avatar" data-user-initial>U</span>
+            <div>
+              <strong data-user-name>Client</strong>
+              <span data-user-email></span>
+            </div>
+          </div>
+          <div class="profile-dropdown-list">
+            <a href="/account.html"><span class="profile-row-icon"><img src="assets/icon-user.png" alt=""></span>My Profile</a>
+            <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Settings</a>
+            <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-privacy.png" alt=""></span>Privacy & Security</a>
+            <a href="/#contact"><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span>Help & Support</a>
+          </div>
+          <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span>Logout</button>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <div class="floating-shop-actions" aria-label="Shop shortcuts">
+    <button class="floating-cart-button" type="button" data-cart-toggle aria-expanded="false" aria-label="Open cart">
+      <span>Cart</span>
+      <strong data-cart-count>0 pieces</strong>
+      <em data-cart-total>GBP 0.00</em>
+    </button>
+    <div class="language-switch" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="ro" aria-pressed="false">RO</button>
+    </div>
+  </div>
+
+  <div class="cart-drawer" data-cart-drawer aria-hidden="true">
+    <button class="cart-drawer-backdrop" type="button" data-cart-close aria-label="Close cart"></button>
+    <aside class="cart-panel cart-drawer-panel" aria-label="Cart">
+      <div class="cart-head">
+        <div>
+          <p>Cart</p>
+          <h3 data-cart-count>0 pieces</h3>
+        </div>
+        <button class="cart-close" type="button" data-cart-close aria-label="Close cart">Close</button>
+        <strong data-cart-total>GBP 0.00</strong>
+      </div>
+      <div class="cart-items" data-cart-items>
+        <span class="cart-empty">No pieces selected yet.</span>
+      </div>
+      <form class="checkout-form" data-checkout-form>
+        <label>Name<input name="customerName" autocomplete="name" required></label>
+        <label>Email<input name="customerEmail" type="email" autocomplete="email" required></label>
+        <label>Phone<input name="customerPhone" autocomplete="tel" required></label>
+        <label>Address<textarea name="customerAddress" rows="3" required></textarea></label>
+        <button type="submit">Place order</button>
+        <span class="form-message" data-checkout-message></span>
+      </form>
+    </aside>
+  </div>
+
+  <main id="top">
+    <section class="beca-hero" aria-label="Hero with 3D shirt">
+      <div class="beca-hero-copy" id="heroAccess">
+        <div class="hero-copy-view is-active" data-hero-view="intro">
+          <p class="beca-kicker" data-i18n="hero.kicker">Fresh drops / limited pieces</p>
+          <h1 data-i18n="hero.title">Fresh graphics on clean everyday silhouettes.</h1>
+          <p data-i18n="hero.body">Limited clothing and accessories built around sharp prints, strong contrast and a premium streetwear feel. Explore the 3D tee, then move into the latest drop.</p>
+          <div class="beca-actions">
+            <a href="#drop" data-i18n="hero.primary">Explore latest pieces</a>
+            <a href="#register" data-auth-open="register" data-guest-only data-i18n="hero.secondary">Register</a>
+            <a href="/account.html" data-user-only hidden data-i18n="hero.account">My account</a>
+          </div>
+        </div>
+
+        <div class="hero-auth-view" data-hero-view="auth" aria-hidden="true">
+          <div class="hero-auth-top">
+            <button type="button" data-auth-close data-i18n="auth.back">Back</button>
+            <div class="hero-auth-tabs" aria-label="Account forms">
+              <button type="button" data-auth-tab="login" data-i18n="auth.login.tab">Login</button>
+              <button type="button" data-auth-tab="register" data-i18n="auth.register.tab">Register</button>
+            </div>
+          </div>
+
+          <form id="login" class="hero-auth-form is-active" action="/auth/login" method="post" data-auth-form data-auth-panel="login">
+            <p class="beca-kicker" data-i18n="auth.login.kicker">Client access</p>
+            <h2 data-i18n="auth.login.title">Login for drop access.</h2>
+            <label>
+              <span data-i18n="auth.email">Email</span>
+              <input name="email" type="email" autocomplete="email" required>
+            </label>
+            <label>
+              <span data-i18n="auth.password">Password</span>
+              <input name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <button type="submit" data-i18n="auth.login.button">Login</button>
+            <span class="form-message" data-form-message></span>
+          </form>
+
+          <form id="register" class="hero-auth-form" action="/auth/register" method="post" data-auth-form data-auth-panel="register">
+            <p class="beca-kicker" data-i18n="auth.register.kicker">Fresh drop account</p>
+            <h2 data-i18n="auth.register.title">Register for early access.</h2>
+            <label>
+              <span data-i18n="auth.name">Name</span>
+              <input name="name" type="text" autocomplete="name" minlength="2" required>
+            </label>
+            <label>
+              <span data-i18n="auth.email">Email</span>
+              <input name="email" type="email" autocomplete="email" required>
+            </label>
+            <label>
+              <span data-i18n="auth.password">Password</span>
+              <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+            </label>
+            <button type="submit" data-i18n="auth.register.button">Create account</button>
+            <span class="form-message" data-form-message></span>
+          </form>
+        </div>
+      </div>
+      <div class="beca-shirt-stage">
+        <div class="shirt-scene" id="shirtScene">
+          <model-viewer
+            class="floating-shirt"
+            id="tshirtViewer"
+            src="assets/models/tshirt-web.glb"
+            alt="Tricou 3D"
+            camera-orbit="0deg 82deg 1.35m"
+            min-camera-orbit="auto 82deg 1.35m"
+            max-camera-orbit="auto 82deg 1.35m"
+            min-field-of-view="20deg"
+            max-field-of-view="20deg"
+            auto-rotate
+            rotation-per-second="24deg"
+            shadow-intensity="0.85"
+            exposure="1.2"
+            interaction-prompt="none">
+          </model-viewer>
+          <div class="shirt-drag-layer" id="shirtDragLayer" aria-label="Rotate 3D shirt" role="button" tabindex="0"></div>
+          <div class="model-loader">
+            <div class="loader-ring" style="--progress: 0%">
+              <span id="modelProgress">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="brand-section quality-section" id="quality" aria-label="Quality">
+      <div class="section-heading">
+        <p data-i18n="quality.kicker">Quality first</p>
+        <h2 data-i18n="quality.title">Built to feel good, not just look good.</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <span>01</span>
+          <h3 data-i18n="quality.card1.title">Clean blanks</h3>
+          <p data-i18n="quality.card1.body">Soft, structured pieces chosen for daily wear, layering and a stronger fit on body.</p>
+        </article>
+        <article class="feature-card">
+          <span>02</span>
+          <h3 data-i18n="quality.card2.title">Print focus</h3>
+          <p data-i18n="quality.card2.body">Graphics are treated as the main object: balanced placement, sharp contrast and clear visual rhythm.</p>
+        </article>
+        <article class="feature-card">
+          <span>03</span>
+          <h3 data-i18n="quality.card3.title">Limited runs</h3>
+          <p data-i18n="quality.card3.body">Drops stay tight, so each release feels intentional instead of mass-produced.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="brand-section design-section" id="design" aria-label="Fresh design">
+      <div class="design-copy">
+        <p data-i18n="design.kicker">Design direction</p>
+        <h2 data-i18n="design.title">New graphics, darker energy, wearable pieces.</h2>
+        <p data-i18n="design.body">Each release starts from a visual idea: symbol, mood, typography or texture. The goal is simple: pieces that feel fresh on launch day and still work months later.</p>
+      </div>
+      <div class="design-notes">
+        <div>
+          <strong data-i18n="design.note1.title">Fresh visuals</strong>
+          <span data-i18n="design.note1.body">Original artwork and print concepts for every drop.</span>
+        </div>
+        <div>
+          <strong data-i18n="design.note2.title">Easy styling</strong>
+          <span data-i18n="design.note2.body">Built around black, white and accent graphics that fit real outfits.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="brand-section drop-section" id="drop" aria-label="Latest drop">
+      <div class="section-heading">
+        <p data-i18n="drop.kicker">Latest drop</p>
+        <h2 data-i18n="drop.title">Preview the next release.</h2>
+      </div>
+      <div class="shop-layout">
+        <div class="drop-strip product-grid" data-product-grid>
+          <article class="shop-loading">
+            <span>Loading</span>
+            <h3>Fetching latest pieces.</h3>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="brand-section contact-section" id="contact" aria-label="Contact">
+      <p data-i18n="contact.kicker">Stay close</p>
+      <h2 data-i18n="contact.title">First look, early access, limited quantities.</h2>
+      <a href="#register" data-auth-open="register" data-guest-only data-i18n="contact.button">Register for drop access</a>
+      <a href="/account.html" data-user-only hidden data-i18n="contact.account">Open my account</a>
+    </section>
+  </main>
+
+  <script src="script.js?v=product-3d-1"></script>
+  <script src="shop.js?v=matte-products-1"></script>
+  <script src="model-loader.js?v=preopt-visual-1"></script>
+  <script src="intro.js?v=profile-menu-1"></script>
+  <script src="auth.js?v=profile-icons-1"></script>
+  <script src="security.js?v=profile-menu-1"></script>
+</body>
+</html>

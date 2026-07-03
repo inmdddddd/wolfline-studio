@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Product / BeCa x Wolfline Studio</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="stylesheet" href="styles.css?v=product-detail-large-1">
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body class="beca-minimal product-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <header class="header beca-header">
+    <a class="beca-logo" href="/" aria-label="BeCa x Wolfline Studio">
+      <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+      <span class="beca-header-x">x</span>
+      <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+    </a>
+    <nav aria-label="Product navigation">
+      <a href="/#drop">Drop</a>
+      <a href="/#quality">Quality</a>
+      <a href="/#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main class="product-detail-shell" data-product-page>
+    <section class="product-detail-viewer">
+      <model-viewer
+        data-product-viewer
+        src="assets/models/tshirt-web.glb"
+        alt="Product 3D"
+        camera-orbit="180deg 82deg 0.98m"
+        min-camera-orbit="-180deg 82deg 0.98m"
+        max-camera-orbit="180deg 82deg 0.98m"
+        field-of-view="18deg"
+        min-field-of-view="18deg"
+        max-field-of-view="18deg"
+        camera-controls
+        auto-rotate
+        rotation-per-second="18deg"
+        interaction-prompt="none"
+        shadow-intensity="1"
+        exposure="0.92">
+      </model-viewer>
+    </section>
+    <section class="product-detail-info">
+      <p data-product-category>Loading</p>
+      <h1 data-product-name>Loading product.</h1>
+      <strong data-product-price>GBP 0.00</strong>
+      <p data-product-description></p>
+      <div class="product-specs" data-product-sizes></div>
+      <button type="button" data-product-add>Add to cart</button>
+      <span class="form-message" data-product-message></span>
+    </section>
+  </main>
+
+  <script src="product.js?v=matte-product-1"></script>
+  <script src="security.js?v=profile-menu-1"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+node_modules/
+npm-debug.log*
+.env
+.env.*
+tmp/
+data/sessions.json
+data/carts.json
+data/orders.json
+assets/models/tshirt-fbx/
+assets/models/tshirt-obj/
+assets/models/tshirt-texture/
+assets/models/tshirt-uvmap/
+assets/models/tshirt-render.blend
+assets/models/tshirt.glb
+assets/models/tshirt-hero.glb

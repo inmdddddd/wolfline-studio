@@ -1,0 +1,332 @@
+[
+  {
+    "id": "b033f459-657d-4a96-bc41-75ff57d7bc04",
+    "slug": "wlf-golden-hour-dark",
+    "name": "WLF // GOLDEN HOUR DARK",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-b7c4a59d-2422-471f-9c19-15214faece80.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "Capturing the fleeting warmth of the golden hour. The GOLDEN HOUR tee blends delicate floral imagery with sharp, astral geometry, creating a piece that feels both grounded and celestial. Designed to bring light into the everyday, this is wearable art for those who gravitate toward the sun.",
+    "updatedAt": "2026-07-03T20:41:41.614Z",
+    "createdAt": "2026-07-03T20:41:41.614Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-515a8247-3f32-4a1d-b91e-7d1acfc4b1ba.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "0fc08b4d-d836-4293-9e22-232827231a24",
+    "slug": "wlf-golden-hour-white",
+    "name": "WLF // GOLDEN HOUR WHITE",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-b1015f4a-0cad-4dc0-a3f9-ef12959d6a76.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "Capturing the fleeting warmth of the golden hour. The GOLDEN HOUR tee blends delicate floral imagery with sharp, astral geometry, creating a piece that feels both grounded and celestial. Designed to bring light into the everyday, this is wearable art for those who gravitate toward the sun.",
+    "updatedAt": "2026-07-03T20:40:53.602Z",
+    "createdAt": "2026-07-03T20:40:53.602Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-3bff5fc9-f26e-4c2a-8696-c52666ed2a32.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "740be687-e1e0-401a-afee-9f0161a41859",
+    "slug": "wlf-aura-bloom-white",
+    "name": "WLF // AURA BLOOM WHITE",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-d0f8723c-8500-4416-a5e5-a8e0fa8762aa.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "Where celestial geometry meets the organic beauty of nature. The AURA BLOOM tee is a fusion of ethereal aesthetics and modern design, crafted for those who embrace growth and luminosity. A sophisticated statement piece that bridges the gap between the structured and the untamed.",
+    "updatedAt": "2026-07-03T20:28:52.780Z",
+    "createdAt": "2026-07-03T20:28:52.780Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-5759f521-846d-4f50-80cc-273f306a0c5c.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "ffd4d20f-591a-4241-bdbb-db1588a378aa",
+    "slug": "wlf-aura-bloom-dark",
+    "name": "WLF // AURA BLOOM DARK",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-f4f56c9f-e40c-46b8-b5fd-fdc611839041.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "Where celestial geometry meets the organic beauty of nature. The AURA BLOOM tee is a fusion of ethereal aesthetics and modern design, crafted for those who embrace growth and luminosity. A sophisticated statement piece that bridges the gap between the structured and the untamed.",
+    "updatedAt": "2026-07-03T20:29:07.290Z",
+    "createdAt": "2026-07-03T20:28:07.147Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-43640a68-6781-4225-aa13-c91e1ccd3422.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "f6d85ad4-022f-42e3-ad8c-5973751f1bd6",
+    "slug": "wlf-studio-white",
+    "name": "WLF // STUDIO WHITE",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-7a284729-8700-43d1-bdb0-edca49c001ce.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "An exploration of form and frequency. The STUDIO DRAFT tee breaks the conventional layout with bold vertical typography and sharp geometric wolf motifs. It’s a piece designed for those who view fashion as a blueprint—constructed with precision, worn with intent.",
+    "updatedAt": "2026-07-03T19:26:57.178Z",
+    "createdAt": "2026-07-03T19:26:00.304Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-6b134f4a-753a-49f0-8662-5a713458f7fc.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "66355858-9ec1-4c78-9a23-20ee0eb3d849",
+    "slug": "wlf-studio-dark",
+    "name": "WLF // STUDIO DARK",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-48c1df8f-19cf-4601-aad0-69e778487f57.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "An exploration of form and frequency. The STUDIO DRAFT tee breaks the conventional layout with bold vertical typography and sharp geometric wolf motifs. It’s a piece designed for those who view fashion as a blueprint—constructed with precision, worn with intent.",
+    "updatedAt": "2026-07-03T19:26:24.796Z",
+    "createdAt": "2026-07-03T19:25:19.522Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-8a96f1e9-0166-4bf4-9dc7-4148caf29a78.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "54738388-ac29-4b40-9d71-746055c6caf8",
+    "slug": "wlf-lonely-mode-white",
+    "name": "WLF // LONELY MODE WHITE",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-6f4118cb-b91f-4bc2-9ecc-f68ec122f6a2.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "In a world that never stops connecting, sometimes the only clear signal is the one you find within. The LONELY MODE tee is a meditation on digital isolation, featuring fluid geometric lines and a clean, brutalist aesthetic. Engineered for the observer, the coder, and the creator who operates on their own frequency",
+    "updatedAt": "2026-07-03T19:26:28.044Z",
+    "createdAt": "2026-07-03T19:17:55.139Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-dcab04c8-95ee-44b6-8503-fd81517cb115.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "93f3c857-7973-4803-8c2f-165c11766e69",
+    "slug": "wlf-lonely-mode-dark",
+    "name": "WLF // LONELY MODE DARK",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-c4fbfe76-5942-4448-a33e-2bf9d9cb2e98.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "In a world that never stops connecting, sometimes the only clear signal is the one you find within. The LONELY MODE tee is a meditation on digital isolation, featuring fluid geometric lines and a clean, brutalist aesthetic. Engineered for the observer, the coder, and the creator who operates on their own frequency",
+    "updatedAt": "2026-07-03T19:26:30.536Z",
+    "createdAt": "2026-07-03T19:06:22.640Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-a3c184a0-ae16-41aa-8341-639ba7c11fb6.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "7bf29d2d-87c1-4a57-8fba-6c37fae3ea84",
+    "slug": "wlf-instinct-dark",
+    "name": "WLF // INSTINCT DARK",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-3f8bed59-327c-4339-a6bc-45159f23150c.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "The blank canvas of the digital age. Featuring the signature Wolfline Studio branding and geometric precision, this piece is a testament to minimalist design. Crisp, clean, and engineered for those who value clarity in a world of noise.",
+    "updatedAt": "2026-07-03T19:26:33.306Z",
+    "createdAt": "2026-07-03T19:04:32.830Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-d5f0a052-e25b-49c3-aa86-648651d87a06.png",
+      "shirtColor": "#ffffff"
+    }
+  },
+  {
+    "id": "d6bc2fa4-a75a-4780-9674-1e91e01dd4d3",
+    "slug": "wlf-instinct-white",
+    "name": "WLF // INSTINCT WHITE",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/products/studio-product-3c742e6b-78ce-4138-8547-93f23936c3e5.jpg",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "color": "",
+    "description": "The white canvas of the digital age. Featuring the signature Wolfline Studio branding and geometric precision, this piece is a testament to minimalist design. Crisp, clean, and engineered for those who value clarity in a world of noise.",
+    "updatedAt": "2026-07-03T19:26:36.601Z",
+    "createdAt": "2026-07-03T18:59:29.577Z",
+    "studio": {
+      "model": "assets/models/tshirt-web.glb",
+      "print": {
+        "x": 0,
+        "y": 0,
+        "scale": 360,
+        "rotation": 0,
+        "opacity": 1
+      },
+      "textureUrl": "assets/products/studio-texture-eac9bb14-1399-4dc8-b1f6-7335072bae79.png",
+      "shirtColor": "#ffffff"
+    }
+  }
+]

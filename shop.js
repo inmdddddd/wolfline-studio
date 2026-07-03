@@ -1,0 +1,292 @@
+function shopMoney(value, currency = "GBP") {
+  return `${currency} ${Number(value || 0).toFixed(2)}`;
+}
+
+async function applyModelViewerTexture(viewer, textureUrl) {
+  if (!viewer || !textureUrl) return;
+
+  async function apply() {
+    if (!viewer.model) return;
+    const texture = await viewer.createTexture(textureUrl);
+    viewer.model.materials.forEach((material) => {
+      material.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
+      material.pbrMetallicRoughness.setBaseColorFactor([0.94, 0.94, 0.9, 1]);
+      material.pbrMetallicRoughness.setMetallicFactor?.(0);
+      material.pbrMetallicRoughness.setRoughnessFactor?.(0.98);
+    });
+  }
+
+  if (viewer.model) {
+    apply().catch(() => {});
+  } else {
+    viewer.addEventListener("load", () => apply().catch(() => {}), { once: true });
+  }
+}
+
+async function shopRequest(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    ...options
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.error || "Request failed.");
+  }
+
+  return payload;
+}
+
+function renderProducts(products = []) {
+  const grid = document.querySelector("[data-product-grid]");
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  if (!products.length) {
+    const empty = document.createElement("article");
+    empty.className = "shop-loading";
+    empty.innerHTML = "<span>Drop</span><h3>No live pieces yet.</h3>";
+    grid.appendChild(empty);
+    return;
+  }
+
+  products.forEach((product) => {
+    const card = document.createElement("article");
+    const media = document.createElement("div");
+    const meta = document.createElement("span");
+    const title = document.createElement("h3");
+    const description = document.createElement("p");
+    const specs = document.createElement("div");
+    const footer = document.createElement("div");
+    const price = document.createElement("strong");
+    const button = document.createElement("button");
+
+    card.className = "product-card";
+    media.className = "product-media";
+
+    if (product.studio?.model) {
+      const viewer = document.createElement("model-viewer");
+      viewer.src = product.studio.model;
+      viewer.alt = product.name;
+      viewer.setAttribute("camera-orbit", "180deg 82deg 1.05m");
+      viewer.setAttribute("min-camera-orbit", "auto 82deg 1.05m");
+      viewer.setAttribute("max-camera-orbit", "auto 82deg 1.05m");
+      viewer.setAttribute("field-of-view", "19deg");
+      viewer.setAttribute("min-field-of-view", "19deg");
+      viewer.setAttribute("max-field-of-view", "19deg");
+      viewer.setAttribute("auto-rotate", "");
+      viewer.setAttribute("rotation-per-second", "18deg");
+      viewer.setAttribute("interaction-prompt", "none");
+      viewer.setAttribute("shadow-intensity", "0.95");
+      viewer.setAttribute("exposure", "0.92");
+      media.appendChild(viewer);
+      applyModelViewerTexture(viewer, product.studio.textureUrl);
+    } else if (product.imageUrl) {
+      const image = document.createElement("img");
+      image.src = product.imageUrl;
+      image.alt = product.name;
+      media.appendChild(image);
+    } else {
+      media.textContent = product.category || "Drop";
+    }
+
+    meta.textContent = `${product.category || "Piece"} / ${product.stock > 0 ? `${product.stock} left` : "sold out"}`;
+    title.textContent = product.name;
+    title.addEventListener("click", () => {
+      location.href = `/product.html?slug=${encodeURIComponent(product.slug || product.id)}`;
+    });
+    media.addEventListener("click", () => {
+      location.href = `/product.html?slug=${encodeURIComponent(product.slug || product.id)}`;
+    });
+    description.textContent = product.description || "Limited piece from the latest drop.";
+    specs.className = "product-specs";
+    if (product.color) {
+      const color = document.createElement("span");
+      color.textContent = product.color;
+      specs.appendChild(color);
+    }
+    (product.sizes || []).forEach((size) => {
+      const chip = document.createElement("span");
+      chip.textContent = size;
+      specs.appendChild(chip);
+    });
+    price.textContent = shopMoney(product.price, product.currency);
+    button.type = "button";
+    button.dataset.addToCart = product.id;
+    button.disabled = product.stock <= 0;
+    button.textContent = product.stock > 0 ? "Add to cart" : "Sold out";
+
+    footer.className = "product-card-footer";
+    footer.append(price, button);
+    card.append(media, meta, title, description, specs, footer);
+    grid.appendChild(card);
+  });
+}
+
+function renderCart(cart) {
+  const counts = document.querySelectorAll("[data-cart-count]");
+  const totals = document.querySelectorAll("[data-cart-total]");
+  const list = document.querySelector("[data-cart-items]");
+
+  if (!counts.length || !totals.length || !list) return;
+
+  counts.forEach((count) => {
+    count.textContent = `${cart.count || 0} ${cart.count === 1 ? "piece" : "pieces"}`;
+  });
+  totals.forEach((total) => {
+    total.textContent = shopMoney(cart.total, cart.currency);
+  });
+  list.innerHTML = "";
+
+  if (!cart.items.length) {
+    const empty = document.createElement("span");
+    empty.className = "cart-empty";
+    empty.textContent = "No pieces selected yet.";
+    list.appendChild(empty);
+    return;
+  }
+
+  cart.items.forEach((item) => {
+    const row = document.createElement("div");
+    const info = document.createElement("div");
+    const title = document.createElement("strong");
+    const meta = document.createElement("span");
+    const controls = document.createElement("div");
+    const qty = document.createElement("input");
+    const remove = document.createElement("button");
+
+    row.className = "cart-row";
+    title.textContent = item.product.name;
+    meta.textContent = `${item.qty} x ${shopMoney(item.product.price, item.product.currency)}`;
+    qty.type = "number";
+    qty.min = "1";
+    qty.max = String(Math.max(1, item.product.stock));
+    qty.value = item.qty;
+    qty.dataset.cartQty = item.product.id;
+    remove.type = "button";
+    remove.dataset.removeCart = item.product.id;
+    remove.textContent = "Remove";
+
+    info.append(title, meta);
+    controls.append(qty, remove);
+    row.append(info, controls);
+    list.appendChild(row);
+  });
+}
+
+function setCartDrawer(open) {
+  const drawer = document.querySelector("[data-cart-drawer]");
+  const toggle = document.querySelector("[data-cart-toggle]");
+  if (!drawer || !toggle) return;
+
+  drawer.classList.toggle("is-open", open);
+  drawer.setAttribute("aria-hidden", String(!open));
+  toggle.setAttribute("aria-expanded", String(open));
+}
+
+async function loadShop() {
+  const [{ products }, { cart }] = await Promise.all([
+    shopRequest("/api/products"),
+    shopRequest("/api/cart")
+  ]);
+
+  renderProducts(products);
+  renderCart(cart);
+}
+
+async function hydrateCheckoutFromUser() {
+  const form = document.querySelector("[data-checkout-form]");
+  if (!form) return;
+
+  const { user } = await shopRequest("/api/me");
+  if (!user) return;
+
+  if (!form.elements.customerName.value) form.elements.customerName.value = user.name || "";
+  if (!form.elements.customerEmail.value) form.elements.customerEmail.value = user.email || "";
+}
+
+document.addEventListener("click", async (event) => {
+  const addButton = event.target.closest("[data-add-to-cart]");
+  const removeButton = event.target.closest("[data-remove-cart]");
+  const cartToggle = event.target.closest("[data-cart-toggle]");
+  const cartClose = event.target.closest("[data-cart-close]");
+
+  try {
+    if (cartToggle) {
+      setCartDrawer(true);
+    }
+
+    if (cartClose) {
+      setCartDrawer(false);
+    }
+
+    if (addButton) {
+      addButton.disabled = true;
+      const { cart } = await shopRequest("/api/cart/add", {
+        method: "POST",
+        body: JSON.stringify({ productId: addButton.dataset.addToCart, qty: 1 })
+      });
+      renderCart(cart);
+      setCartDrawer(true);
+      addButton.disabled = false;
+    }
+
+    if (removeButton) {
+      const { cart } = await shopRequest(`/api/cart/items/${removeButton.dataset.removeCart}`, {
+        method: "DELETE",
+        body: "{}"
+      });
+      renderCart(cart);
+    }
+  } catch (error) {
+    const message = document.querySelector("[data-checkout-message]");
+    if (message) message.textContent = error.message;
+    if (addButton) addButton.disabled = false;
+  }
+});
+
+document.addEventListener("change", async (event) => {
+  const qty = event.target.closest("[data-cart-qty]");
+  if (!qty) return;
+
+  const { cart } = await shopRequest(`/api/cart/items/${qty.dataset.cartQty}`, {
+    method: "PUT",
+    body: JSON.stringify({ qty: qty.value })
+  });
+  renderCart(cart);
+});
+
+document.querySelector("[data-checkout-form]")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = form.querySelector("[data-checkout-message]");
+  const button = form.querySelector("button");
+  const data = Object.fromEntries(new FormData(form).entries());
+
+  message.dataset.type = "info";
+  message.textContent = "Sending order...";
+  button.disabled = true;
+
+  try {
+    const { order, cart } = await shopRequest("/api/checkout", {
+      method: "POST",
+      body: JSON.stringify(data)
+    });
+    message.dataset.type = "success";
+    message.textContent = `Order ${order.number} received.`;
+    renderCart(cart);
+    await loadShop();
+  } catch (error) {
+    message.dataset.type = "";
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+loadShop().catch(() => {
+  const grid = document.querySelector("[data-product-grid]");
+  if (grid) grid.innerHTML = "<article class=\"shop-loading\"><span>Drop</span><h3>Products could not load.</h3></article>";
+});
+hydrateCheckoutFromUser().catch(() => {});

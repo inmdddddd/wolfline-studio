@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 980">
+  <defs>
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f0e2ce"/>
+      <stop offset="1" stop-color="#b78d67"/>
+    </linearGradient>
+    <linearGradient id="fit" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#1b1b1b"/>
+      <stop offset=".55" stop-color="#bc2631"/>
+      <stop offset="1" stop-color="#0b0b0b"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="350" cy="924" rx="184" ry="34" fill="#000" opacity=".28"/>
+  <circle cx="350" cy="116" r="64" fill="url(#skin)"/>
+  <path d="M280 184c46 38 94 38 140 0l54 46-42 108H268l-42-108z" fill="#111"/>
+  <path d="M226 230c-64 58-92 158-84 300 4 68 32 114 84 138l34-82c-28-34-36-84-24-150l36-142z" fill="url(#fit)"/>
+  <path d="M474 230c64 58 92 158 84 300-4 68-32 114-84 138l-34-82c28-34 36-84 24-150l-36-142z" fill="url(#fit)"/>
+  <path d="M258 300h184l54 320-78 36H282l-78-36z" fill="url(#fit)"/>
+  <path d="M286 304c24 108 24 224 0 348M414 304c-24 108-24 224 0 348" fill="none" stroke="#d7ff42" stroke-width="12" opacity=".9"/>
+  <path d="M290 652h120l42 238h-86l-18-134-18 134h-86z" fill="#111"/>
+  <path d="M232 884h126v38H214c-12-18-6-30 18-38zM468 884H342v38h144c12-18 6-30-18-38z" fill="#f4f1eb"/>
+  <path d="M254 386h192" stroke="#fff" stroke-width="10" opacity=".5"/>
+  <circle cx="350" cy="430" r="34" fill="#d7ff42"/>
+  <text x="350" y="443" text-anchor="middle" font-family="Arial" font-size="34" font-weight="800" fill="#070707">MV</text>
+</svg>

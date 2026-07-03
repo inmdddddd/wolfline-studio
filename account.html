@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Account / BeCa</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="stylesheet" href="styles.css?v=profile-dropdown-1">
+</head>
+<body class="beca-minimal account-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <div class="site-scene" aria-hidden="true">
+    <div class="scene-aurora"></div>
+    <div class="scene-particles"></div>
+    <div class="scene-beams"></div>
+  </div>
+
+  <header class="account-topbar">
+    <a class="auth-brand" href="/">
+      <img src="assets/beca-logo.png" alt="">
+      <span>x</span>
+      <img src="assets/wolfline-intro-logo.png" alt="">
+    </a>
+    <div class="account-topbar-actions">
+      <a class="account-home-link" href="/">Home</a>
+      <button type="button" data-logout>Logout</button>
+    </div>
+  </header>
+
+  <main class="account-shell" data-account>
+    <section class="account-hero-card">
+      <div>
+        <p>Customer area</p>
+        <h1>Welcome back, <span data-account-name>Loading...</span>.</h1>
+        <p class="account-lead">Your place for early access, private drop notes and reserved pieces before they go public.</p>
+      </div>
+      <div class="member-chip">
+        <span>Member status</span>
+        <strong><span data-account-role>customer</span><img class="member-diamond" src="assets/diamond.png" alt=""></strong>
+      </div>
+    </section>
+
+    <section class="account-grid">
+      <article class="account-panel account-profile">
+        <p>Profile</p>
+        <dl>
+          <div>
+            <dt>Email</dt>
+            <dd data-account-email></dd>
+          </div>
+          <div>
+            <dt>Access</dt>
+            <dd>Early drop list</dd>
+          </div>
+          <div>
+            <dt>Preference</dt>
+            <dd>Graphic tees / accessories</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="account-panel account-settings" id="settings">
+        <p>Settings</p>
+        <h2>Profile details</h2>
+        <form action="/api/profile" data-settings-form>
+          <label>
+            Name
+            <input name="name" data-profile-name autocomplete="name" required>
+          </label>
+          <label>
+            Email
+            <input name="email" type="email" data-profile-email autocomplete="email" required>
+          </label>
+          <button type="submit">Save profile</button>
+          <span class="form-message" data-form-message></span>
+        </form>
+      </article>
+
+      <article class="account-panel account-settings">
+        <p>Security</p>
+        <h2>Password</h2>
+        <form action="/api/profile/password" data-settings-form>
+          <label>
+            Current password
+            <input name="currentPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <label>
+            New password
+            <input name="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+          </label>
+          <button type="submit">Update password</button>
+          <span class="form-message" data-form-message></span>
+        </form>
+      </article>
+
+      <article class="account-panel account-drop-card">
+        <p>Next drop</p>
+        <h2>Oversized statement tee</h2>
+        <span class="drop-status">Preview unlocked</span>
+        <p>Fresh graphic direction, limited quantity and first access before the public launch.</p>
+        <a href="/#drop">View drop preview</a>
+      </article>
+
+      <article class="account-panel account-perks">
+        <p>Member perks</p>
+        <ul>
+          <li><strong>01</strong><span>Early access before public release.</span></li>
+          <li><strong>02</strong><span>Private notes about fit, fabric and print direction.</span></li>
+          <li><strong>03</strong><span>Priority for limited pieces when stock is low.</span></li>
+        </ul>
+      </article>
+
+      <article class="account-panel account-timeline">
+        <p>Activity</p>
+        <div>
+          <span>Account created</span>
+          <strong>Active customer profile</strong>
+        </div>
+        <div>
+          <span>Next step</span>
+          <strong>Watch the upcoming drop</strong>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="security.js?v=profile-menu-1"></script>
+  <script src="script.js?v=profile-menu-1"></script>
+  <script src="auth.js?v=profile-dropdown-1"></script>
+</body>
+</html>

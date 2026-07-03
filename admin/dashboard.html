@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard / BeCa</title>
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <link rel="stylesheet" href="../styles.css?v=product-3d-1">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.172.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body class="beca-minimal admin-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <header class="admin-topbar">
+    <a class="auth-brand" href="/">
+      <img src="../assets/beca-logo.png" alt="">
+      <span>x</span>
+      <img src="../assets/wolfline-intro-logo.png" alt="">
+    </a>
+    <button type="button" data-logout>Logout</button>
+  </header>
+
+  <main class="admin-shell admin-app-shell">
+    <aside class="admin-sidebar" aria-label="Admin sections">
+      <p>Admin</p>
+      <h1>Drop control.</h1>
+      <nav class="admin-side-nav">
+        <button type="button" class="is-active" data-admin-tab="overview">Overview</button>
+        <button type="button" data-admin-tab="studio">3D Studio</button>
+        <button type="button" data-admin-tab="products">Products</button>
+        <button type="button" data-admin-tab="add-product">Add product</button>
+        <button type="button" data-admin-tab="customers">Customers</button>
+        <button type="button" data-admin-tab="orders">Orders</button>
+      </nav>
+    </aside>
+
+    <section class="admin-workspace">
+      <div class="admin-panel admin-view is-active" data-admin-view="overview">
+        <p>Overview</p>
+        <div class="admin-metrics">
+          <article><span data-summary-users>0</span><p>Users</p></article>
+          <article><span data-summary-products>0</span><p>Products</p></article>
+          <article><span data-summary-live>0</span><p>Live</p></article>
+          <article><span data-summary-orders>0</span><p>Orders</p></article>
+        </div>
+        <div class="admin-note-grid">
+          <article>
+            <strong>Next focus</strong>
+            <span>Build the first product drop and connect it to homepage previews.</span>
+          </article>
+          <article>
+            <strong>Store state</strong>
+            <span>Products, customers and orders are stored locally for this prototype.</span>
+          </article>
+        </div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="products">
+        <div class="admin-view-head">
+          <div>
+            <p>Products</p>
+            <h2>Manage the drop.</h2>
+          </div>
+          <button type="button" data-admin-tab-target="add-product">Add product</button>
+        </div>
+        <div class="admin-products" data-products></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="studio">
+        <div class="admin-view-head">
+          <div>
+            <p>3D Studio</p>
+            <h2>Build a tee from a print.</h2>
+          </div>
+        </div>
+        <div class="studio-shell">
+          <div class="studio-viewer-card">
+            <div class="studio-viewer" id="studioViewer" data-model="../assets/models/tshirt-web.glb">
+              <span class="studio-loader">Loading 3D tee...</span>
+            </div>
+          </div>
+          <form class="studio-controls" data-studio-form>
+            <div class="admin-form-grid">
+              <label>Product name<input name="name" value="Studio tee" required></label>
+              <label>Category<input name="category" value="Tee"></label>
+              <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
+              <label>Currency<input name="currency" value="GBP"></label>
+              <label>Stock<input name="stock" type="number" min="0" value="25"></label>
+              <label>Status
+                <select name="status">
+                  <option value="draft">Draft</option>
+                  <option value="live">Live</option>
+                </select>
+              </label>
+              <label>Sizes<input name="sizes" value="S, M, L, XL"></label>
+              <label>Print mode
+                <select name="studioMode" data-studio-mode>
+                  <option value="texture">Photoshop texture</option>
+                </select>
+              </label>
+              <label>Shirt color<input name="shirtColor" type="color" value="#ffffff" data-studio-color></label>
+              <label>Upload texture / print<input name="print" type="file" accept="image/png,image/jpeg,image/webp" data-studio-print></label>
+            </div>
+            <a class="studio-template-link" href="../assets/models/tshirt-photoshop-template.png" download>
+              Download Photoshop texture template
+            </a>
+            <div class="studio-sliders">
+              <label>Horizontal<input type="range" min="-360" max="360" value="0" data-studio-x></label>
+              <label>Vertical<input type="range" min="-360" max="360" value="0" data-studio-y></label>
+              <label>Size<input type="range" min="120" max="720" value="360" data-studio-scale></label>
+              <label>Rotation<input type="range" min="-45" max="45" value="0" data-studio-rotation></label>
+              <label>Opacity<input type="range" min="20" max="100" value="100" data-studio-opacity></label>
+            </div>
+            <label>Description<textarea name="description" rows="3">Fresh tee created in the 3D studio.</textarea></label>
+            <div class="studio-actions">
+              <button type="button" data-studio-reset>Reset print</button>
+              <button type="submit">Save as product</button>
+            </div>
+            <span class="form-message" data-studio-message></span>
+          </form>
+        </div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="add-product">
+        <p>Add product</p>
+        <h2>Create a new piece.</h2>
+        <form data-product-form>
+          <div class="admin-form-grid">
+            <label>Name<input name="name" required></label>
+            <label>Category<input name="category" placeholder="Tee, accessory, hoodie"></label>
+            <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
+            <label>Currency<input name="currency" value="GBP"></label>
+            <label>Stock<input name="stock" type="number" min="0" value="25"></label>
+            <label>Image URL<input name="imageUrl" placeholder="assets/product.png"></label>
+            <label>Upload image<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+            <label>Sizes<input name="sizes" placeholder="S, M, L, XL"></label>
+            <label>Color<input name="color" placeholder="White"></label>
+            <label>Status
+              <select name="status">
+                <option value="draft">Draft</option>
+                <option value="live">Live</option>
+                <option value="sold-out">Sold out</option>
+              </select>
+            </label>
+          </div>
+          <label>Description<textarea name="description" rows="4"></textarea></label>
+          <button type="submit">Save product</button>
+          <span class="form-message" data-product-message></span>
+        </form>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="customers">
+        <p>Customers</p>
+        <h2>People with access.</h2>
+        <ul class="admin-users" data-users></ul>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="orders">
+        <p>Orders</p>
+        <h2>Incoming orders.</h2>
+        <div class="admin-orders" data-orders></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="../security.js"></script>
+  <script src="../script.js"></script>
+  <script src="../admin.js?v=product-3d-1"></script>
+  <script type="module" src="../studio.js?v=texture-save-1"></script>
+</body>
+</html>

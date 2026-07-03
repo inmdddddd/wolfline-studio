@@ -1,0 +1,13 @@
+{
+  "name": "beca-wolfline-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BeCa x Wolfline Studio fashion platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

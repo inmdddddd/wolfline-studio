@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 700">
+  <rect width="700" height="700" fill="#d7dbe0"/>
+  <path d="M190 388c16-122 98-200 210-200s194 78 210 200z" fill="#151515"/>
+  <path d="M370 388c96 0 172 24 230 72 34 28 24 70-20 76-110 14-250-8-390-66z" fill="#b0232a"/>
+  <text x="374" y="326" text-anchor="middle" font-family="Arial" font-size="64" font-weight="800" fill="#f7f2ea">MV</text>
+</svg>
