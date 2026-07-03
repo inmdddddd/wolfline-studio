@@ -89,6 +89,7 @@
           <form class="studio-controls" data-studio-form>
             <div class="admin-form-grid">
               <label>Product name<input name="name" value="Studio tee" required></label>
+              <label>Product name RO<input name="nameRo" placeholder="Optional"></label>
               <label>Category<input name="category" value="Tee"></label>
               <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
               <label>Currency<input name="currency" value="GBP"></label>
@@ -118,7 +119,8 @@
               <label>Rotation<input type="range" min="-45" max="45" value="0" data-studio-rotation></label>
               <label>Opacity<input type="range" min="20" max="100" value="100" data-studio-opacity></label>
             </div>
-            <label>Description<textarea name="description" rows="3">Fresh tee created in the 3D studio.</textarea></label>
+            <label>Description EN<textarea name="description" rows="3">Fresh tee created in the 3D studio.</textarea></label>
+            <label>Description RO<textarea name="descriptionRo" rows="3" placeholder="Descriere pentru Romania"></textarea></label>
             <div class="studio-actions">
               <button type="button" data-studio-reset>Reset print</button>
               <button type="submit">Save as product</button>
@@ -134,6 +136,7 @@
         <form data-product-form>
           <div class="admin-form-grid">
             <label>Name<input name="name" required></label>
+            <label>Name RO<input name="nameRo" placeholder="Optional"></label>
             <label>Category<input name="category" placeholder="Tee, accessory, hoodie"></label>
             <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
             <label>Currency<input name="currency" value="GBP"></label>
@@ -150,7 +153,8 @@
               </select>
             </label>
           </div>
-          <label>Description<textarea name="description" rows="4"></textarea></label>
+          <label>Description EN<textarea name="description" rows="4"></textarea></label>
+          <label>Description RO<textarea name="descriptionRo" rows="4"></textarea></label>
           <button type="submit">Save product</button>
           <span class="form-message" data-product-message></span>
         </form>
@@ -172,7 +176,7 @@
 
   <script src="../security.js"></script>
   <script src="../script.js"></script>
-  <script src="../admin.js?v=product-3d-1"></script>
+  <script src="../admin.js?v=global-i18n-1"></script>
   <script type="module" src="../studio.js?v=texture-save-1"></script>
 </body>
 </html>

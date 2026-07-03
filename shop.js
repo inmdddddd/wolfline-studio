@@ -1,5 +1,22 @@
 function shopMoney(value, currency = "GBP") {
+  if (window.BecaRegion?.money) {
+    return window.BecaRegion.money(value, currency);
+  }
+
   return `${currency} ${Number(value || 0).toFixed(2)}`;
+}
+
+function shopText(key, fallback = key, replacements = {}) {
+  return window.BecaRegion?.text?.(key, replacements) || fallback;
+}
+
+function shopProduct(product) {
+  return window.BecaRegion?.displayProduct?.(product) || {
+    ...product,
+    displayName: product.name,
+    displayDescription: product.description || shopText("limitedFallback", "Limited piece from the latest drop."),
+    displayCategory: product.category || "Piece"
+  };
 }
 
 const isSafariShop = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
@@ -48,12 +65,13 @@ function renderProducts(products = []) {
   if (!products.length) {
     const empty = document.createElement("article");
     empty.className = "shop-loading";
-    empty.innerHTML = "<span>Drop</span><h3>No live pieces yet.</h3>";
+    empty.innerHTML = `<span>${shopText("drop", "Drop")}</span><h3>${shopText("noLivePieces", "No live pieces yet.")}</h3>`;
     grid.appendChild(empty);
     return;
   }
 
   products.forEach((product) => {
+    const display = shopProduct(product);
     const card = document.createElement("article");
     const media = document.createElement("div");
     const meta = document.createElement("span");
@@ -70,7 +88,7 @@ function renderProducts(products = []) {
     if (product.studio?.model && !isSafariShop) {
       const viewer = document.createElement("model-viewer");
       viewer.src = product.studio.model;
-      viewer.alt = product.name;
+      viewer.alt = display.displayName;
       viewer.setAttribute("camera-orbit", "180deg 82deg 1.05m");
       viewer.setAttribute("min-camera-orbit", "auto 82deg 1.05m");
       viewer.setAttribute("max-camera-orbit", "auto 82deg 1.05m");
@@ -87,26 +105,26 @@ function renderProducts(products = []) {
     } else if (product.imageUrl) {
       const image = document.createElement("img");
       image.src = product.imageUrl;
-      image.alt = product.name;
+      image.alt = display.displayName;
       media.appendChild(image);
     } else if (product.studio?.model) {
       const fallback = document.createElement("img");
       fallback.src = "assets/tshirt-3d-poster.png";
-      fallback.alt = product.name;
+      fallback.alt = display.displayName;
       media.appendChild(fallback);
     } else {
-      media.textContent = product.category || "Drop";
+      media.textContent = display.displayCategory || shopText("drop", "Drop");
     }
 
-    meta.textContent = `${product.category || "Piece"} / ${product.stock > 0 ? `${product.stock} left` : "sold out"}`;
-    title.textContent = product.name;
+    meta.textContent = `${display.displayCategory || shopText("piece", "Piece")} / ${window.BecaRegion?.stockText?.(product.stock) || (product.stock > 0 ? `${product.stock} left` : "sold out")}`;
+    title.textContent = display.displayName;
     title.addEventListener("click", () => {
       location.href = `/product.html?slug=${encodeURIComponent(product.slug || product.id)}`;
     });
     media.addEventListener("click", () => {
       location.href = `/product.html?slug=${encodeURIComponent(product.slug || product.id)}`;
     });
-    description.textContent = product.description || "Limited piece from the latest drop.";
+    description.textContent = display.displayDescription || shopText("limitedFallback", "Limited piece from the latest drop.");
     specs.className = "product-specs";
     if (product.color) {
       const color = document.createElement("span");
@@ -122,7 +140,7 @@ function renderProducts(products = []) {
     button.type = "button";
     button.dataset.addToCart = product.id;
     button.disabled = product.stock <= 0;
-    button.textContent = product.stock > 0 ? "Add to cart" : "Sold out";
+    button.textContent = product.stock > 0 ? shopText("addToCart", "Add to cart") : shopText("soldOut", "Sold out");
 
     footer.className = "product-card-footer";
     footer.append(price, button);
@@ -139,7 +157,7 @@ function renderCart(cart) {
   if (!counts.length || !totals.length || !list) return;
 
   counts.forEach((count) => {
-    count.textContent = `${cart.count || 0} ${cart.count === 1 ? "piece" : "pieces"}`;
+    count.textContent = window.BecaRegion?.countText?.(cart.count) || `${cart.count || 0} ${cart.count === 1 ? "piece" : "pieces"}`;
   });
   totals.forEach((total) => {
     total.textContent = shopMoney(cart.total, cart.currency);
@@ -149,7 +167,7 @@ function renderCart(cart) {
   if (!cart.items.length) {
     const empty = document.createElement("span");
     empty.className = "cart-empty";
-    empty.textContent = "No pieces selected yet.";
+    empty.textContent = shopText("noPieces", "No pieces selected yet.");
     list.appendChild(empty);
     return;
   }
@@ -162,9 +180,10 @@ function renderCart(cart) {
     const controls = document.createElement("div");
     const qty = document.createElement("input");
     const remove = document.createElement("button");
+    const display = shopProduct(item.product);
 
     row.className = "cart-row";
-    title.textContent = item.product.name;
+    title.textContent = display.displayName;
     meta.textContent = `${item.qty} x ${shopMoney(item.product.price, item.product.currency)}`;
     qty.type = "number";
     qty.min = "1";
@@ -173,7 +192,7 @@ function renderCart(cart) {
     qty.dataset.cartQty = item.product.id;
     remove.type = "button";
     remove.dataset.removeCart = item.product.id;
-    remove.textContent = "Remove";
+    remove.textContent = shopText("remove", "Remove");
 
     info.append(title, meta);
     controls.append(qty, remove);
@@ -200,6 +219,7 @@ async function loadShop() {
 
   renderProducts(products);
   renderCart(cart);
+  window.__BECA_SHOP_STATE__ = { products, cart };
 }
 
 async function hydrateCheckoutFromUser() {
@@ -272,7 +292,7 @@ document.querySelector("[data-checkout-form]")?.addEventListener("submit", async
   const data = Object.fromEntries(new FormData(form).entries());
 
   message.dataset.type = "info";
-  message.textContent = "Sending order...";
+  message.textContent = shopText("sendingOrder", "Sending order...");
   button.disabled = true;
 
   try {
@@ -281,7 +301,7 @@ document.querySelector("[data-checkout-form]")?.addEventListener("submit", async
       body: JSON.stringify(data)
     });
     message.dataset.type = "success";
-    message.textContent = `Order ${order.number} received.`;
+    message.textContent = shopText("orderReceived", `Order ${order.number} received.`, { number: order.number });
     renderCart(cart);
     await loadShop();
   } catch (error) {
@@ -294,6 +314,15 @@ document.querySelector("[data-checkout-form]")?.addEventListener("submit", async
 
 loadShop().catch(() => {
   const grid = document.querySelector("[data-product-grid]");
-  if (grid) grid.innerHTML = "<article class=\"shop-loading\"><span>Drop</span><h3>Products could not load.</h3></article>";
+  if (grid) {
+    grid.innerHTML = `<article class="shop-loading"><span>${shopText("drop", "Drop")}</span><h3>${shopText("productsLoadFailed", "Products could not load.")}</h3></article>`;
+  }
 });
 hydrateCheckoutFromUser().catch(() => {});
+
+window.addEventListener("beca:locale-change", () => {
+  const state = window.__BECA_SHOP_STATE__;
+  if (!state) return;
+  renderProducts(state.products);
+  renderCart(state.cart);
+});

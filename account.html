@@ -22,111 +22,112 @@
       <img src="assets/wolfline-intro-logo.png" alt="">
     </a>
     <div class="account-topbar-actions">
-      <a class="account-home-link" href="/">Home</a>
-      <a class="account-home-link" href="/admin/dashboard.html" data-admin-only hidden>Admin Panel</a>
-      <button type="button" data-logout>Logout</button>
+      <a class="account-home-link" href="/" data-i18n="account.home">Home</a>
+      <a class="account-home-link" href="/admin/dashboard.html" data-admin-only hidden data-i18n="account.admin">Admin Panel</a>
+      <button type="button" data-logout data-i18n="account.logout">Logout</button>
     </div>
   </header>
 
   <main class="account-shell" data-account>
     <section class="account-hero-card">
       <div>
-        <p>Customer area</p>
-        <h1>Welcome back, <span data-account-name>Loading...</span>.</h1>
-        <p class="account-lead">Your place for early access, private drop notes and reserved pieces before they go public.</p>
+        <p data-i18n="account.kicker">Customer area</p>
+        <h1><span data-i18n="account.welcome">Welcome back,</span> <span data-account-name>Loading...</span>.</h1>
+        <p class="account-lead" data-i18n="account.lead">Your place for early access, private drop notes and reserved pieces before they go public.</p>
       </div>
       <div class="member-chip">
-        <span>Member status</span>
+        <span data-i18n="account.memberStatus">Member status</span>
         <strong><span data-account-role>customer</span><img class="member-diamond" src="assets/diamond.png" alt=""></strong>
       </div>
     </section>
 
     <section class="account-grid">
       <article class="account-panel account-profile">
-        <p>Profile</p>
+        <p data-i18n="account.profile">Profile</p>
         <dl>
           <div>
             <dt>Email</dt>
             <dd data-account-email></dd>
           </div>
           <div>
-            <dt>Access</dt>
-            <dd>Early drop list</dd>
+            <dt data-i18n="account.access">Access</dt>
+            <dd data-i18n="account.accessValue">Early drop list</dd>
           </div>
           <div>
-            <dt>Preference</dt>
-            <dd>Graphic tees / accessories</dd>
+            <dt data-i18n="account.preference">Preference</dt>
+            <dd data-i18n="account.preferenceValue">Graphic tees / accessories</dd>
           </div>
         </dl>
       </article>
 
       <article class="account-panel account-settings" id="settings">
-        <p>Settings</p>
-        <h2>Profile details</h2>
+        <p data-i18n="account.settings">Settings</p>
+        <h2 data-i18n="account.profileDetails">Profile details</h2>
         <form action="/api/profile" data-settings-form>
           <label>
-            Name
+            <span data-i18n="account.name">Name</span>
             <input name="name" data-profile-name autocomplete="name" required>
           </label>
           <label>
             Email
             <input name="email" type="email" data-profile-email autocomplete="email" required>
           </label>
-          <button type="submit">Save profile</button>
+          <button type="submit" data-i18n="account.saveProfile">Save profile</button>
           <span class="form-message" data-form-message></span>
         </form>
       </article>
 
       <article class="account-panel account-settings">
-        <p>Security</p>
-        <h2>Password</h2>
+        <p data-i18n="account.security">Security</p>
+        <h2 data-i18n="account.password">Password</h2>
         <form action="/api/profile/password" data-settings-form>
           <label>
-            Current password
+            <span data-i18n="account.currentPassword">Current password</span>
             <input name="currentPassword" type="password" autocomplete="current-password" required>
           </label>
           <label>
-            New password
+            <span data-i18n="account.newPassword">New password</span>
             <input name="newPassword" type="password" autocomplete="new-password" minlength="8" required>
           </label>
-          <button type="submit">Update password</button>
+          <button type="submit" data-i18n="account.updatePassword">Update password</button>
           <span class="form-message" data-form-message></span>
         </form>
       </article>
 
       <article class="account-panel account-drop-card">
-        <p>Next drop</p>
-        <h2>Oversized statement tee</h2>
-        <span class="drop-status">Preview unlocked</span>
-        <p>Fresh graphic direction, limited quantity and first access before the public launch.</p>
-        <a href="/#drop">View drop preview</a>
+        <p data-i18n="account.nextDrop">Next drop</p>
+        <h2 data-i18n="account.nextTitle">Oversized statement tee</h2>
+        <span class="drop-status" data-i18n="account.previewUnlocked">Preview unlocked</span>
+        <p data-i18n="account.nextBody">Fresh graphic direction, limited quantity and first access before the public launch.</p>
+        <a href="/#drop" data-i18n="account.viewDrop">View drop preview</a>
       </article>
 
       <article class="account-panel account-perks">
-        <p>Member perks</p>
+        <p data-i18n="account.perks">Member perks</p>
         <ul>
-          <li><strong>01</strong><span>Early access before public release.</span></li>
-          <li><strong>02</strong><span>Private notes about fit, fabric and print direction.</span></li>
-          <li><strong>03</strong><span>Priority for limited pieces when stock is low.</span></li>
+          <li><strong>01</strong><span data-i18n="account.perk1">Early access before public release.</span></li>
+          <li><strong>02</strong><span data-i18n="account.perk2">Private notes about fit, fabric and print direction.</span></li>
+          <li><strong>03</strong><span data-i18n="account.perk3">Priority for limited pieces when stock is low.</span></li>
         </ul>
       </article>
 
       <article class="account-panel account-timeline">
-        <p>Activity</p>
+        <p data-i18n="account.activity">Activity</p>
         <div>
-          <span>Account created</span>
-          <strong>Active customer profile</strong>
+          <span data-i18n="account.created">Account created</span>
+          <strong data-i18n="account.activeProfile">Active customer profile</strong>
         </div>
         <div>
-          <span>Next step</span>
-          <strong>Watch the upcoming drop</strong>
+          <span data-i18n="account.nextStep">Next step</span>
+          <strong data-i18n="account.watchDrop">Watch the upcoming drop</strong>
         </div>
       </article>
     </section>
   </main>
 
   <script src="security.js?v=profile-menu-1"></script>
-  <script src="script.js?v=profile-menu-1"></script>
+  <script src="locale.js?v=global-i18n-1"></script>
+  <script src="script.js?v=global-i18n-1"></script>
   <script src="auth.js?v=admin-panel-link-1"></script>
 </body>
 </html>

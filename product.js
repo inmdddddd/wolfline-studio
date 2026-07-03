@@ -1,5 +1,22 @@
 function productMoney(value, currency = "GBP") {
+  if (window.BecaRegion?.money) {
+    return window.BecaRegion.money(value, currency);
+  }
+
   return `${currency} ${Number(value || 0).toFixed(2)}`;
+}
+
+function productText(key, fallback = key, replacements = {}) {
+  return window.BecaRegion?.text?.(key, replacements) || fallback;
+}
+
+function productDisplay(product) {
+  return window.BecaRegion?.displayProduct?.(product) || {
+    ...product,
+    displayName: product.name,
+    displayDescription: product.description || productText("limitedFallback", "Limited piece from the latest drop."),
+    displayCategory: product.category || "Piece"
+  };
 }
 
 async function productRequest(url, options = {}) {
@@ -40,14 +57,15 @@ async function initProductPage() {
   const viewer = document.querySelector("[data-product-viewer]");
   const message = document.querySelector("[data-product-message]");
 
-  if (!slug) throw new Error("Product missing.");
+  if (!slug) throw new Error(productText("productMissing", "Product missing."));
 
   const { product } = await productRequest(`/api/products/${encodeURIComponent(slug)}`);
-  document.title = `${product.name} / BeCa x Wolfline Studio`;
-  document.querySelector("[data-product-category]").textContent = `${product.category || "Piece"} / ${product.stock > 0 ? `${product.stock} left` : "sold out"}`;
-  document.querySelector("[data-product-name]").textContent = product.name;
+  const display = productDisplay(product);
+  document.title = `${display.displayName} / BeCa x Wolfline Studio`;
+  document.querySelector("[data-product-category]").textContent = `${display.displayCategory || productText("piece", "Piece")} / ${window.BecaRegion?.stockText?.(product.stock) || (product.stock > 0 ? `${product.stock} left` : "sold out")}`;
+  document.querySelector("[data-product-name]").textContent = display.displayName;
   document.querySelector("[data-product-price]").textContent = productMoney(product.price, product.currency);
-  document.querySelector("[data-product-description]").textContent = product.description || "Limited piece from the latest drop.";
+  document.querySelector("[data-product-description]").textContent = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
 
   const sizes = document.querySelector("[data-product-sizes]");
   sizes.innerHTML = "";
@@ -67,7 +85,7 @@ async function initProductPage() {
 
   const addButton = document.querySelector("[data-product-add]");
   addButton.disabled = product.stock <= 0;
-  addButton.textContent = product.stock > 0 ? "Add to cart" : "Sold out";
+  addButton.textContent = product.stock > 0 ? productText("addToCart", "Add to cart") : productText("soldOut", "Sold out");
   addButton.addEventListener("click", async () => {
     addButton.disabled = true;
     try {
@@ -76,7 +94,7 @@ async function initProductPage() {
         body: JSON.stringify({ productId: product.id, qty: 1 })
       });
       message.dataset.type = "success";
-      message.textContent = "Added to cart.";
+      message.textContent = productText("addedToCart", "Added to cart.");
     } catch (error) {
       message.dataset.type = "";
       message.textContent = error.message;

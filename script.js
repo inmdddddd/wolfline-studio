@@ -78,6 +78,13 @@ const copy = {
     "auth.name": "Name",
     "auth.email": "Email",
     "auth.password": "Password",
+    "cart.title": "Cart",
+    "cart.close": "Close",
+    "cart.name": "Name",
+    "cart.email": "Email",
+    "cart.phone": "Phone",
+    "cart.address": "Address",
+    "cart.placeOrder": "Place order",
     "quality.kicker": "Quality first",
     "quality.title": "Built to feel good, not just look good.",
     "quality.card1.title": "Clean blanks",
@@ -104,7 +111,42 @@ const copy = {
     "contact.kicker": "Stay close",
     "contact.title": "First look, early access, limited quantities.",
     "contact.button": "Register for drop access",
-    "contact.account": "Open my account"
+    "contact.account": "Open my account",
+    "account.home": "Home",
+    "account.admin": "Admin Panel",
+    "account.logout": "Logout",
+    "account.kicker": "Customer area",
+    "account.welcome": "Welcome back,",
+    "account.lead": "Your place for early access, private drop notes and reserved pieces before they go public.",
+    "account.memberStatus": "Member status",
+    "account.profile": "Profile",
+    "account.access": "Access",
+    "account.accessValue": "Early drop list",
+    "account.preference": "Preference",
+    "account.preferenceValue": "Graphic tees / accessories",
+    "account.settings": "Settings",
+    "account.profileDetails": "Profile details",
+    "account.name": "Name",
+    "account.saveProfile": "Save profile",
+    "account.security": "Security",
+    "account.password": "Password",
+    "account.currentPassword": "Current password",
+    "account.newPassword": "New password",
+    "account.updatePassword": "Update password",
+    "account.nextDrop": "Next drop",
+    "account.nextTitle": "Oversized statement tee",
+    "account.previewUnlocked": "Preview unlocked",
+    "account.nextBody": "Fresh graphic direction, limited quantity and first access before the public launch.",
+    "account.viewDrop": "View drop preview",
+    "account.perks": "Member perks",
+    "account.perk1": "Early access before public release.",
+    "account.perk2": "Private notes about fit, fabric and print direction.",
+    "account.perk3": "Priority for limited pieces when stock is low.",
+    "account.activity": "Activity",
+    "account.created": "Account created",
+    "account.activeProfile": "Active customer profile",
+    "account.nextStep": "Next step",
+    "account.watchDrop": "Watch the upcoming drop"
   },
   ro: {
     "nav.drop": "Drop",
@@ -128,6 +170,13 @@ const copy = {
     "auth.name": "Nume",
     "auth.email": "Email",
     "auth.password": "Parola",
+    "cart.title": "Cos",
+    "cart.close": "Inchide",
+    "cart.name": "Nume",
+    "cart.email": "Email",
+    "cart.phone": "Telefon",
+    "cart.address": "Adresa",
+    "cart.placeOrder": "Plaseaza comanda",
     "quality.kicker": "Calitate prima data",
     "quality.title": "Facute sa se simta bine, nu doar sa arate bine.",
     "quality.card1.title": "Piese curate",
@@ -154,25 +203,59 @@ const copy = {
     "contact.kicker": "Ramai aproape",
     "contact.title": "Primul preview, acces devreme, cantitati limitate.",
     "contact.button": "Inregistreaza-te pentru drop",
-    "contact.account": "Deschide contul meu"
+    "contact.account": "Deschide contul meu",
+    "account.home": "Acasa",
+    "account.admin": "Panou admin",
+    "account.logout": "Iesire",
+    "account.kicker": "Zona client",
+    "account.welcome": "Bine ai revenit,",
+    "account.lead": "Locul tau pentru acces devreme, note private despre drop si piese rezervate inainte sa devina publice.",
+    "account.memberStatus": "Status membru",
+    "account.profile": "Profil",
+    "account.access": "Acces",
+    "account.accessValue": "Lista de drop devreme",
+    "account.preference": "Preferinta",
+    "account.preferenceValue": "Tricouri grafice / accesorii",
+    "account.settings": "Setari",
+    "account.profileDetails": "Detalii profil",
+    "account.name": "Nume",
+    "account.saveProfile": "Salveaza profilul",
+    "account.security": "Securitate",
+    "account.password": "Parola",
+    "account.currentPassword": "Parola actuala",
+    "account.newPassword": "Parola noua",
+    "account.updatePassword": "Actualizeaza parola",
+    "account.nextDrop": "Urmatorul drop",
+    "account.nextTitle": "Tricou oversized statement",
+    "account.previewUnlocked": "Preview deblocat",
+    "account.nextBody": "Directie grafica fresh, cantitate limitata si primul acces inainte de lansarea publica.",
+    "account.viewDrop": "Vezi preview-ul dropului",
+    "account.perks": "Beneficii membru",
+    "account.perk1": "Acces devreme inainte de lansarea publica.",
+    "account.perk2": "Note private despre fit, material si directia printului.",
+    "account.perk3": "Prioritate pentru piese limitate cand stocul e mic.",
+    "account.activity": "Activitate",
+    "account.created": "Cont creat",
+    "account.activeProfile": "Profil client activ",
+    "account.nextStep": "Urmatorul pas",
+    "account.watchDrop": "Urmareste urmatorul drop"
   }
 };
 
 function detectLanguage() {
   const saved = localStorage.getItem("beca-language");
-  if (saved === "ro" || saved === "en") {
+  const source = localStorage.getItem("beca-language-source");
+  if (source === "manual" && (saved === "ro" || saved === "en")) {
     return saved;
   }
 
-  const browserLanguage = navigator.language || "";
-  const languages = navigator.languages || [browserLanguage];
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-  const looksRomanian = languages.some((language) => language.toLowerCase().startsWith("ro")) || timeZone === "Europe/Bucharest";
+  const profile = window.BecaRegion?.detect?.();
+  if (profile?.language) return profile.language;
 
-  return looksRomanian ? "ro" : "en";
+  return "en";
 }
 
-function setLanguage(language) {
+function setLanguage(language, options = {}) {
   const activeLanguage = copy[language] ? language : "en";
   document.documentElement.lang = activeLanguage;
 
@@ -187,16 +270,20 @@ function setLanguage(language) {
     button.setAttribute("aria-pressed", String(button.dataset.lang === activeLanguage));
   });
 
-  localStorage.setItem("beca-language", activeLanguage);
+  if (options.source === "manual") {
+    localStorage.setItem("beca-language", activeLanguage);
+    localStorage.setItem("beca-language-source", "manual");
+  }
+  window.dispatchEvent(new CustomEvent("beca:locale-change", { detail: { language: activeLanguage } }));
 }
 
-setLanguage(detectLanguage());
+setLanguage(detectLanguage(), { source: "auto" });
 applyLiquidGlass();
 let glassResizeTimer;
 
 document.querySelectorAll("[data-lang]").forEach((button) => {
   button.addEventListener("click", () => {
-    setLanguage(button.dataset.lang);
+    setLanguage(button.dataset.lang, { source: "manual" });
     requestAnimationFrame(applyLiquidGlass);
   });
 });

@@ -91,6 +91,7 @@ function renderProducts(products) {
     form.dataset.editProduct = product.id;
     form.append(
       createField("Name", "name", product.name, true),
+      createField("Name RO", "nameRo", product.nameRo || ""),
       createField("Category", "category", product.category || ""),
       createField("Price", "price", product.price, false, "number", "0.01"),
       createField("Currency", "currency", product.currency || "GBP"),
@@ -100,7 +101,8 @@ function renderProducts(products) {
       createField("Color", "color", product.color || ""),
       createStatusField(product.status),
       createFileField(),
-      createTextarea("Description", "description", product.description || ""),
+      createTextarea("Description EN", "description", product.description || ""),
+      createTextarea("Description RO", "descriptionRo", product.descriptionRo || ""),
       saveButton
     );
 

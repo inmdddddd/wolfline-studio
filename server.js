@@ -430,6 +430,8 @@ function publicProduct(product) {
     id: product.id,
     slug: product.slug || toSlug(product.name),
     name: product.name,
+    nameRo: product.nameRo || "",
+    nameEn: product.nameEn || "",
     category: product.category,
     status: product.status,
     price: product.price,
@@ -439,6 +441,8 @@ function publicProduct(product) {
     sizes: Array.isArray(product.sizes) ? product.sizes : [],
     color: product.color || "",
     description: product.description || "",
+    descriptionRo: product.descriptionRo || "",
+    descriptionEn: product.descriptionEn || "",
     studio: product.studio ? {
       model: product.studio.model || "assets/models/tshirt-web.glb",
       textureUrl: product.studio.textureUrl || "",
@@ -474,6 +478,8 @@ function sanitizeProduct(input, existing = {}) {
     id: existing.id || crypto.randomUUID(),
     slug: toSlug(input.slug || name || existing.slug),
     name,
+    nameRo: String(input.nameRo || existing.nameRo || "").trim().slice(0, 100),
+    nameEn: String(input.nameEn || existing.nameEn || "").trim().slice(0, 100),
     category: String(input.category || "").trim().slice(0, 60),
     status: ["draft", "live", "sold-out"].includes(input.status) ? input.status : "draft",
     price: Number.isFinite(price) ? Math.max(0, price) : 0,
@@ -482,7 +488,9 @@ function sanitizeProduct(input, existing = {}) {
     imageUrl: String(input.imageUrl || existing.imageUrl || "").trim().slice(0, 260),
     sizes: sizes.length ? sizes : (Array.isArray(existing.sizes) ? existing.sizes : []),
     color: String(input.color || existing.color || "").trim().slice(0, 40),
-    description: String(input.description || "").trim().slice(0, 420),
+    description: String(input.description || "").trim().slice(0, 900),
+    descriptionRo: String(input.descriptionRo || existing.descriptionRo || "").trim().slice(0, 900),
+    descriptionEn: String(input.descriptionEn || existing.descriptionEn || "").trim().slice(0, 900),
     updatedAt: new Date().toISOString(),
     createdAt: existing.createdAt || new Date().toISOString()
   };
