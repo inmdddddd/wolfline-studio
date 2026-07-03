@@ -2,6 +2,8 @@ function shopMoney(value, currency = "GBP") {
   return `${currency} ${Number(value || 0).toFixed(2)}`;
 }
 
+const isSafariShop = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+
 async function applyModelViewerTexture(viewer, textureUrl) {
   if (!viewer || !textureUrl) return;
 
@@ -65,7 +67,7 @@ function renderProducts(products = []) {
     card.className = "product-card";
     media.className = "product-media";
 
-    if (product.studio?.model) {
+    if (product.studio?.model && !isSafariShop) {
       const viewer = document.createElement("model-viewer");
       viewer.src = product.studio.model;
       viewer.alt = product.name;
@@ -87,6 +89,11 @@ function renderProducts(products = []) {
       image.src = product.imageUrl;
       image.alt = product.name;
       media.appendChild(image);
+    } else if (product.studio?.model) {
+      const fallback = document.createElement("img");
+      fallback.src = "assets/tshirt-3d-poster.png";
+      fallback.alt = product.name;
+      media.appendChild(fallback);
     } else {
       media.textContent = product.category || "Drop";
     }

@@ -3757,10 +3757,32 @@ body.beca-minimal {
 }
 
 .product-media img {
-  width: min(72%, 210px);
-  max-height: 160px;
+  width: min(82%, 250px);
+  max-height: 220px;
   object-fit: contain;
   filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.36));
+}
+
+.is-safari .spline-scene {
+  display: none;
+}
+
+.is-safari .product-card,
+.is-safari .cart-panel,
+.is-safari .beca-hero-copy,
+.is-safari .feature-card,
+.is-safari .design-section,
+.is-safari .account-panel,
+.is-safari .product-detail-viewer,
+.is-safari .product-detail-info {
+  backdrop-filter: blur(10px) saturate(1.08);
+  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+}
+
+.is-safari .scene-particles,
+.is-safari .scene-beams,
+.is-safari .glass-filter {
+  display: none;
 }
 
 .product-card p {

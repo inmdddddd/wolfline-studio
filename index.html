@@ -5,14 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BeCa x Wolfline Studio</title>
   <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="stylesheet" href="styles.css?v=product-3d-1">
+  <script>
+    window.__BECA_IS_SAFARI__ = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+    if (window.__BECA_IS_SAFARI__) {
+      document.documentElement.classList.add("is-safari");
+    }
+  </script>
+  <link rel="stylesheet" href="styles.css?v=safari-safe-1">
   <script>
     if (location.protocol === "file:") {
       location.replace("http://127.0.0.1:4189/");
     }
   </script>
-  <script type="module" src="https://unpkg.com/@splinetool/viewer/build/spline-viewer.js"></script>
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <script type="module">
+    if (!window.__BECA_IS_SAFARI__) {
+      import("https://unpkg.com/@splinetool/viewer/build/spline-viewer.js");
+    }
+  </script>
 </head>
 <body class="beca-minimal">
   <svg class="glass-filter" width="0" height="0" aria-hidden="true" focusable="false">
@@ -272,7 +282,7 @@
   </main>
 
   <script src="script.js?v=product-3d-1"></script>
-  <script src="shop.js?v=matte-products-1"></script>
+  <script src="shop.js?v=safari-safe-1"></script>
   <script src="model-loader.js?v=preopt-visual-1"></script>
   <script src="intro.js?v=profile-menu-1"></script>
   <script src="auth.js?v=admin-panel-link-1"></script>
