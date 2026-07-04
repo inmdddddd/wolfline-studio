@@ -225,10 +225,10 @@ async function buildSceneImage() {
   window.BecaPhotoStudio3D.update(photoState);
 
   const canvas = document.createElement("canvas");
-  canvas.width = 2048;
-  canvas.height = 1024;
+  canvas.width = 1920;
+  canvas.height = 1080;
   const ctx = canvas.getContext("2d");
-  const background = await loadImageForCanvas("/assets/studio-stage-bg.jpg");
+  const background = await loadImageForCanvas("/assets/studio-stage-bg.png");
   const productLayer = await loadImageForCanvas(window.BecaPhotoStudio3D.capture());
 
   drawCover(ctx, background, canvas.width, canvas.height);

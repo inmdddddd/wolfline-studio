@@ -5173,13 +5173,14 @@ body.beca-minimal {
 
 .photo-stage {
   position: relative;
-  aspect-ratio: 2 / 1;
-  min-height: clamp(420px, 42vw, 720px);
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  min-height: 0;
   overflow: hidden;
   border-radius: 20px;
   background:
     linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.12)),
-    url("assets/studio-stage-bg.jpg") center / cover no-repeat;
+    url("assets/studio-stage-bg.png") 50% 50% / cover no-repeat;
 }
 
 .photo-stage::after {
@@ -5311,7 +5312,8 @@ body.beca-minimal {
   }
 
   .photo-stage {
-    min-height: 430px;
+    aspect-ratio: 16 / 9;
+    min-height: 0;
   }
 
   .photo-stage-controls {
