@@ -19,6 +19,10 @@ function productDisplay(product) {
   };
 }
 
+function isPreviewProduct(product) {
+  return product.status === "preview";
+}
+
 async function productRequest(url, options = {}) {
   const response = await fetch(url, {
     headers: { "Content-Type": "application/json" },
@@ -62,7 +66,9 @@ async function initProductPage() {
   const { product } = await productRequest(`/api/products/${encodeURIComponent(slug)}`);
   const display = productDisplay(product);
   document.title = `${display.displayName} / BeCa x Wolfline Studio`;
-  document.querySelector("[data-product-category]").textContent = `${display.displayCategory || productText("piece", "Piece")} / ${window.BecaRegion?.stockText?.(product.stock) || (product.stock > 0 ? `${product.stock} left` : "sold out")}`;
+  document.querySelector("[data-product-category]").textContent = isPreviewProduct(product)
+    ? `${display.displayCategory || productText("piece", "Piece")} / ${productText("previewOnly", "preview")}`
+    : `${display.displayCategory || productText("piece", "Piece")} / ${window.BecaRegion?.stockText?.(product.stock) || (product.stock > 0 ? `${product.stock} left` : "sold out")}`;
   document.querySelector("[data-product-name]").textContent = display.displayName;
   document.querySelector("[data-product-price]").textContent = productMoney(product.price, product.currency);
   document.querySelector("[data-product-description]").textContent = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
@@ -84,11 +90,26 @@ async function initProductPage() {
   }
 
   const addButton = document.querySelector("[data-product-add]");
-  addButton.disabled = product.stock <= 0;
-  addButton.textContent = product.stock > 0 ? productText("addToCart", "Add to cart") : productText("soldOut", "Sold out");
+  addButton.disabled = !isPreviewProduct(product) && product.stock <= 0;
+  addButton.textContent = isPreviewProduct(product)
+    ? productText("notifyMe", "Notify me when available")
+    : (product.stock > 0 ? productText("addToCart", "Add to cart") : productText("soldOut", "Sold out"));
   addButton.addEventListener("click", async () => {
+    let notifySaved = false;
     addButton.disabled = true;
     try {
+      if (isPreviewProduct(product)) {
+        await productRequest("/api/notify", {
+          method: "POST",
+          body: JSON.stringify({ productId: product.id })
+        });
+        message.dataset.type = "success";
+        message.textContent = productText("notifySaved", "You are on the list.");
+        addButton.textContent = productText("notifySavedShort", "On the list");
+        notifySaved = true;
+        return;
+      }
+
       await productRequest("/api/cart/add", {
         method: "POST",
         body: JSON.stringify({ productId: product.id, qty: 1 })
@@ -96,10 +117,14 @@ async function initProductPage() {
       message.dataset.type = "success";
       message.textContent = productText("addedToCart", "Added to cart.");
     } catch (error) {
+      if (/login/i.test(error.message)) {
+        location.href = "/#register";
+        return;
+      }
       message.dataset.type = "";
       message.textContent = error.message;
     } finally {
-      addButton.disabled = product.stock <= 0;
+      addButton.disabled = notifySaved || (!isPreviewProduct(product) && product.stock <= 0);
     }
   });
 }

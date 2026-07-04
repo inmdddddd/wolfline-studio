@@ -66,6 +66,10 @@ function ensureDataFiles() {
     writeJson("orders.json", []);
   }
 
+  if (!fs.existsSync(path.join(dataDir, "notifications.json"))) {
+    writeJson("notifications.json", []);
+  }
+
   if (!fs.existsSync(path.join(dataDir, "carts.json"))) {
     writeJson("carts.json", {});
   }
@@ -482,7 +486,7 @@ function sanitizeProduct(input, existing = {}) {
     nameRo: String(input.nameRo || existing.nameRo || "").trim().slice(0, 100),
     nameEn: String(input.nameEn || existing.nameEn || "").trim().slice(0, 100),
     category: String(input.category || "").trim().slice(0, 60),
-    status: ["draft", "live", "sold-out"].includes(input.status) ? input.status : "draft",
+    status: ["draft", "preview", "live", "sold-out"].includes(input.status) ? input.status : "draft",
     price: Number.isFinite(price) ? Math.max(0, price) : 0,
     currency: String(input.currency || "GBP").trim().slice(0, 8).toUpperCase(),
     stock: Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0,
@@ -502,7 +506,7 @@ function buildCartPayload(cart) {
   const items = Object.entries(cart.items || {})
     .map(([productId, qty]) => {
       const product = products.find((item) => item.id === productId);
-      if (!product) return null;
+      if (!product || product.status !== "live") return null;
       const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
       return {
         product: publicProduct(product),
@@ -705,7 +709,7 @@ async function handleAuth(request, response, pathname) {
 async function handleShopApi(request, response, pathname) {
   if (pathname === "/api/products" && request.method === "GET") {
     const products = readJson("products.json", [])
-      .filter((product) => product.status === "live")
+      .filter((product) => product.status === "live" || product.status === "preview")
       .map(publicProduct);
     const categories = [...new Set(products.map((product) => product.category).filter(Boolean))];
     json(response, 200, { products, categories });
@@ -716,7 +720,7 @@ async function handleShopApi(request, response, pathname) {
   if (productDetailMatch && request.method === "GET") {
     const key = decodeURIComponent(productDetailMatch[1]);
     const product = readJson("products.json", [])
-      .filter((item) => item.status === "live")
+      .filter((item) => item.status === "live" || item.status === "preview")
       .find((item) => item.id === key || (item.slug || toSlug(item.name)) === key);
 
     if (!product) {
@@ -725,6 +729,46 @@ async function handleShopApi(request, response, pathname) {
     }
 
     json(response, 200, { product: publicProduct(product) });
+    return true;
+  }
+
+  if (pathname === "/api/notify" && request.method === "POST") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+
+    const session = getSession(request);
+    if (!session) {
+      json(response, 401, { error: "Login required for drop notifications." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const productId = String(body.productId || "");
+    const product = readJson("products.json", []).find((item) => item.id === productId);
+
+    if (!product || (product.status !== "preview" && product.status !== "live")) {
+      json(response, 404, { error: "Produsul nu este disponibil pentru notificari." });
+      return true;
+    }
+
+    const notifications = readJson("notifications.json", []);
+    const existing = notifications.find((item) => item.productId === product.id && item.userId === session.user.id);
+    if (!existing) {
+      notifications.unshift({
+        id: crypto.randomUUID(),
+        productId: product.id,
+        productName: product.name,
+        userId: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        createdAt: new Date().toISOString()
+      });
+      writeJson("notifications.json", notifications);
+    }
+
+    json(response, 200, { ok: true });
     return true;
   }
 
@@ -886,6 +930,8 @@ async function handleAdminApi(request, response, pathname) {
       clients: users.filter((user) => user.role === "client").length,
       products: products.length,
       liveProducts: products.filter((product) => product.status === "live").length,
+      previewProducts: products.filter((product) => product.status === "preview").length,
+      notifications: readJson("notifications.json", []).length,
       orders: orders.length,
       revenue: orders.filter((order) => order.status !== "cancelled").reduce((total, order) => total + Number(order.total || 0), 0)
     });
@@ -904,6 +950,11 @@ async function handleAdminApi(request, response, pathname) {
 
   if (pathname === "/api/admin/orders" && request.method === "GET") {
     json(response, 200, { orders: readJson("orders.json", []) });
+    return true;
+  }
+
+  if (pathname === "/api/admin/notifications" && request.method === "GET") {
+    json(response, 200, { notifications: readJson("notifications.json", []) });
     return true;
   }
 

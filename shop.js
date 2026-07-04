@@ -19,6 +19,10 @@ function shopProduct(product) {
   };
 }
 
+function isPreviewProduct(product) {
+  return product.status === "preview";
+}
+
 const isSafariShop = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
 
 async function applyModelViewerTexture(viewer, textureUrl) {
@@ -83,6 +87,7 @@ function renderProducts(products = []) {
     const button = document.createElement("button");
 
     card.className = "product-card";
+    card.classList.toggle("is-preview", isPreviewProduct(product));
     media.className = "product-media";
 
     if (product.studio?.model && !isSafariShop) {
@@ -116,7 +121,9 @@ function renderProducts(products = []) {
       media.textContent = display.displayCategory || shopText("drop", "Drop");
     }
 
-    meta.textContent = `${display.displayCategory || shopText("piece", "Piece")} / ${window.BecaRegion?.stockText?.(product.stock) || (product.stock > 0 ? `${product.stock} left` : "sold out")}`;
+    meta.textContent = isPreviewProduct(product)
+      ? `${display.displayCategory || shopText("piece", "Piece")} / ${shopText("previewOnly", "preview")}`
+      : `${display.displayCategory || shopText("piece", "Piece")} / ${window.BecaRegion?.stockText?.(product.stock) || (product.stock > 0 ? `${product.stock} left` : "sold out")}`;
     title.textContent = display.displayName;
     title.addEventListener("click", () => {
       location.href = `/product.html?slug=${encodeURIComponent(product.slug || product.id)}`;
@@ -138,9 +145,14 @@ function renderProducts(products = []) {
     });
     price.textContent = shopMoney(product.price, product.currency);
     button.type = "button";
-    button.dataset.addToCart = product.id;
-    button.disabled = product.stock <= 0;
-    button.textContent = product.stock > 0 ? shopText("addToCart", "Add to cart") : shopText("soldOut", "Sold out");
+    if (isPreviewProduct(product)) {
+      button.dataset.notifyProduct = product.id;
+      button.textContent = shopText("notifyMe", "Notify me when available");
+    } else {
+      button.dataset.addToCart = product.id;
+      button.disabled = product.stock <= 0;
+      button.textContent = product.stock > 0 ? shopText("addToCart", "Add to cart") : shopText("soldOut", "Sold out");
+    }
 
     footer.className = "product-card-footer";
     footer.append(price, button);
@@ -259,8 +271,31 @@ async function hydrateCheckoutFromUser() {
   if (!form.elements.customerEmail.value) form.elements.customerEmail.value = user.email || "";
 }
 
+async function notifyForProduct(productId, button) {
+  button.disabled = true;
+  try {
+    await shopRequest("/api/notify", {
+      method: "POST",
+      body: JSON.stringify({ productId })
+    });
+    button.textContent = shopText("notifySaved", "You are on the list.");
+  } catch (error) {
+    if (/login/i.test(error.message)) {
+      location.href = "/#register";
+      return;
+    }
+    button.textContent = error.message;
+    window.setTimeout(() => {
+      button.disabled = false;
+      button.textContent = shopText("notifyMe", "Notify me when available");
+    }, 1800);
+    return;
+  }
+}
+
 document.addEventListener("click", async (event) => {
   const addButton = event.target.closest("[data-add-to-cart]");
+  const notifyButton = event.target.closest("[data-notify-product]");
   const removeButton = event.target.closest("[data-remove-cart]");
   const cartToggle = event.target.closest("[data-cart-toggle]");
   const cartClose = event.target.closest("[data-cart-close]");
@@ -294,6 +329,10 @@ document.addEventListener("click", async (event) => {
       renderCart(cart);
       setCartDrawer(true);
       addButton.disabled = false;
+    }
+
+    if (notifyButton) {
+      await notifyForProduct(notifyButton.dataset.notifyProduct, notifyButton);
     }
 
     if (removeButton) {

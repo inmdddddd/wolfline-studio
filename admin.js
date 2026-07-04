@@ -28,6 +28,8 @@ function renderSummary(summary) {
   document.querySelector("[data-summary-users]").textContent = summary.users;
   document.querySelector("[data-summary-products]").textContent = summary.products;
   document.querySelector("[data-summary-live]").textContent = summary.liveProducts;
+  document.querySelector("[data-summary-preview]").textContent = summary.previewProducts || 0;
+  document.querySelector("[data-summary-notifications]").textContent = summary.notifications || 0;
   document.querySelector("[data-summary-orders]").textContent = summary.orders;
 }
 
@@ -312,7 +314,7 @@ function createStatusField(value = "draft") {
   const select = document.createElement("select");
   label.textContent = "Status";
   select.name = "status";
-  ["draft", "live", "sold-out"].forEach((status) => {
+  ["draft", "preview", "live", "sold-out"].forEach((status) => {
     const option = document.createElement("option");
     option.value = status;
     option.textContent = status;
@@ -332,6 +334,41 @@ function createFileField() {
   input.accept = "image/png,image/jpeg,image/webp,image/gif";
   label.appendChild(input);
   return label;
+}
+
+function renderNotifications(notifications) {
+  const list = document.querySelector("[data-notifications]");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (!notifications.length) {
+    const empty = document.createElement("div");
+    empty.className = "admin-empty-state";
+    empty.innerHTML = "<strong>No waitlist yet</strong><span>Preview product notifications will appear here.</span>";
+    list.appendChild(empty);
+    return;
+  }
+
+  notifications.forEach((entry) => {
+    const item = document.createElement("article");
+    const info = document.createElement("div");
+    const meta = document.createElement("span");
+    const title = document.createElement("h3");
+    const customer = document.createElement("p");
+    const controls = document.createElement("div");
+    const time = document.createElement("strong");
+
+    item.className = "admin-product admin-order";
+    meta.textContent = `${entry.productName || "Preview piece"} / ${new Date(entry.createdAt).toLocaleString()}`;
+    title.textContent = entry.name || "Client";
+    customer.textContent = entry.email || "";
+    time.textContent = "Notify";
+    info.append(meta, title, customer);
+    controls.append(time);
+    item.append(info, controls);
+    list.appendChild(item);
+  });
 }
 
 function renderOrders(orders) {
@@ -401,11 +438,12 @@ function renderUsers(users) {
 }
 
 async function loadDashboard() {
-  const [summary, { products }, { users }, { orders }] = await Promise.all([
+  const [summary, { products }, { users }, { orders }, { notifications }] = await Promise.all([
     requestJson("/api/admin/summary"),
     requestJson("/api/admin/products"),
     requestJson("/api/admin/users"),
-    requestJson("/api/admin/orders")
+    requestJson("/api/admin/orders"),
+    requestJson("/api/admin/notifications")
   ]);
 
   renderSummary(summary);
@@ -413,6 +451,7 @@ async function loadDashboard() {
   renderPhotoProducts(products);
   renderUsers(users);
   renderOrders(orders);
+  renderNotifications(notifications);
 }
 
 const productForm = document.querySelector("[data-product-form]");

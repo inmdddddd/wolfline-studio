@@ -3887,6 +3887,20 @@ body.beca-minimal {
   opacity: 0.55;
 }
 
+.product-card.is-preview button {
+  color: var(--text);
+  background:
+    linear-gradient(135deg, rgba(199, 255, 97, 0.22), rgba(255, 255, 255, 0.08)),
+    rgba(0, 0, 0, 0.16);
+  border-color: rgba(199, 255, 97, 0.48);
+}
+
+.product-card.is-preview button:disabled {
+  opacity: 1;
+  color: #071004;
+  background: var(--accent);
+}
+
 .cart-panel {
   position: sticky;
   top: 26px;

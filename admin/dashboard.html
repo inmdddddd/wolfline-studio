@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Admin Dashboard / BeCa</title>
   <link rel="icon" href="../favicon.ico" sizes="any">
-  <link rel="stylesheet" href="../styles.css?v=product-stage-bg-1">
+  <link rel="stylesheet" href="../styles.css?v=preview-hype-1">
   <script type="importmap">
     {
       "imports": {
@@ -37,6 +37,7 @@
         <button type="button" data-admin-tab="photo-studio">Photo Studio</button>
         <button type="button" data-admin-tab="products">Products</button>
         <button type="button" data-admin-tab="add-product">Add product</button>
+        <button type="button" data-admin-tab="waitlist">Waitlist</button>
         <button type="button" data-admin-tab="customers">Customers</button>
         <button type="button" data-admin-tab="orders">Orders</button>
       </nav>
@@ -49,6 +50,8 @@
           <article><span data-summary-users>0</span><p>Users</p></article>
           <article><span data-summary-products>0</span><p>Products</p></article>
           <article><span data-summary-live>0</span><p>Live</p></article>
+          <article><span data-summary-preview>0</span><p>Preview</p></article>
+          <article><span data-summary-notifications>0</span><p>Notify</p></article>
           <article><span data-summary-orders>0</span><p>Orders</p></article>
         </div>
         <div class="admin-note-grid">
@@ -98,6 +101,7 @@
               <label>Status
                 <select name="status">
                   <option value="draft">Draft</option>
+                  <option value="preview">Preview only</option>
                   <option value="live">Live</option>
                 </select>
               </label>
@@ -189,6 +193,7 @@
             <label>Status
               <select name="status">
                 <option value="draft">Draft</option>
+                <option value="preview">Preview only</option>
                 <option value="live">Live</option>
                 <option value="sold-out">Sold out</option>
               </select>
@@ -207,6 +212,12 @@
         <ul class="admin-users" data-users></ul>
       </div>
 
+      <div class="admin-panel admin-view" data-admin-view="waitlist">
+        <p>Waitlist</p>
+        <h2>People waiting for preview pieces.</h2>
+        <div class="admin-orders" data-notifications></div>
+      </div>
+
       <div class="admin-panel admin-view" data-admin-view="orders">
         <p>Orders</p>
         <h2>Incoming orders.</h2>
@@ -217,7 +228,7 @@
 
   <script src="../security.js"></script>
   <script src="../script.js"></script>
-  <script src="../admin.js?v=photo-studio-poses-1"></script>
+  <script src="../admin.js?v=preview-hype-1"></script>
   <script type="module" src="../studio.js?v=photo-studio-poses-1"></script>
 </body>
 </html>
