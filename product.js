@@ -23,6 +23,10 @@ function isPreviewProduct(product) {
   return product.status === "preview";
 }
 
+function productImageSrc(product) {
+  return product.imageDataUrl || product.sceneImageDataUrl || product.imageUrl || "";
+}
+
 async function productRequest(url, options = {}) {
   const response = await fetch(url, {
     headers: { "Content-Type": "application/json" },
@@ -83,8 +87,8 @@ async function initProductPage() {
 
   if (product.studio?.model) {
     viewer.src = product.studio.model;
-    if (product.imageUrl) {
-      viewer.setAttribute("poster", product.imageUrl);
+    if (productImageSrc(product)) {
+      viewer.setAttribute("poster", productImageSrc(product));
     }
     applyProductTexture(viewer, product.studio.textureUrl).catch(() => {});
   }

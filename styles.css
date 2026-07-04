@@ -3790,6 +3790,22 @@ body.beca-minimal {
   filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.46));
 }
 
+.product-media.has-product-shot {
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.product-media.has-product-shot img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  object-position: 50% 56%;
+  filter: none;
+  transform: scale(1.14);
+  transform-origin: 50% 56%;
+}
+
 .is-safari .spline-scene {
   display: none;
 }
@@ -6167,6 +6183,12 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
   .product-media {
     height: clamp(280px, 58vw, 360px);
+  }
+
+  .product-media.has-product-shot img {
+    object-position: 50% 58%;
+    transform: scale(1.24);
+    transform-origin: 50% 58%;
   }
 
   .product-card p {

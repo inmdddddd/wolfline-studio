@@ -23,6 +23,10 @@ function isPreviewProduct(product) {
   return product.status === "preview";
 }
 
+function productImageSrc(product) {
+  return product.imageDataUrl || product.sceneImageDataUrl || product.imageUrl || "";
+}
+
 const isSafariShop = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
 
 async function applyModelViewerTexture(viewer, textureUrl) {
@@ -107,10 +111,11 @@ function renderProducts(products = []) {
       viewer.setAttribute("exposure", "0.92");
       media.appendChild(viewer);
       applyModelViewerTexture(viewer, product.studio.textureUrl);
-    } else if (product.imageUrl) {
+    } else if (productImageSrc(product)) {
       const image = document.createElement("img");
-      image.src = product.imageUrl;
+      image.src = productImageSrc(product);
       image.alt = display.displayName;
+      media.classList.add("has-product-shot");
       media.appendChild(image);
     } else if (product.studio?.model) {
       const fallback = document.createElement("img");

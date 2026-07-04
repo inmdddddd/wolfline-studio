@@ -169,7 +169,7 @@ function readBody(request, limit = 30 * 1024 * 1024) {
   });
 }
 
-function readBuffer(request, limit = 5 * 1024 * 1024) {
+function readBuffer(request, limit = 15 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
@@ -256,6 +256,12 @@ function saveProductImage(file) {
   return `assets/products/${fileName}`;
 }
 
+function fileToImageDataUrl(file) {
+  if (!file || !file.body || file.body.length === 0 || !file.mime) return "";
+  if (!/^image\/(png|jpeg|webp|gif)$/i.test(file.mime)) return "";
+  return `data:${file.mime};base64,${file.body.toString("base64")}`;
+}
+
 function saveDataUrlImage(dataUrl, prefix = "studio") {
   const match = String(dataUrl || "").match(/^data:image\/(png|jpeg|webp);base64,([a-z0-9+/=]+)$/i);
   if (!match) return "";
@@ -282,9 +288,11 @@ async function readProductPayload(request, existing = {}) {
   if (contentType.includes("multipart/form-data")) {
     const parsed = parseMultipart(await readBuffer(request), contentType);
     const imageUrl = saveProductImage(parsed.files.image);
+    const imageDataUrl = fileToImageDataUrl(parsed.files.image);
     return {
       ...parsed.fields,
-      imageUrl: imageUrl || parsed.fields.imageUrl || existing.imageUrl || ""
+      imageUrl: imageUrl || parsed.fields.imageUrl || existing.imageUrl || "",
+      imageDataUrl: imageDataUrl || existing.imageDataUrl || ""
     };
   }
 
@@ -442,7 +450,9 @@ function publicProduct(product) {
     currency: product.currency,
     stock: product.stock,
     imageUrl: product.imageUrl || "",
+    imageDataUrl: product.imageDataUrl || "",
     sceneImageUrl: product.sceneImageUrl || "",
+    sceneImageDataUrl: product.sceneImageDataUrl || "",
     sizes: Array.isArray(product.sizes) ? product.sizes : [],
     color: product.color || "",
     description: product.description || "",
@@ -491,6 +501,7 @@ function sanitizeProduct(input, existing = {}) {
     currency: String(input.currency || "GBP").trim().slice(0, 8).toUpperCase(),
     stock: Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0,
     imageUrl: String(input.imageUrl || existing.imageUrl || "").trim().slice(0, 260),
+    imageDataUrl: String(input.imageDataUrl || existing.imageDataUrl || "").trim(),
     sizes: sizes.length ? sizes : (Array.isArray(existing.sizes) ? existing.sizes : []),
     color: String(input.color || existing.color || "").trim().slice(0, 40),
     description: String(input.description || "").trim().slice(0, 900),
@@ -982,6 +993,7 @@ async function handleAdminApi(request, response, pathname) {
     const product = sanitizeProduct({
       ...body,
       imageUrl: imageUrl || body.imageUrl || "",
+      imageDataUrl: body.previewImage || body.imageDataUrl || "",
       status: body.status || "draft"
     });
 
@@ -1053,7 +1065,9 @@ async function handleAdminApi(request, response, pathname) {
     products[index] = {
       ...products[index],
       imageUrl,
+      imageDataUrl: body.image || products[index].imageDataUrl || "",
       sceneImageUrl: imageUrl,
+      sceneImageDataUrl: body.image || products[index].sceneImageDataUrl || "",
       updatedAt: new Date().toISOString()
     };
     writeJson("products.json", products);

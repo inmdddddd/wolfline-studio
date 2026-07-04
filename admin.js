@@ -24,6 +24,10 @@ function adminImageSrc(src = "") {
   return `/${src}`;
 }
 
+function productImageSrc(product) {
+  return product.imageDataUrl || product.sceneImageDataUrl || product.imageUrl || "";
+}
+
 function renderSummary(summary) {
   document.querySelector("[data-summary-users]").textContent = summary.users;
   document.querySelector("[data-summary-products]").textContent = summary.products;
@@ -76,9 +80,10 @@ function renderProducts(products) {
 
     item.className = "admin-product";
     media.className = "admin-product-media";
-    if (product.imageUrl) {
+    const imageSource = productImageSrc(product);
+    if (imageSource) {
       const image = document.createElement("img");
-      image.src = adminImageSrc(product.imageUrl);
+      image.src = adminImageSrc(imageSource);
       image.alt = product.name;
       media.appendChild(image);
     } else {
@@ -193,8 +198,9 @@ function renderPhotoProducts(products = []) {
     button.classList.toggle("is-active", product.id === photoState.selectedId);
     button.dataset.photoProduct = product.id;
     thumb.className = "photo-product-thumb";
-    if (product.imageUrl) {
-      thumb.style.backgroundImage = `url("${adminImageSrc(product.imageUrl)}")`;
+    const imageSource = productImageSrc(product);
+    if (imageSource) {
+      thumb.style.backgroundImage = `url("${adminImageSrc(imageSource)}")`;
     }
     name.textContent = product.name || "Untitled";
     meta.textContent = `${product.category || "Piece"} / ${product.status || "draft"}`;
