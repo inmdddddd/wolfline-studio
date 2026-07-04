@@ -5806,7 +5806,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
   }
 
   .beca-actions,
-  .hero-auth-tabs,
   .studio-actions,
   .product-card-footer {
     width: 100%;
@@ -5814,8 +5813,14 @@ body[data-hero-auth="login"] .beca-hero-copy {
     grid-template-columns: 1fr;
   }
 
+  .hero-auth-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+  }
+
   .beca-actions a,
-  .hero-auth-tabs button,
   .studio-actions button,
   .product-card button,
   .checkout-form button,
@@ -5823,6 +5828,13 @@ body[data-hero-auth="login"] .beca-hero-copy {
   .account-settings button {
     width: 100%;
     justify-content: center;
+  }
+
+  .hero-auth-tabs button {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
   }
 
   .beca-shirt-stage {
