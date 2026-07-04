@@ -210,8 +210,8 @@ const copy = {
     "design.note2.body": "Construite in jurul negrului, albului si accentelor grafice care merg in outfituri reale.",
     "drop.kicker": "Cel mai nou drop",
     "drop.title": "Preview pentru urmatoarea lansare.",
-    "drop.countdownLabel": "Drop unlocks in",
-    "drop.countdownValue": "12 days",
+    "drop.countdownLabel": "Se deblocheaza in",
+    "drop.countdownValue": "12 zile",
     "drop.item1.meta": "Tricou / print grafic",
     "drop.item1.title": "Tricou oversized statement",
     "drop.item2.meta": "Accesoriu / limitat",
@@ -260,6 +260,31 @@ const copy = {
   }
 };
 
+const DROP_UNLOCK_AT = new Date("2026-07-16T20:00:00+03:00").getTime();
+
+function formatDropCountdown(language) {
+  const remaining = Math.max(0, DROP_UNLOCK_AT - Date.now());
+  if (!remaining) return language === "ro" ? "deblocat" : "unlocked";
+
+  const minutes = Math.ceil(remaining / 60000);
+  const hours = Math.ceil(remaining / 3600000);
+  const days = Math.ceil(remaining / 86400000);
+
+  if (days > 1) return language === "ro" ? `${days} zile` : `${days} days`;
+  if (days === 1) return language === "ro" ? "1 zi" : "1 day";
+  if (hours > 1) return language === "ro" ? `${hours} ore` : `${hours} hours`;
+  if (hours === 1) return language === "ro" ? "1 ora" : "1 hour";
+  if (minutes > 1) return language === "ro" ? `${minutes} minute` : `${minutes} minutes`;
+  return language === "ro" ? "sub 1 minut" : "under 1 minute";
+}
+
+function updateDropCountdown() {
+  const language = document.documentElement.lang === "ro" ? "ro" : "en";
+  document.querySelectorAll("[data-drop-countdown]").forEach((element) => {
+    element.textContent = formatDropCountdown(language);
+  });
+}
+
 function detectLanguage() {
   const saved = localStorage.getItem("beca-language");
   const source = localStorage.getItem("beca-language-source");
@@ -292,10 +317,12 @@ function setLanguage(language, options = {}) {
     localStorage.setItem("beca-language", activeLanguage);
     localStorage.setItem("beca-language-source", "manual");
   }
+  updateDropCountdown();
   window.dispatchEvent(new CustomEvent("beca:locale-change", { detail: { language: activeLanguage } }));
 }
 
 setLanguage(detectLanguage(), { source: "auto" });
+window.setInterval(updateDropCountdown, 60000);
 applyLiquidGlass();
 let glassResizeTimer;
 

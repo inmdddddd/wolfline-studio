@@ -29,6 +29,30 @@ function productImageSrc(product) {
 
 const isSafariProduct = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
 const isMobileProduct = window.matchMedia?.("(max-width: 760px), (pointer: coarse)")?.matches || /iphone|ipad|android|mobile/i.test(navigator.userAgent);
+const PRODUCT_DROP_UNLOCK_AT = new Date("2026-07-16T20:00:00+03:00").getTime();
+
+function productCountdownText() {
+  const language = window.BecaRegion?.language?.() === "ro" ? "ro" : "en";
+  const remaining = Math.max(0, PRODUCT_DROP_UNLOCK_AT - Date.now());
+  if (!remaining) return language === "ro" ? "Drop deblocat" : "Drop unlocked";
+
+  const minutes = Math.ceil(remaining / 60000);
+  const hours = Math.ceil(remaining / 3600000);
+  const days = Math.ceil(remaining / 86400000);
+
+  if (days > 1) return language === "ro" ? `Se deblocheaza in ${days} zile` : `Drop unlocks in ${days} days`;
+  if (days === 1) return language === "ro" ? "Se deblocheaza in 1 zi" : "Drop unlocks in 1 day";
+  if (hours > 1) return language === "ro" ? `Se deblocheaza in ${hours} ore` : `Drop unlocks in ${hours} hours`;
+  if (hours === 1) return language === "ro" ? "Se deblocheaza in 1 ora" : "Drop unlocks in 1 hour";
+  if (minutes > 1) return language === "ro" ? `Se deblocheaza in ${minutes} minute` : `Drop unlocks in ${minutes} minutes`;
+  return language === "ro" ? "Se deblocheaza in sub 1 minut" : "Drop unlocks in under 1 minute";
+}
+
+function updateProductCountdown() {
+  document.querySelectorAll("[data-product-countdown]").forEach((element) => {
+    element.textContent = productCountdownText();
+  });
+}
 
 async function productRequest(url, options = {}) {
   const response = await fetch(url, {
@@ -104,7 +128,7 @@ async function initProductPage() {
   if (previewNote) {
     previewNote.hidden = !isPreviewProduct(product);
     previewNote.querySelector("span").textContent = productText("previewReason", "Join the list for access before the public drop. Limited stock.");
-    previewNote.querySelector("strong").textContent = productText("dropUnlocks", "Drop unlocks in 12 days");
+    updateProductCountdown();
   }
 
   if (preferredSizeWrap) {
@@ -190,3 +214,6 @@ document.querySelectorAll("[data-mobile-menu-close], [data-mobile-menu-link]").f
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") setProductMobileMenu(false);
 });
+
+window.addEventListener("beca:locale-change", updateProductCountdown);
+window.setInterval(updateProductCountdown, 60000);
