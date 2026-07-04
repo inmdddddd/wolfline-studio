@@ -207,6 +207,7 @@ function setCartDrawer(open) {
   if (!drawer || !toggle) return;
 
   drawer.classList.toggle("is-open", open);
+  document.body.classList.toggle("is-cart-open", open);
   drawer.setAttribute("aria-hidden", String(!open));
   toggle.setAttribute("aria-expanded", String(open));
 }

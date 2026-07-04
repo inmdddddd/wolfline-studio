@@ -5629,6 +5629,12 @@ body[data-hero-auth="login"] .beca-hero-copy {
     overflow-x: hidden;
   }
 
+  *,
+  *::before,
+  *::after {
+    min-width: 0;
+  }
+
   body {
     -webkit-text-size-adjust: 100%;
   }
@@ -5692,12 +5698,76 @@ body[data-hero-auth="login"] .beca-hero-copy {
     transform-origin: right bottom;
   }
 
+  body.is-cart-open .floating-shop-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  body.is-cart-open {
+    overflow: hidden;
+  }
+
+  .cart-drawer {
+    overflow: hidden;
+    padding: 8px;
+  }
+
+  .cart-drawer-backdrop {
+    background: rgba(0, 0, 0, 0.58);
+  }
+
   .cart-drawer-panel {
-    width: min(100% - 18px, 390px);
-    max-height: calc(100dvh - 20px);
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    max-height: none;
+    box-sizing: border-box;
     overflow-y: auto;
-    margin: 10px;
+    margin: 0;
     padding: 18px;
+    transform: translateX(calc(100% + 18px));
+  }
+
+  .cart-drawer.is-open .cart-drawer-panel {
+    transform: translateX(0);
+  }
+
+  .cart-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px 12px;
+    justify-items: stretch;
+  }
+
+  .cart-head .cart-close {
+    justify-self: end;
+  }
+
+  .cart-head > strong {
+    grid-column: 1 / -1;
+  }
+
+  .cart-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .cart-row > div,
+  .cart-row strong,
+  .cart-row span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .cart-row > div:last-child {
+    display: grid;
+    grid-template-columns: minmax(74px, 0.5fr) minmax(110px, 1fr);
+    gap: 8px;
   }
 
   .beca-hero,
@@ -5896,6 +5966,9 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
   .account-topbar {
     position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
     width: min(100% - 20px, 1180px);
     margin: 10px auto 0;
     left: auto;
@@ -5904,8 +5977,15 @@ body[data-hero-auth="login"] .beca-hero-copy {
   }
 
   .account-topbar-actions {
+    grid-template-columns: 1fr;
     justify-items: stretch;
     width: 100%;
+  }
+
+  .account-topbar .auth-brand {
+    justify-self: center;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .account-home-link,
@@ -6249,5 +6329,33 @@ body[data-hero-auth="login"] .beca-hero-copy {
   .beca-logo-wolfline {
     width: clamp(96px, 28vw, 122px);
     max-width: 31vw;
+  }
+}
+
+@media (max-width: 760px) {
+  .cart-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px 12px;
+    justify-items: stretch;
+  }
+
+  .cart-head .cart-close {
+    justify-self: end;
+  }
+
+  .cart-head > strong {
+    grid-column: 1 / -1;
+  }
+
+  .account-topbar .auth-brand {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .account-topbar .auth-brand img:last-child {
+    width: clamp(132px, 38vw, 176px);
+    max-width: 46vw;
   }
 }
