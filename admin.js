@@ -113,6 +113,163 @@ function renderProducts(products) {
   });
 }
 
+const photoState = {
+  products: [],
+  selectedId: "",
+  x: 0,
+  y: 0,
+  size: 58,
+  glow: 42
+};
+
+function getSelectedPhotoProduct() {
+  return photoState.products.find((product) => product.id === photoState.selectedId) || photoState.products[0] || null;
+}
+
+function syncPhotoControls() {
+  const product = getSelectedPhotoProduct();
+  const image = document.querySelector("[data-photo-product-image]");
+  const stage = document.querySelector("[data-photo-stage]");
+  if (!image || !stage) return;
+
+  if (!product) {
+    image.hidden = true;
+    return;
+  }
+
+  image.hidden = false;
+  image.src = adminImageSrc(product.imageUrl || "assets/tshirt-3d-poster.png");
+  image.alt = product.name || "Product";
+  image.style.setProperty("--photo-x", `${photoState.x}px`);
+  image.style.setProperty("--photo-y", `${photoState.y}px`);
+  image.style.setProperty("--photo-size", `${photoState.size}%`);
+  image.style.setProperty("--photo-glow", `${photoState.glow / 100}`);
+  stage.dataset.productName = product.name || "";
+}
+
+function renderPhotoProducts(products = []) {
+  const list = document.querySelector("[data-photo-products]");
+  if (!list) return;
+
+  photoState.products = products;
+  if (!photoState.selectedId || !products.some((product) => product.id === photoState.selectedId)) {
+    photoState.selectedId = products[0]?.id || "";
+  }
+
+  list.innerHTML = "";
+
+  if (!products.length) {
+    const empty = document.createElement("div");
+    empty.className = "admin-empty-state";
+    empty.innerHTML = "<strong>No products yet</strong><span>Create a product first, then build a scene shot here.</span>";
+    list.appendChild(empty);
+    syncPhotoControls();
+    return;
+  }
+
+  products.forEach((product) => {
+    const button = document.createElement("button");
+    const thumb = document.createElement("span");
+    const info = document.createElement("span");
+    const name = document.createElement("strong");
+    const meta = document.createElement("small");
+
+    button.type = "button";
+    button.className = "photo-product-button";
+    button.classList.toggle("is-active", product.id === photoState.selectedId);
+    button.dataset.photoProduct = product.id;
+    thumb.className = "photo-product-thumb";
+    if (product.imageUrl) {
+      thumb.style.backgroundImage = `url("${adminImageSrc(product.imageUrl)}")`;
+    }
+    name.textContent = product.name || "Untitled";
+    meta.textContent = `${product.category || "Piece"} / ${product.status || "draft"}`;
+
+    info.append(name, meta);
+    button.append(thumb, info);
+    list.appendChild(button);
+  });
+
+  syncPhotoControls();
+}
+
+function loadImageForCanvas(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function drawCover(ctx, image, width, height) {
+  const scale = Math.max(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+async function buildSceneImage() {
+  const product = getSelectedPhotoProduct();
+  if (!product) throw new Error("Alege un produs.");
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+  const background = await loadImageForCanvas("/assets/studio-stage-bg.jpg");
+  const productImage = await loadImageForCanvas(adminImageSrc(product.imageUrl || "assets/tshirt-3d-poster.png"));
+
+  drawCover(ctx, background, canvas.width, canvas.height);
+  const productHeight = canvas.height * (photoState.size / 100);
+  const productWidth = productHeight * (productImage.width / productImage.height);
+  const x = (canvas.width - productWidth) / 2 + photoState.x * 2;
+  const y = (canvas.height - productHeight) / 2 + photoState.y * 2;
+
+  ctx.save();
+  ctx.shadowColor = `rgba(199, 255, 97, ${0.38 * (photoState.glow / 100)})`;
+  ctx.shadowBlur = 80 * (photoState.glow / 100);
+  ctx.drawImage(productImage, x, y, productWidth, productHeight);
+  ctx.restore();
+
+  return {
+    product,
+    dataUrl: canvas.toDataURL("image/jpeg", 0.9)
+  };
+}
+
+async function downloadSceneImage() {
+  const { product, dataUrl } = await buildSceneImage();
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = `${(product.slug || product.name || "product").toString().toLowerCase().replace(/[^a-z0-9]+/g, "-")}-scene.jpg`;
+  link.click();
+}
+
+async function saveSceneImage() {
+  const message = document.querySelector("[data-photo-message]");
+  const { product, dataUrl } = await buildSceneImage();
+  if (message) {
+    message.dataset.type = "info";
+    message.textContent = "Saving scene image...";
+  }
+
+  const result = await requestJson(`/api/admin/products/${product.id}/scene-image`, {
+    method: "POST",
+    body: JSON.stringify({ image: dataUrl })
+  });
+
+  if (message) {
+    message.dataset.type = "success";
+    message.textContent = "Saved as product image.";
+  }
+
+  photoState.selectedId = result.product.id;
+  await loadDashboard();
+  renderPhotoProducts(photoState.products);
+  setAdminView("photo-studio");
+}
+
 function createField(labelText, name, value = "", required = false, type = "text", step = "") {
   const label = document.createElement("label");
   const input = document.createElement("input");
@@ -241,6 +398,7 @@ async function loadDashboard() {
 
   renderSummary(summary);
   renderProducts(products);
+  renderPhotoProducts(products);
   renderUsers(users);
   renderOrders(orders);
 }
@@ -254,6 +412,51 @@ document.querySelectorAll("[data-admin-tab]").forEach((button) => {
 
 document.querySelectorAll("[data-admin-tab-target]").forEach((button) => {
   button.addEventListener("click", () => setAdminView(button.dataset.adminTabTarget));
+});
+
+document.addEventListener("click", async (event) => {
+  const photoProduct = event.target.closest("[data-photo-product]");
+  const downloadButton = event.target.closest("[data-photo-download]");
+  const saveButton = event.target.closest("[data-photo-save]");
+
+  if (photoProduct) {
+    photoState.selectedId = photoProduct.dataset.photoProduct;
+    renderPhotoProducts(photoState.products);
+  }
+
+  if (downloadButton) {
+    downloadButton.disabled = true;
+    try {
+      await downloadSceneImage();
+    } finally {
+      downloadButton.disabled = false;
+    }
+  }
+
+  if (saveButton) {
+    saveButton.disabled = true;
+    try {
+      await saveSceneImage();
+    } catch (error) {
+      const message = document.querySelector("[data-photo-message]");
+      if (message) {
+        message.dataset.type = "";
+        message.textContent = error.message;
+      }
+    } finally {
+      saveButton.disabled = false;
+    }
+  }
+});
+
+document.addEventListener("input", (event) => {
+  if (event.target.matches("[data-photo-x]")) photoState.x = Number(event.target.value || 0);
+  if (event.target.matches("[data-photo-y]")) photoState.y = Number(event.target.value || 0);
+  if (event.target.matches("[data-photo-size]")) photoState.size = Number(event.target.value || 58);
+  if (event.target.matches("[data-photo-glow]")) photoState.glow = Number(event.target.value || 42);
+  if (event.target.matches("[data-photo-x], [data-photo-y], [data-photo-size], [data-photo-glow]")) {
+    syncPhotoControls();
+  }
 });
 
 if (productForm) {

@@ -438,6 +438,7 @@ function publicProduct(product) {
     currency: product.currency,
     stock: product.stock,
     imageUrl: product.imageUrl || "",
+    sceneImageUrl: product.sceneImageUrl || "",
     sizes: Array.isArray(product.sizes) ? product.sizes : [],
     color: product.color || "",
     description: product.description || "",
@@ -974,6 +975,36 @@ async function handleAdminApi(request, response, pathname) {
 
     const body = await readProductPayload(request, products[index]);
     products[index] = sanitizeProduct(body, products[index]);
+    writeJson("products.json", products);
+    json(response, 200, { ok: true, product: products[index] });
+    return true;
+  }
+
+  const productSceneMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)\/scene-image$/);
+  if (productSceneMatch && request.method === "POST") {
+    const productId = productSceneMatch[1];
+    const products = readJson("products.json", []);
+    const index = products.findIndex((product) => product.id === productId);
+
+    if (index === -1) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const imageUrl = saveDataUrlImage(body.image || "", "scene-product");
+
+    if (!imageUrl) {
+      json(response, 400, { error: "Imaginea scenei lipseste." });
+      return true;
+    }
+
+    products[index] = {
+      ...products[index],
+      imageUrl,
+      sceneImageUrl: imageUrl,
+      updatedAt: new Date().toISOString()
+    };
     writeJson("products.json", products);
     json(response, 200, { ok: true, product: products[index] });
     return true;

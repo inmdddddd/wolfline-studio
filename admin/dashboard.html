@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Admin Dashboard / BeCa</title>
   <link rel="icon" href="../favicon.ico" sizes="any">
-  <link rel="stylesheet" href="../styles.css?v=cart-checkout-1">
+  <link rel="stylesheet" href="../styles.css?v=photo-studio-1">
   <script type="importmap">
     {
       "imports": {
@@ -34,6 +34,7 @@
       <nav class="admin-side-nav">
         <button type="button" class="is-active" data-admin-tab="overview">Overview</button>
         <button type="button" data-admin-tab="studio">3D Studio</button>
+        <button type="button" data-admin-tab="photo-studio">Photo Studio</button>
         <button type="button" data-admin-tab="products">Products</button>
         <button type="button" data-admin-tab="add-product">Add product</button>
         <button type="button" data-admin-tab="customers">Customers</button>
@@ -130,6 +131,37 @@
         </div>
       </div>
 
+      <div class="admin-panel admin-view" data-admin-view="photo-studio">
+        <div class="admin-view-head">
+          <div>
+            <p>Photo Studio</p>
+            <h2>Create mobile-safe product shots.</h2>
+          </div>
+        </div>
+        <div class="photo-studio-shell">
+          <aside class="photo-product-list">
+            <p>Products</p>
+            <div data-photo-products></div>
+          </aside>
+          <section class="photo-stage-card">
+            <div class="photo-stage" data-photo-stage>
+              <img class="photo-stage-product" data-photo-product-image src="../assets/tshirt-3d-poster.png" alt="">
+            </div>
+            <div class="photo-stage-controls">
+              <label>Horizontal<input type="range" min="-320" max="320" value="0" data-photo-x></label>
+              <label>Vertical<input type="range" min="-220" max="220" value="0" data-photo-y></label>
+              <label>Size<input type="range" min="32" max="96" value="58" data-photo-size></label>
+              <label>Glow<input type="range" min="0" max="100" value="42" data-photo-glow></label>
+            </div>
+            <div class="photo-stage-actions">
+              <button type="button" data-photo-download>Download shot</button>
+              <button type="button" data-photo-save>Save as product image</button>
+            </div>
+            <span class="form-message" data-photo-message></span>
+          </section>
+        </div>
+      </div>
+
       <div class="admin-panel admin-view" data-admin-view="add-product">
         <p>Add product</p>
         <h2>Create a new piece.</h2>
@@ -176,7 +208,7 @@
 
   <script src="../security.js"></script>
   <script src="../script.js"></script>
-  <script src="../admin.js?v=global-i18n-1"></script>
+  <script src="../admin.js?v=photo-studio-1"></script>
   <script type="module" src="../studio.js?v=texture-save-1"></script>
 </body>
 </html>
