@@ -368,7 +368,7 @@ function renderNotifications(notifications) {
     item.className = "admin-product admin-order";
     meta.textContent = `${entry.productName || "Preview piece"} / ${new Date(entry.createdAt).toLocaleString()}`;
     title.textContent = entry.name || "Client";
-    customer.textContent = entry.email || "";
+    customer.textContent = `${entry.email || ""}${entry.preferredSize ? ` / size ${entry.preferredSize}` : ""}`;
     time.textContent = "Notify";
     info.append(meta, title, customer);
     controls.append(time);

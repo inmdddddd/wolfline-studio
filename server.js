@@ -760,6 +760,7 @@ async function handleShopApi(request, response, pathname) {
 
     const body = await readBody(request);
     const productId = String(body.productId || "");
+    const preferredSize = String(body.preferredSize || "").trim().slice(0, 12);
     const product = readJson("products.json", []).find((item) => item.id === productId);
 
     if (!product || (product.status !== "preview" && product.status !== "live")) {
@@ -769,7 +770,11 @@ async function handleShopApi(request, response, pathname) {
 
     const notifications = readJson("notifications.json", []);
     const existing = notifications.find((item) => item.productId === product.id && item.userId === session.user.id);
-    if (!existing) {
+    if (existing) {
+      existing.preferredSize = preferredSize || existing.preferredSize || "";
+      existing.updatedAt = new Date().toISOString();
+      writeJson("notifications.json", notifications);
+    } else {
       notifications.unshift({
         id: crypto.randomUUID(),
         productId: product.id,
@@ -777,6 +782,7 @@ async function handleShopApi(request, response, pathname) {
         userId: session.user.id,
         name: session.user.name,
         email: session.user.email,
+        preferredSize,
         createdAt: new Date().toISOString()
       });
       writeJson("notifications.json", notifications);

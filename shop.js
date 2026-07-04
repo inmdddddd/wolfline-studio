@@ -299,7 +299,7 @@ async function notifyForProduct(productId, button) {
   try {
     await shopRequest("/api/notify", {
       method: "POST",
-      body: JSON.stringify({ productId })
+      body: JSON.stringify({ productId, preferredSize: "" })
     });
     button.textContent = shopText("notifySaved", "You are on the list.");
   } catch (error) {

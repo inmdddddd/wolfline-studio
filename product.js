@@ -80,12 +80,34 @@ async function initProductPage() {
   document.querySelector("[data-product-description]").textContent = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
 
   const sizes = document.querySelector("[data-product-sizes]");
+  const preferredSizeWrap = document.querySelector("[data-preferred-size-wrap]");
+  const preferredSizeSelect = document.querySelector("[data-preferred-size]");
+  const previewNote = document.querySelector("[data-preview-note]");
   sizes.innerHTML = "";
+  if (preferredSizeSelect) preferredSizeSelect.innerHTML = "";
   (product.sizes || []).forEach((size) => {
     const chip = document.createElement("span");
     chip.textContent = size;
     sizes.appendChild(chip);
+
+    if (preferredSizeSelect) {
+      const option = document.createElement("option");
+      option.value = size;
+      option.textContent = size;
+      preferredSizeSelect.appendChild(option);
+    }
   });
+
+  if (previewNote) {
+    previewNote.hidden = !isPreviewProduct(product);
+    previewNote.querySelector("span").textContent = productText("previewReason", "Join the list for access before the public drop. Limited stock.");
+    previewNote.querySelector("strong").textContent = productText("dropUnlocks", "Drop unlocks in 12 days");
+  }
+
+  if (preferredSizeWrap) {
+    preferredSizeWrap.hidden = !isPreviewProduct(product);
+    preferredSizeWrap.querySelector("span").textContent = productText("preferredSize", "Preferred size");
+  }
 
   if (product.studio?.model) {
     viewer.src = product.studio.model;
@@ -107,7 +129,10 @@ async function initProductPage() {
       if (isPreviewProduct(product)) {
         await productRequest("/api/notify", {
           method: "POST",
-          body: JSON.stringify({ productId: product.id })
+          body: JSON.stringify({
+            productId: product.id,
+            preferredSize: preferredSizeSelect?.value || ""
+          })
         });
         message.dataset.type = "success";
         message.textContent = productText("notifySaved", "You are on the list.");

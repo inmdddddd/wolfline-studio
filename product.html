@@ -11,7 +11,7 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=square-product-shot-2">
+  <link rel="stylesheet" href="styles.css?v=hype-waitlist-1">
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body class="beca-minimal product-page">
@@ -105,14 +105,22 @@
       <h1 data-product-name>Loading product.</h1>
       <strong data-product-price>GBP 0.00</strong>
       <p data-product-description></p>
+      <div class="product-preview-note" data-preview-note hidden>
+        <span data-i18n="product.previewReason">Intra pe lista pentru acces inainte de public. Stoc limitat.</span>
+        <strong data-i18n="product.countdown">Drop unlocks in 12 days</strong>
+      </div>
       <div class="product-specs" data-product-sizes></div>
+      <label class="preferred-size" data-preferred-size-wrap hidden>
+        <span data-i18n="product.preferredSize">Preferred size</span>
+        <select data-preferred-size></select>
+      </label>
       <button type="button" data-product-add>Add to cart</button>
       <span class="form-message" data-product-message></span>
     </section>
   </main>
 
-  <script src="locale.js?v=preview-price-1"></script>
-  <script src="product.js?v=preview-price-1"></script>
+  <script src="locale.js?v=hype-waitlist-1"></script>
+  <script src="product.js?v=hype-waitlist-1"></script>
   <script src="security.js?v=mobile-lock-zoom-1"></script>
   <script src="auth.js?v=mobile-drawer-1"></script>
 </body>
