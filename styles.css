@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&display=swap");
+
 :root {
   --bg: #050706;
   --panel: #0d1110;
@@ -46,7 +48,7 @@ body {
   overscroll-behavior-x: none;
   touch-action: pan-y;
   margin: 0;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: "Inter Tight", "Segoe UI", Arial, sans-serif;
   color: var(--text);
   background:
     radial-gradient(circle at 18% 8%, rgba(199, 255, 97, 0.06), transparent 26rem),
