@@ -425,7 +425,11 @@ function renderOrders(orders) {
   });
 }
 
-function renderUsers(users) {
+let canManageUserRoles = false;
+
+function renderUsers(users, options = {}) {
+  canManageUserRoles = Boolean(options.canManageRoles);
+  const primaryAdminEmail = options.primaryAdminEmail || "admin@beca.local";
   const list = document.querySelector("[data-users]");
   list.innerHTML = "";
 
@@ -434,17 +438,41 @@ function renderUsers(users) {
     const name = document.createElement("strong");
     const email = document.createElement("span");
     const role = document.createElement("em");
+    const roleControls = document.createElement("div");
 
     name.textContent = user.name;
     email.textContent = user.email;
-    role.textContent = user.role;
-    item.append(name, email, role);
+
+    if (canManageUserRoles && user.email !== primaryAdminEmail) {
+      const select = document.createElement("select");
+      const save = document.createElement("button");
+
+      select.dataset.userRole = user.id;
+      save.dataset.saveRole = user.id;
+      save.type = "button";
+      save.textContent = "Save role";
+      ["client", "admin"].forEach((value) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value === "client" ? "customer" : "admin";
+        option.selected = user.role === value;
+        select.appendChild(option);
+      });
+
+      roleControls.className = "admin-role-controls";
+      roleControls.append(select, save);
+    } else {
+      role.textContent = user.role === "client" ? "customer" : user.role;
+      roleControls.appendChild(role);
+    }
+
+    item.append(name, email, roleControls);
     list.appendChild(item);
   });
 }
 
 async function loadDashboard() {
-  const [summary, { products }, { users }, { orders }, { notifications }] = await Promise.all([
+  const [summary, { products }, usersPayload, { orders }, { notifications }] = await Promise.all([
     requestJson("/api/admin/summary"),
     requestJson("/api/admin/products"),
     requestJson("/api/admin/users"),
@@ -455,7 +483,10 @@ async function loadDashboard() {
   renderSummary(summary);
   renderProducts(products);
   renderPhotoProducts(products);
-  renderUsers(users);
+  renderUsers(usersPayload.users, {
+    canManageRoles: usersPayload.canManageRoles,
+    primaryAdminEmail: usersPayload.primaryAdminEmail
+  });
   renderOrders(orders);
   renderNotifications(notifications);
 }
@@ -550,6 +581,31 @@ document.addEventListener("click", async (event) => {
 
   await requestJson(`/api/admin/products/${deleteButton.dataset.delete}`, { method: "DELETE" });
   await loadDashboard();
+});
+
+document.addEventListener("click", async (event) => {
+  const roleButton = event.target.closest("[data-save-role]");
+  if (!roleButton) return;
+
+  const select = document.querySelector(`[data-user-role="${roleButton.dataset.saveRole}"]`);
+  if (!select) return;
+
+  roleButton.disabled = true;
+  roleButton.textContent = "Saving...";
+
+  try {
+    await requestJson(`/api/admin/users/${roleButton.dataset.saveRole}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role: select.value })
+    });
+    await loadDashboard();
+  } catch (error) {
+    roleButton.textContent = error.message;
+    window.setTimeout(() => {
+      roleButton.disabled = false;
+      roleButton.textContent = "Save role";
+    }, 1800);
+  }
 });
 
 document.addEventListener("submit", async (event) => {

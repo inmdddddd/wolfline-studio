@@ -4817,6 +4817,42 @@ body.beca-minimal {
   text-transform: uppercase;
 }
 
+.admin-role-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-role-controls select {
+  min-width: 116px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(10, 14, 10, 0.74);
+  color: var(--text);
+  font-family: inherit;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-role-controls button {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: var(--accent);
+  color: #0a1008;
+  font-family: inherit;
+  font-weight: 950;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.admin-role-controls button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 @media (max-width: 860px) {
   .admin-metrics,
   .admin-grid,
@@ -4827,6 +4863,10 @@ body.beca-minimal {
   .admin-users li,
   .admin-product {
     grid-template-columns: 1fr;
+  }
+
+  .admin-role-controls {
+    justify-content: flex-start;
   }
 
   .admin-product > div:last-child {

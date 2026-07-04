@@ -14,6 +14,7 @@ const port = Number(process.env.PORT || 4188);
 const host = process.env.HOST || "0.0.0.0";
 const sessionCookie = "beca_session";
 const cartCookie = "beca_cart";
+const primaryAdminEmail = "admin@beca.local";
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
 const cartTtlMs = 1000 * 60 * 60 * 24 * 30;
 const isProduction = process.env.NODE_ENV === "production";
@@ -952,7 +953,49 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/users" && request.method === "GET") {
-    json(response, 200, { users: readJson("users.json", []).map(safePublicUser) });
+    json(response, 200, {
+      users: readJson("users.json", []).map(safePublicUser),
+      canManageRoles: session.user.email === primaryAdminEmail,
+      primaryAdminEmail
+    });
+    return true;
+  }
+
+  const userRoleMatch = pathname.match(/^\/api\/admin\/users\/([a-f0-9-]+)\/role$/);
+  if (userRoleMatch && request.method === "PUT") {
+    if (session.user.email !== primaryAdminEmail) {
+      json(response, 403, { error: "Doar BeCa Admin poate modifica roluri." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const role = String(body.role || "").trim();
+
+    if (!["admin", "client"].includes(role)) {
+      json(response, 400, { error: "Rol invalid." });
+      return true;
+    }
+
+    const users = readJson("users.json", []);
+    const index = users.findIndex((user) => user.id === userRoleMatch[1]);
+
+    if (index === -1) {
+      json(response, 404, { error: "Userul nu exista." });
+      return true;
+    }
+
+    if (users[index].email === primaryAdminEmail && role !== "admin") {
+      json(response, 400, { error: "BeCa Admin trebuie sa ramana admin." });
+      return true;
+    }
+
+    users[index] = {
+      ...users[index],
+      role,
+      updatedAt: new Date().toISOString()
+    };
+    writeJson("users.json", users);
+    json(response, 200, { ok: true, user: safePublicUser(users[index]) });
     return true;
   }
 
