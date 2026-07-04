@@ -16,4 +16,28 @@
       event.stopPropagation();
     }
   }, true);
+
+  let lastTouchEnd = 0;
+
+  document.addEventListener("gesturestart", (event) => {
+    event.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener("gesturechange", (event) => {
+    event.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener("touchmove", (event) => {
+    if (event.touches && event.touches.length > 1) {
+      event.preventDefault();
+    }
+  }, { passive: false });
+
+  document.addEventListener("touchend", (event) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 320) {
+      event.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, { passive: false });
 })();

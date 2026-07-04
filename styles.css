@@ -34,9 +34,17 @@
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
   margin: 0;
   font-family: "Segoe UI", Arial, sans-serif;
   color: var(--text);
@@ -76,6 +84,10 @@ body::after {
   opacity: 0.46;
   pointer-events: none;
   animation: cinematicDrift 14s ease-in-out infinite alternate;
+}
+
+body > * {
+  max-width: 100%;
 }
 
 .cursor-glow {
@@ -6120,13 +6132,16 @@ body[data-hero-auth="login"] .beca-hero-copy {
     cursor: pointer;
   }
 
-  .mobile-menu-trigger span {
-    width: 18px;
-    height: 2px;
+  .mobile-menu-trigger img {
+    width: 22px;
+    height: 22px;
     display: block;
-    border-radius: 999px;
-    background: var(--text);
-    box-shadow: 0 0 10px rgba(199, 255, 97, 0.12);
+    object-fit: contain;
+    filter:
+      invert(1)
+      brightness(2.6)
+      contrast(1.15)
+      drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
   }
 
   .mobile-menu {
@@ -6333,6 +6348,40 @@ body[data-hero-auth="login"] .beca-hero-copy {
 }
 
 @media (max-width: 760px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+    touch-action: pan-y;
+  }
+
+  body {
+    position: relative;
+  }
+
+  .site-scene,
+  .beca-intro,
+  .cart-drawer,
+  .mobile-menu {
+    width: 100vw;
+    max-width: 100vw;
+    overflow: hidden;
+  }
+
+  .spline-scene,
+  .scene-aurora,
+  .beca-hero,
+  .brand-section,
+  .product-detail-shell,
+  .account-shell,
+  .auth-shell,
+  .admin-shell,
+  .admin-app-shell {
+    max-width: calc(100vw - 20px);
+  }
+
   .cart-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
