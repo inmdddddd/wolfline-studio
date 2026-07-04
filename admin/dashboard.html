@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Admin Dashboard / BeCa</title>
   <link rel="icon" href="../favicon.ico" sizes="any">
-  <link rel="stylesheet" href="../styles.css?v=photo-studio-hq-1">
+  <link rel="stylesheet" href="../styles.css?v=photo-studio-poses-1">
   <script type="importmap">
     {
       "imports": {
@@ -155,6 +155,13 @@
               <label>Size<input type="range" min="32" max="96" value="58" data-photo-size></label>
               <label>Glow<input type="range" min="0" max="100" value="42" data-photo-glow></label>
             </div>
+            <div class="photo-pose-controls" aria-label="Photo poses">
+              <button type="button" data-photo-pose="front" data-angle="180">Front</button>
+              <button type="button" data-photo-pose="back" data-angle="0" class="is-active">Back</button>
+              <button type="button" data-photo-pose="left" data-angle="90">Left</button>
+              <button type="button" data-photo-pose="right" data-angle="-90">Right</button>
+              <button type="button" data-photo-pose="three-quarter" data-angle="-35">3/4</button>
+            </div>
             <div class="photo-stage-actions">
               <button type="button" data-photo-download>Download shot</button>
               <button type="button" data-photo-save>Save as product image</button>
@@ -210,7 +217,7 @@
 
   <script src="../security.js"></script>
   <script src="../script.js"></script>
-  <script src="../admin.js?v=photo-studio-hq-1"></script>
-  <script type="module" src="../studio.js?v=photo-studio-hq-1"></script>
+  <script src="../admin.js?v=photo-studio-poses-1"></script>
+  <script type="module" src="../studio.js?v=photo-studio-poses-1"></script>
 </body>
 </html>

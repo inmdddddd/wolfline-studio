@@ -5257,6 +5257,31 @@ body.beca-minimal {
   accent-color: var(--accent);
 }
 
+.photo-pose-controls {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.photo-pose-controls button {
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: rgba(242, 242, 236, 0.86);
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.photo-pose-controls button.is-active {
+  border-color: rgba(199, 255, 97, 0.72);
+  color: #071004;
+  background: var(--accent);
+}
+
 .photo-stage-actions {
   display: flex;
   flex-wrap: wrap;
@@ -5317,6 +5342,10 @@ body.beca-minimal {
   }
 
   .photo-stage-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .photo-pose-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

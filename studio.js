@@ -281,7 +281,7 @@ function initPhotoStudio3D() {
   let activeProductId = "";
   let activeModel = null;
   let activeMeshes = [];
-  let state3d = { x: 0, y: 0, size: 58, glow: 42 };
+  let state3d = { x: 0, y: 0, size: 58, glow: 42, angle: 0 };
 
   renderer3d.setClearColor(0x000000, 0);
   renderer3d.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -368,7 +368,9 @@ function initPhotoStudio3D() {
     const scale = Math.max(0.45, Number(state3d.size || 58) / 58);
     group.scale.setScalar(scale);
     group.position.set(Number(state3d.x || 0) / 210, -Number(state3d.y || 0) / 230, 0);
+    group.rotation.y = (Number(state3d.angle || 0) * Math.PI) / 180;
     photoContainer.style.setProperty("--photo-glow", `${Number(state3d.glow || 42) / 100}`);
+    renderPhoto();
   }
 
   async function loadProduct(product = {}) {
@@ -414,9 +416,6 @@ function initPhotoStudio3D() {
 
   function animatePhoto() {
     requestAnimationFrame(animatePhoto);
-    if (activeModel) {
-      activeModel.rotation.y += 0.0022;
-    }
     renderPhoto();
   }
 

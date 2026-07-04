@@ -126,7 +126,9 @@ const photoState = {
   x: 0,
   y: 0,
   size: 58,
-  glow: 42
+  glow: 42,
+  angle: 0,
+  pose: "back"
 };
 
 function getSelectedPhotoProduct() {
@@ -147,6 +149,9 @@ function syncPhotoControls() {
   viewer.dataset.empty = "false";
   stage.style.setProperty("--photo-glow", `${photoState.glow / 100}`);
   stage.dataset.productName = product.name || "";
+  document.querySelectorAll("[data-photo-pose]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.photoPose === photoState.pose);
+  });
 
   if (window.BecaPhotoStudio3D) {
     window.BecaPhotoStudio3D.loadProduct(product);
@@ -425,10 +430,17 @@ document.addEventListener("click", async (event) => {
   const photoProduct = event.target.closest("[data-photo-product]");
   const downloadButton = event.target.closest("[data-photo-download]");
   const saveButton = event.target.closest("[data-photo-save]");
+  const poseButton = event.target.closest("[data-photo-pose]");
 
   if (photoProduct) {
     photoState.selectedId = photoProduct.dataset.photoProduct;
     renderPhotoProducts(photoState.products);
+  }
+
+  if (poseButton) {
+    photoState.pose = poseButton.dataset.photoPose || "custom";
+    photoState.angle = Number(poseButton.dataset.angle || 180);
+    syncPhotoControls();
   }
 
   if (downloadButton) {
