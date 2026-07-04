@@ -27,6 +27,9 @@ function productImageSrc(product) {
   return product.imageDataUrl || product.sceneImageDataUrl || product.imageUrl || "";
 }
 
+const isSafariProduct = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+const isMobileProduct = window.matchMedia?.("(max-width: 760px), (pointer: coarse)")?.matches || /iphone|ipad|android|mobile/i.test(navigator.userAgent);
+
 async function productRequest(url, options = {}) {
   const response = await fetch(url, {
     headers: { "Content-Type": "application/json" },
@@ -111,8 +114,10 @@ async function initProductPage() {
 
   if (product.studio?.model) {
     viewer.src = product.studio.model;
-    if (productImageSrc(product)) {
+    if ((isMobileProduct || isSafariProduct) && productImageSrc(product)) {
       viewer.setAttribute("poster", productImageSrc(product));
+    } else {
+      viewer.removeAttribute("poster");
     }
     applyProductTexture(viewer, product.studio.textureUrl).catch(() => {});
   }
