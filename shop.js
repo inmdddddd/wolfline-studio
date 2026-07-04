@@ -164,7 +164,9 @@ function renderProducts(products = []) {
       chip.textContent = size;
       specs.appendChild(chip);
     });
-    price.textContent = shopMoney(product.price, product.currency);
+    price.textContent = isPreviewProduct(product)
+      ? shopText("unknownYet", "Unknown yet")
+      : shopMoney(product.price, product.currency);
     button.type = "button";
     if (isPreviewProduct(product)) {
       button.dataset.notifyProduct = product.id;

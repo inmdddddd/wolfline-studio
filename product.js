@@ -74,7 +74,9 @@ async function initProductPage() {
     ? `${display.displayCategory || productText("piece", "Piece")} / ${productText("previewOnly", "preview")}`
     : `${display.displayCategory || productText("piece", "Piece")} / ${window.BecaRegion?.stockText?.(product.stock) || (product.stock > 0 ? `${product.stock} left` : "sold out")}`;
   document.querySelector("[data-product-name]").textContent = display.displayName;
-  document.querySelector("[data-product-price]").textContent = productMoney(product.price, product.currency);
+  document.querySelector("[data-product-price]").textContent = isPreviewProduct(product)
+    ? productText("unknownYet", "Unknown yet")
+    : productMoney(product.price, product.currency);
   document.querySelector("[data-product-description]").textContent = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
 
   const sizes = document.querySelector("[data-product-sizes]");
