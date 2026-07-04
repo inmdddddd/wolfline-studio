@@ -3791,6 +3791,8 @@ body.beca-minimal {
 }
 
 .product-media.has-product-shot {
+  aspect-ratio: 1 / 1;
+  height: auto;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.16);
 }
@@ -3800,10 +3802,10 @@ body.beca-minimal {
   height: 100%;
   max-height: none;
   object-fit: cover;
-  object-position: 50% 56%;
+  object-position: 50% 50%;
   filter: none;
-  transform: scale(1.14);
-  transform-origin: 50% 56%;
+  transform: scale(1.08);
+  transform-origin: 50% 50%;
 }
 
 .is-safari .spline-scene {
@@ -6186,9 +6188,9 @@ body[data-hero-auth="login"] .beca-hero-copy {
   }
 
   .product-media.has-product-shot img {
-    object-position: 50% 58%;
-    transform: scale(1.24);
-    transform-origin: 50% 58%;
+    object-position: 50% 50%;
+    transform: scale(1.12);
+    transform-origin: 50% 50%;
   }
 
   .product-card p {

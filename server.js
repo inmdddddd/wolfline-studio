@@ -5,7 +5,11 @@ const path = require("path");
 
 const root = __dirname;
 const rootResolved = path.resolve(root);
-const dataDir = path.join(root, "data");
+const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(root, "data");
+const uploadDir = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.join(root, "assets", "products");
+const uploadDirResolved = path.resolve(uploadDir);
+const uploadPublicBase = (process.env.UPLOAD_PUBLIC_BASE || "assets/products").replace(/^\/+|\/+$/g, "");
+const uploadRoutePrefix = `/${uploadPublicBase}/`;
 const port = Number(process.env.PORT || 4188);
 const host = process.env.HOST || "0.0.0.0";
 const sessionCookie = "beca_session";
@@ -31,7 +35,7 @@ const types = {
 
 function ensureDataFiles() {
   fs.mkdirSync(dataDir, { recursive: true });
-  fs.mkdirSync(path.join(root, "assets", "products"), { recursive: true });
+  fs.mkdirSync(uploadDirResolved, { recursive: true });
 
   if (!fs.existsSync(path.join(dataDir, "users.json"))) {
     const admin = createUserRecord({
@@ -249,11 +253,10 @@ function saveProductImage(file) {
     throw error;
   }
 
-  const uploadDir = path.join(root, "assets", "products");
-  fs.mkdirSync(uploadDir, { recursive: true });
+  fs.mkdirSync(uploadDirResolved, { recursive: true });
   const fileName = `${crypto.randomUUID()}${extension}`;
-  fs.writeFileSync(path.join(uploadDir, fileName), file.body);
-  return `assets/products/${fileName}`;
+  fs.writeFileSync(path.join(uploadDirResolved, fileName), file.body);
+  return `${uploadPublicBase}/${fileName}`;
 }
 
 function fileToImageDataUrl(file) {
@@ -275,11 +278,10 @@ function saveDataUrlImage(dataUrl, prefix = "studio") {
     throw error;
   }
 
-  const uploadDir = path.join(root, "assets", "products");
-  fs.mkdirSync(uploadDir, { recursive: true });
+  fs.mkdirSync(uploadDirResolved, { recursive: true });
   const fileName = `${prefix}-${crypto.randomUUID()}${extension}`;
-  fs.writeFileSync(path.join(uploadDir, fileName), buffer);
-  return `assets/products/${fileName}`;
+  fs.writeFileSync(path.join(uploadDirResolved, fileName), buffer);
+  return `${uploadPublicBase}/${fileName}`;
 }
 
 async function readProductPayload(request, existing = {}) {
@@ -1150,6 +1152,32 @@ function serveFile(request, response, pathname) {
   });
 }
 
+function serveUploadedProductFile(response, pathname) {
+  if (!pathname.startsWith(uploadRoutePrefix)) return false;
+
+  const fileName = path.basename(pathname);
+  const filePath = path.resolve(uploadDirResolved, fileName);
+
+  if (!filePath.startsWith(uploadDirResolved)) {
+    send(response, 403, "Forbidden");
+    return true;
+  }
+
+  fs.readFile(filePath, (error, data) => {
+    if (error) {
+      send(response, 404, "Not found");
+      return;
+    }
+
+    send(response, 200, data, {
+      "Content-Type": types[path.extname(filePath)] || "application/octet-stream",
+      "Cache-Control": "public, max-age=3600"
+    });
+  });
+
+  return true;
+}
+
 ensureDataFiles();
 
 http.createServer(async (request, response) => {
@@ -1166,6 +1194,7 @@ http.createServer(async (request, response) => {
       return;
     }
 
+    if (serveUploadedProductFile(response, pathname)) return;
     serveFile(request, response, pathname);
   } catch (error) {
     console.error(error);

@@ -28,6 +28,7 @@ function productImageSrc(product) {
 }
 
 const isSafariShop = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+const isMobileShop = window.matchMedia?.("(max-width: 760px), (pointer: coarse)")?.matches || /iphone|ipad|android|mobile/i.test(navigator.userAgent);
 
 async function applyModelViewerTexture(viewer, textureUrl) {
   if (!viewer || !textureUrl) return;
@@ -93,8 +94,19 @@ function renderProducts(products = []) {
     card.className = "product-card";
     card.classList.toggle("is-preview", isPreviewProduct(product));
     media.className = "product-media";
+    const imageSource = productImageSrc(product);
+    const shouldUseProductShot = Boolean(imageSource) && (isMobileShop || isSafariShop);
 
-    if (product.studio?.model && !isSafariShop) {
+    if (shouldUseProductShot) {
+      const image = document.createElement("img");
+      image.src = imageSource;
+      image.alt = display.displayName;
+      image.onerror = () => {
+        image.src = "assets/tshirt-3d-poster.png";
+      };
+      media.classList.add("has-product-shot");
+      media.appendChild(image);
+    } else if (product.studio?.model && !isSafariShop && !isMobileShop) {
       const viewer = document.createElement("model-viewer");
       viewer.src = product.studio.model;
       viewer.alt = display.displayName;
@@ -111,16 +123,20 @@ function renderProducts(products = []) {
       viewer.setAttribute("exposure", "0.92");
       media.appendChild(viewer);
       applyModelViewerTexture(viewer, product.studio.textureUrl);
-    } else if (productImageSrc(product)) {
+    } else if (imageSource) {
       const image = document.createElement("img");
-      image.src = productImageSrc(product);
+      image.src = imageSource;
       image.alt = display.displayName;
+      image.onerror = () => {
+        image.src = "assets/tshirt-3d-poster.png";
+      };
       media.classList.add("has-product-shot");
       media.appendChild(image);
     } else if (product.studio?.model) {
       const fallback = document.createElement("img");
       fallback.src = "assets/tshirt-3d-poster.png";
       fallback.alt = display.displayName;
+      media.classList.add("has-product-shot");
       media.appendChild(fallback);
     } else {
       media.textContent = display.displayCategory || shopText("drop", "Drop");
