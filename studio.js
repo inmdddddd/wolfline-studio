@@ -432,10 +432,25 @@ function initPhotoStudio3D() {
   window.BecaPhotoStudio3D = {
     loadProduct,
     update: updatePhotoTransform,
-    capture() {
-      resizePhoto();
+    capture(width = 1920, height = 1080) {
+      const rect = photoContainer.getBoundingClientRect();
+      const previewWidth = Math.max(1, Math.floor(rect.width || 960));
+      const previewHeight = Math.max(1, Math.floor(rect.height || 540));
+
+      renderer3d.setPixelRatio(1);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer3d.setSize(width, height, false);
       renderPhoto();
-      return renderer3d.domElement.toDataURL("image/png");
+      const image = renderer3d.domElement.toDataURL("image/png");
+
+      renderer3d.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      camera.aspect = previewWidth / previewHeight;
+      camera.updateProjectionMatrix();
+      renderer3d.setSize(previewWidth, previewHeight, false);
+      renderPhoto();
+
+      return image;
     }
   };
 

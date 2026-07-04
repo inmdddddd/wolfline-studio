@@ -229,7 +229,7 @@ async function buildSceneImage() {
   canvas.height = 1080;
   const ctx = canvas.getContext("2d");
   const background = await loadImageForCanvas("/assets/studio-stage-bg.png");
-  const productLayer = await loadImageForCanvas(window.BecaPhotoStudio3D.capture());
+  const productLayer = await loadImageForCanvas(window.BecaPhotoStudio3D.capture(canvas.width, canvas.height));
 
   drawCover(ctx, background, canvas.width, canvas.height);
 
@@ -241,7 +241,7 @@ async function buildSceneImage() {
 
   return {
     product,
-    dataUrl: canvas.toDataURL("image/jpeg", 0.9)
+    dataUrl: canvas.toDataURL("image/jpeg", 0.96)
   };
 }
 
