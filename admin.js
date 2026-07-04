@@ -45,6 +45,13 @@ function setAdminView(view) {
   if (activeView === "studio") {
     requestAnimationFrame(() => window.dispatchEvent(new CustomEvent("beca:studio-visible")));
   }
+
+  if (activeView === "photo-studio") {
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("beca:photo-studio-visible"));
+      syncPhotoControls();
+    });
+  }
 }
 
 function renderProducts(products) {
@@ -128,23 +135,23 @@ function getSelectedPhotoProduct() {
 
 function syncPhotoControls() {
   const product = getSelectedPhotoProduct();
-  const image = document.querySelector("[data-photo-product-image]");
   const stage = document.querySelector("[data-photo-stage]");
-  if (!image || !stage) return;
+  const viewer = document.querySelector("[data-photo-viewer]");
+  if (!stage || !viewer) return;
 
   if (!product) {
-    image.hidden = true;
+    viewer.dataset.empty = "true";
     return;
   }
 
-  image.hidden = false;
-  image.src = adminImageSrc(product.imageUrl || "assets/tshirt-3d-poster.png");
-  image.alt = product.name || "Product";
-  image.style.setProperty("--photo-x", `${photoState.x}px`);
-  image.style.setProperty("--photo-y", `${photoState.y}px`);
-  image.style.setProperty("--photo-size", `${photoState.size}%`);
-  image.style.setProperty("--photo-glow", `${photoState.glow / 100}`);
+  viewer.dataset.empty = "false";
+  stage.style.setProperty("--photo-glow", `${photoState.glow / 100}`);
   stage.dataset.productName = product.name || "";
+
+  if (window.BecaPhotoStudio3D) {
+    window.BecaPhotoStudio3D.loadProduct(product);
+    window.BecaPhotoStudio3D.update(photoState);
+  }
 }
 
 function renderPhotoProducts(products = []) {
@@ -212,24 +219,24 @@ function drawCover(ctx, image, width, height) {
 async function buildSceneImage() {
   const product = getSelectedPhotoProduct();
   if (!product) throw new Error("Alege un produs.");
+  if (!window.BecaPhotoStudio3D) throw new Error("Photo Studio 3D nu este incarcat inca.");
+
+  await window.BecaPhotoStudio3D.loadProduct(product);
+  window.BecaPhotoStudio3D.update(photoState);
 
   const canvas = document.createElement("canvas");
   canvas.width = 2048;
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
   const background = await loadImageForCanvas("/assets/studio-stage-bg.jpg");
-  const productImage = await loadImageForCanvas(adminImageSrc(product.imageUrl || "assets/tshirt-3d-poster.png"));
+  const productLayer = await loadImageForCanvas(window.BecaPhotoStudio3D.capture());
 
   drawCover(ctx, background, canvas.width, canvas.height);
-  const productHeight = canvas.height * (photoState.size / 100);
-  const productWidth = productHeight * (productImage.width / productImage.height);
-  const x = (canvas.width - productWidth) / 2 + photoState.x * 2;
-  const y = (canvas.height - productHeight) / 2 + photoState.y * 2;
 
   ctx.save();
   ctx.shadowColor = `rgba(199, 255, 97, ${0.38 * (photoState.glow / 100)})`;
-  ctx.shadowBlur = 80 * (photoState.glow / 100);
-  ctx.drawImage(productImage, x, y, productWidth, productHeight);
+  ctx.shadowBlur = 36 * (photoState.glow / 100);
+  ctx.drawImage(productLayer, 0, 0, canvas.width, canvas.height);
   ctx.restore();
 
   return {
@@ -540,3 +547,5 @@ loadDashboard().catch(() => {
 window.addEventListener("beca:admin-refresh", () => {
   loadDashboard().catch(() => {});
 });
+
+window.addEventListener("beca:photo-studio-ready", syncPhotoControls);

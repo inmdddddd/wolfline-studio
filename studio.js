@@ -255,6 +255,195 @@ function initStudio() {
   animate();
 }
 
+function normalizeAssetUrl(value, fallback = "/assets/models/tshirt-web.glb") {
+  const raw = String(value || fallback);
+  if (/^(data:|https?:|\/)/i.test(raw)) return raw;
+  return `/${raw.replace(/^(\.\.\/)+/, "").replace(/^\.?\//, "")}`;
+}
+
+function initPhotoStudio3D() {
+  const photoContainer = document.querySelector("[data-photo-viewer]");
+  if (!photoContainer) return;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(26, 2, 0.1, 100);
+  const renderer3d = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true,
+    preserveDrawingBuffer: true
+  });
+  const loader = new GLTFLoader();
+  const textureLoader = new THREE.TextureLoader();
+  const group = new THREE.Group();
+  const modelCache = new Map();
+  const textureCache = new Map();
+
+  let activeProductId = "";
+  let activeModel = null;
+  let activeMeshes = [];
+  let state3d = { x: 0, y: 0, size: 58, glow: 42 };
+
+  renderer3d.setClearColor(0x000000, 0);
+  renderer3d.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer3d.outputColorSpace = THREE.SRGBColorSpace;
+  renderer3d.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer3d.toneMappingExposure = 1.16;
+  photoContainer.appendChild(renderer3d.domElement);
+  scene.add(group);
+
+  camera.position.set(0, 0.06, 4.45);
+  camera.lookAt(0, -0.02, 0);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 1.65);
+  const key = new THREE.DirectionalLight(0xffffff, 4.4);
+  const fill = new THREE.HemisphereLight(0xffffff, 0x24330f, 2.1);
+  const rim = new THREE.DirectionalLight(0xbfff47, 1.18);
+  key.position.set(-2.3, 3.2, 3.8);
+  fill.position.set(0, 2.4, 0);
+  rim.position.set(2.4, 2.3, -2.6);
+  scene.add(ambient, key, fill, rim);
+
+  function fitPhotoModel(model) {
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const scale = 1.78 / Math.max(size.x, size.y, size.z);
+
+    model.scale.setScalar(scale);
+    model.position.set(-center.x * scale, -center.y * scale - 0.12, -center.z * scale);
+    model.rotation.set(0, Math.PI, 0);
+  }
+
+  function collectMeshes(model) {
+    const meshes = [];
+    model.traverse((child) => {
+      if (!child.isMesh) return;
+      child.castShadow = true;
+      child.frustumCulled = false;
+      meshes.push(child);
+    });
+    return meshes;
+  }
+
+  async function loadModel(url) {
+    const src = normalizeAssetUrl(url);
+    if (modelCache.has(src)) return modelCache.get(src).clone(true);
+
+    const gltf = await loader.loadAsync(src);
+    modelCache.set(src, gltf.scene);
+    return gltf.scene.clone(true);
+  }
+
+  async function loadTexture(url) {
+    if (!url) return null;
+    const src = normalizeAssetUrl(url, "");
+    if (!src) return null;
+    if (textureCache.has(src)) return textureCache.get(src);
+
+    const texture = await textureLoader.loadAsync(src);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.flipY = false;
+    texture.anisotropy = 16;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    textureCache.set(src, texture);
+    return texture;
+  }
+
+  function applyPhotoMaterial(texture) {
+    activeMeshes.forEach((mesh) => {
+      mesh.material = new THREE.MeshStandardMaterial({
+        map: texture || null,
+        color: 0xffffff,
+        roughness: 0.96,
+        metalness: 0,
+        envMapIntensity: 0.18,
+        side: THREE.FrontSide
+      });
+    });
+  }
+
+  function updatePhotoTransform(nextState = state3d) {
+    state3d = { ...state3d, ...nextState };
+    const scale = Math.max(0.45, Number(state3d.size || 58) / 58);
+    group.scale.setScalar(scale);
+    group.position.set(Number(state3d.x || 0) / 210, -Number(state3d.y || 0) / 230, 0);
+    photoContainer.style.setProperty("--photo-glow", `${Number(state3d.glow || 42) / 100}`);
+  }
+
+  async function loadProduct(product = {}) {
+    const id = `${product.id || ""}:${product.studio?.textureUrl || product.textureUrl || ""}:${product.studio?.modelUrl || product.studio?.model || ""}`;
+    if (id === activeProductId && activeModel) return;
+    activeProductId = id;
+    photoContainer.classList.remove("is-loaded", "is-error");
+
+    try {
+      const modelUrl = product.studio?.modelUrl || product.studio?.model || photoContainer.dataset.model;
+      const textureUrl = product.studio?.textureUrl || product.textureUrl;
+      const [model, texture] = await Promise.all([loadModel(modelUrl), loadTexture(textureUrl)]);
+
+      if (activeModel) group.remove(activeModel);
+      activeModel = model;
+      activeMeshes = collectMeshes(activeModel);
+      fitPhotoModel(activeModel);
+      applyPhotoMaterial(texture);
+      group.add(activeModel);
+      updatePhotoTransform(state3d);
+      photoContainer.classList.add("is-loaded");
+      renderPhoto();
+    } catch (error) {
+      console.error("Photo Studio 3D failed", error);
+      photoContainer.classList.add("is-error");
+    }
+  }
+
+  function resizePhoto() {
+    const rect = photoContainer.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    renderer3d.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.aspect = rect.width / rect.height;
+    camera.updateProjectionMatrix();
+    renderer3d.setSize(Math.floor(rect.width), Math.floor(rect.height), false);
+    renderPhoto();
+  }
+
+  function renderPhoto() {
+    if (!renderer3d || !camera) return;
+    renderer3d.render(scene, camera);
+  }
+
+  function animatePhoto() {
+    requestAnimationFrame(animatePhoto);
+    if (activeModel) {
+      activeModel.rotation.y += 0.0022;
+    }
+    renderPhoto();
+  }
+
+  const observer = new ResizeObserver(resizePhoto);
+  observer.observe(photoContainer);
+  window.addEventListener("resize", resizePhoto);
+  window.addEventListener("beca:admin-refresh", resizePhoto);
+  window.addEventListener("beca:photo-studio-visible", () => {
+    requestAnimationFrame(resizePhoto);
+    setTimeout(resizePhoto, 180);
+  });
+
+  window.BecaPhotoStudio3D = {
+    loadProduct,
+    update: updatePhotoTransform,
+    capture() {
+      resizePhoto();
+      renderPhoto();
+      return renderer3d.domElement.toDataURL("image/png");
+    }
+  };
+
+  resizePhoto();
+  animatePhoto();
+  window.dispatchEvent(new CustomEvent("beca:photo-studio-ready"));
+}
+
 function updateStateFromControls() {
   state.x = Number(document.querySelector("[data-studio-x]")?.value || 0);
   state.y = Number(document.querySelector("[data-studio-y]")?.value || 0);
@@ -387,3 +576,4 @@ form?.addEventListener("submit", async (event) => {
 });
 
 initStudio();
+initPhotoStudio3D();

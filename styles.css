@@ -5173,7 +5173,8 @@ body.beca-minimal {
 
 .photo-stage {
   position: relative;
-  min-height: min(68vh, 720px);
+  aspect-ratio: 2 / 1;
+  min-height: clamp(420px, 42vw, 720px);
   overflow: hidden;
   border-radius: 20px;
   background:
@@ -5191,20 +5192,49 @@ body.beca-minimal {
     linear-gradient(180deg, transparent 62%, rgba(0, 0, 0, 0.18));
 }
 
-.photo-stage-product {
+.photo-stage-viewer {
   position: absolute;
-  left: 50%;
-  top: 50%;
   z-index: 1;
-  width: var(--photo-size, 58%);
-  max-width: none;
-  object-fit: contain;
+  inset: 0;
   filter:
     drop-shadow(0 34px 58px rgba(0, 0, 0, 0.42))
     drop-shadow(0 0 calc(70px * var(--photo-glow, 0.42)) rgba(199, 255, 97, calc(0.35 * var(--photo-glow, 0.42))));
-  transform: translate(calc(-50% + var(--photo-x, 0px)), calc(-50% + var(--photo-y, 0px)));
   user-select: none;
-  pointer-events: none;
+}
+
+.photo-stage-viewer canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.photo-stage-viewer span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  color: rgba(242, 242, 236, 0.72);
+  font-size: 0.76rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: translate(-50%, -50%);
+}
+
+.photo-stage-viewer.is-loaded span {
+  display: none;
+}
+
+.photo-stage-viewer.is-error span {
+  color: #ff7a7a;
+}
+
+.photo-stage-viewer.is-error span::before {
+  content: "3D tee could not load";
+}
+
+.photo-stage-viewer.is-error span {
+  font-size: 0;
 }
 
 .photo-stage-controls {
