@@ -2685,6 +2685,11 @@ body.beca-minimal {
   font: inherit;
 }
 
+.floating-cart-button[hidden],
+[data-cart-toggle][hidden] {
+  display: none !important;
+}
+
 .floating-cart-button span {
   color: var(--accent);
   font-size: 0.68rem;
@@ -3953,6 +3958,38 @@ body.beca-minimal {
   display: grid;
   gap: 10px;
   margin-bottom: 20px;
+}
+
+.cart-drawer[data-cart-mode="checkout"] .cart-items,
+.cart-drawer[data-cart-mode="checkout"] .cart-actions {
+  display: none;
+}
+
+.cart-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cart-actions button,
+.checkout-back {
+  min-height: 44px;
+  border: 1px solid rgba(199, 255, 97, 0.32);
+  border-radius: 999px;
+  padding: 0 16px;
+  color: #081005;
+  background: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.checkout-back {
+  color: rgba(242, 242, 236, 0.78);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .cart-empty {

@@ -11,7 +11,7 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=auth-tabs-mobile-1">
+  <link rel="stylesheet" href="styles.css?v=cart-checkout-1">
   <script>
     if (location.protocol === "file:") {
       location.replace("http://127.0.0.1:4189/");
@@ -171,7 +171,11 @@
       <div class="cart-items" data-cart-items>
         <span class="cart-empty">No pieces selected yet.</span>
       </div>
-      <form class="checkout-form" data-checkout-form>
+      <div class="cart-actions" data-cart-actions hidden>
+        <button type="button" data-checkout-open data-i18n="cart.checkout">Checkout</button>
+      </div>
+      <form class="checkout-form" data-checkout-form data-checkout-panel hidden>
+        <button class="checkout-back" type="button" data-checkout-back data-i18n="cart.backToCart">Back to cart</button>
         <label><span data-i18n="cart.name">Name</span><input name="customerName" autocomplete="name" required></label>
         <label><span data-i18n="cart.email">Email</span><input name="customerEmail" type="email" autocomplete="email" required></label>
         <label><span data-i18n="cart.phone">Phone</span><input name="customerPhone" autocomplete="tel" required></label>
@@ -333,9 +337,9 @@
     </section>
   </main>
 
-  <script src="locale.js?v=global-i18n-1"></script>
-  <script src="script.js?v=mobile-drawer-1"></script>
-  <script src="shop.js?v=mobile-overflow-1"></script>
+  <script src="locale.js?v=cart-checkout-1"></script>
+  <script src="script.js?v=cart-checkout-1"></script>
+  <script src="shop.js?v=cart-checkout-1"></script>
   <script src="model-loader.js?v=preopt-visual-1"></script>
   <script src="intro.js?v=profile-menu-1"></script>
   <script src="auth.js?v=admin-panel-link-1"></script>

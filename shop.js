@@ -153,8 +153,18 @@ function renderCart(cart) {
   const counts = document.querySelectorAll("[data-cart-count]");
   const totals = document.querySelectorAll("[data-cart-total]");
   const list = document.querySelector("[data-cart-items]");
+  const cartToggles = document.querySelectorAll("[data-cart-toggle]");
+  const cartActions = document.querySelector("[data-cart-actions]");
 
   if (!counts.length || !totals.length || !list) return;
+  window.__BECA_LAST_CART_COUNT__ = cart.count || 0;
+
+  cartToggles.forEach((toggle) => {
+    toggle.hidden = !cart.count;
+  });
+  if (cartActions) {
+    cartActions.hidden = !cart.count;
+  }
 
   counts.forEach((count) => {
     count.textContent = window.BecaRegion?.countText?.(cart.count) || `${cart.count || 0} ${cart.count === 1 ? "piece" : "pieces"}`;
@@ -169,6 +179,7 @@ function renderCart(cart) {
     empty.className = "cart-empty";
     empty.textContent = shopText("noPieces", "No pieces selected yet.");
     list.appendChild(empty);
+    setCartMode("cart");
     return;
   }
 
@@ -201,6 +212,19 @@ function renderCart(cart) {
   });
 }
 
+function setCartMode(mode = "cart") {
+  const drawer = document.querySelector("[data-cart-drawer]");
+  const checkoutPanel = document.querySelector("[data-checkout-panel]");
+  const cartActions = document.querySelector("[data-cart-actions]");
+  if (!drawer) return;
+
+  const isCheckout = mode === "checkout";
+  const hasItems = Number(window.__BECA_LAST_CART_COUNT__ || 0) > 0;
+  drawer.dataset.cartMode = isCheckout ? "checkout" : "cart";
+  if (checkoutPanel) checkoutPanel.hidden = !isCheckout;
+  if (cartActions) cartActions.hidden = isCheckout || !hasItems;
+}
+
 function setCartDrawer(open) {
   const drawer = document.querySelector("[data-cart-drawer]");
   const toggle = document.querySelector("[data-cart-toggle]");
@@ -210,6 +234,7 @@ function setCartDrawer(open) {
   document.body.classList.toggle("is-cart-open", open);
   drawer.setAttribute("aria-hidden", String(!open));
   toggle.setAttribute("aria-expanded", String(open));
+  if (!open) setCartMode("cart");
 }
 
 async function loadShop() {
@@ -239,6 +264,8 @@ document.addEventListener("click", async (event) => {
   const removeButton = event.target.closest("[data-remove-cart]");
   const cartToggle = event.target.closest("[data-cart-toggle]");
   const cartClose = event.target.closest("[data-cart-close]");
+  const checkoutOpen = event.target.closest("[data-checkout-open]");
+  const checkoutBack = event.target.closest("[data-checkout-back]");
 
   try {
     if (cartToggle) {
@@ -247,6 +274,15 @@ document.addEventListener("click", async (event) => {
 
     if (cartClose) {
       setCartDrawer(false);
+    }
+
+    if (checkoutOpen) {
+      setCartMode("checkout");
+      await hydrateCheckoutFromUser();
+    }
+
+    if (checkoutBack) {
+      setCartMode("cart");
     }
 
     if (addButton) {
@@ -304,6 +340,7 @@ document.querySelector("[data-checkout-form]")?.addEventListener("submit", async
     message.dataset.type = "success";
     message.textContent = shopText("orderReceived", `Order ${order.number} received.`, { number: order.number });
     renderCart(cart);
+    setCartMode("cart");
     await loadShop();
   } catch (error) {
     message.dataset.type = "";
