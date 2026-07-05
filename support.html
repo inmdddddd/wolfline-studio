@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Suport / BeCa x Wolfline Studio</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="stylesheet" href="styles.css?v=footer-2">
+</head>
+<body class="beca-minimal info-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <div class="site-scene" aria-hidden="true">
+    <div class="scene-aurora"></div>
+    <div class="scene-particles"></div>
+    <div class="scene-beams"></div>
+  </div>
+
+  <header class="header beca-header">
+    <a class="beca-logo" href="/" aria-label="BeCa x Wolfline Studio">
+      <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+      <span class="beca-header-x">x</span>
+      <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="/#drop">Drop</a>
+      <a href="/#quality">Calitate</a>
+      <a href="/#contact">Contact</a>
+      <a href="/#login" data-guest-only>Login</a>
+      <div class="profile-menu" data-user-only hidden>
+        <button type="button" class="profile-trigger" data-profile-toggle aria-expanded="false" aria-label="Profile menu">
+          <span data-user-initial>U</span>
+        </button>
+        <div class="profile-dropdown" data-profile-dropdown>
+          <div class="profile-dropdown-head">
+            <span class="profile-avatar" data-user-initial>U</span>
+            <div>
+              <strong data-user-name>Client</strong>
+              <span data-user-email></span>
+            </div>
+          </div>
+          <div class="profile-dropdown-list">
+            <a href="/account.html"><span class="profile-row-icon"><img src="assets/icon-user.png" alt=""></span>My Profile</a>
+            <a href="/admin/dashboard.html" data-admin-only hidden><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Admin Panel</a>
+            <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Settings</a>
+          </div>
+          <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span>Logout</button>
+        </div>
+      </div>
+    </nav>
+    <button class="mobile-menu-trigger" type="button" data-mobile-menu-open aria-expanded="false" aria-label="Open menu">
+      <img src="assets/icon-menu.png" alt="">
+    </button>
+  </header>
+
+  <div class="mobile-menu" data-mobile-menu aria-hidden="true">
+    <button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Close menu"></button>
+    <aside class="mobile-menu-panel" aria-label="Mobile menu">
+      <div class="mobile-menu-head">
+        <a class="beca-logo mobile-menu-logo" href="/" data-mobile-menu-link aria-label="BeCa x Wolfline Studio">
+          <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+          <span class="beca-header-x">x</span>
+          <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+        </a>
+        <button type="button" data-mobile-menu-close aria-label="Close menu">Inchide</button>
+      </div>
+      <div class="mobile-menu-section">
+        <a href="/#drop" data-mobile-menu-link>Drop</a>
+        <a href="/#quality" data-mobile-menu-link>Calitate</a>
+        <a href="/#contact" data-mobile-menu-link>Contact</a>
+        <a href="/" data-mobile-menu-link>Acasa</a>
+      </div>
+      <div class="mobile-menu-section" data-guest-only>
+        <a href="/#login" data-mobile-menu-link>Login</a>
+        <a href="/#register" data-mobile-menu-link>Inregistrare</a>
+      </div>
+    </aside>
+  </div>
+
+  <main class="info-page-shell">
+    <section class="info-hero">
+      <p class="beca-kicker">Suntem aici</p>
+      <h1>Cum te putem ajuta?</h1>
+      <p class="info-lede">Pentru intrebari despre comenzi, livrare, retur sau orice altceva, scrie-ne &mdash; raspundem cat mai repede posibil.</p>
+    </section>
+
+    <section class="info-section info-grid">
+      <article>
+        <strong>Email</strong>
+        <p><a href="mailto:contact@beca-wlf.com">contact@beca-wlf.com</a></p>
+      </article>
+      <article>
+        <strong>Program suport</strong>
+        <p>Luni &ndash; Vineri, 10:00 &ndash; 18:00</p>
+      </article>
+      <article>
+        <strong>Timp de raspuns</strong>
+        <p>De obicei in maximum 24 de ore lucratoare</p>
+      </article>
+    </section>
+
+    <section class="info-section">
+      <h2>Inainte sa ne scrii</h2>
+      <p>Multe intrebari au deja raspuns in <a href="/faq.html">sectiunea de Intrebari frecvente</a>. Daca ai nevoie de ajutor cu o comanda existenta, ai numarul comenzii (format <code>BC-0000</code>) la indemana, ca sa te putem ajuta mai rapid.</p>
+    </section>
+
+    <section class="info-section info-cta">
+      <h2>Scrie-ne direct</h2>
+      <a href="mailto:contact@beca-wlf.com">Trimite un email</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-top">
+      <a class="beca-logo" href="/" aria-label="BeCa x Wolfline Studio">
+        <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+        <span class="beca-header-x">x</span>
+        <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+      </a>
+      <p>Streetwear in serii limitate, facut in Romania.</p>
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="/about.html">Despre noi</a>
+      <a href="/faq.html">Intrebari frecvente</a>
+      <a href="/support.html">Suport</a>
+      <a href="/terms.html">Termeni si conditii</a>
+    </nav>
+    <p class="footer-copy">&copy; 2026 BeCa x Wolfline Studio. Toate drepturile rezervate.</p>
+  </footer>
+
+  <script src="locale.js?v=size-fix-1"></script>
+  <script src="script.js?v=footer-1"></script>
+  <script src="security.js?v=size-fix-1"></script>
+  <script src="auth.js?v=mobile-drawer-1"></script>
+</body>
+</html>
