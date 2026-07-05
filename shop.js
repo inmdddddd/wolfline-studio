@@ -312,6 +312,17 @@ function setCartDrawer(open) {
   if (!open) setCartMode("cart");
 }
 
+function randomizeHeroShirt(products) {
+  const heroViewer = document.querySelector("#tshirtViewer");
+  if (!heroViewer) return;
+
+  const candidates = products.filter((product) => product.status === "live" && product.studio?.textureUrl);
+  if (!candidates.length) return;
+
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  applyModelViewerTexture(heroViewer, pick.studio.textureUrl);
+}
+
 async function loadShop() {
   const [{ products }, { cart }] = await Promise.all([
     shopRequest("/api/products"),
@@ -320,6 +331,7 @@ async function loadShop() {
 
   renderProducts(products);
   renderCart(cart);
+  randomizeHeroShirt(products);
   window.__BECA_SHOP_STATE__ = { products, cart };
 }
 
