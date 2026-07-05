@@ -107,12 +107,9 @@ async function initProductPage() {
   document.querySelector("[data-product-description]").textContent = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
 
   const sizes = document.querySelector("[data-product-sizes]");
-  const preferredSizeWrap = document.querySelector("[data-preferred-size-wrap]");
-  const preferredSizeSelect = document.querySelector("[data-preferred-size]");
   const previewNote = document.querySelector("[data-preview-note]");
   sizes.innerHTML = "";
   delete sizes.dataset.selectedSize;
-  if (preferredSizeSelect) preferredSizeSelect.innerHTML = "";
   (product.sizes || []).forEach((size) => {
     const chip = document.createElement("button");
     chip.type = "button";
@@ -130,24 +127,12 @@ async function initProductPage() {
       sizes.classList.remove("needs-size");
     });
     sizes.appendChild(chip);
-
-    if (preferredSizeSelect) {
-      const option = document.createElement("option");
-      option.value = size;
-      option.textContent = size;
-      preferredSizeSelect.appendChild(option);
-    }
   });
 
   if (previewNote) {
     previewNote.hidden = !isPreviewProduct(product);
     previewNote.querySelector("span").textContent = productText("previewReason", "Join the list for access before the public drop. Limited stock.");
     updateProductCountdown();
-  }
-
-  if (preferredSizeWrap) {
-    preferredSizeWrap.hidden = !isPreviewProduct(product);
-    preferredSizeWrap.querySelector("span").textContent = productText("preferredSize", "Preferred size");
   }
 
   if (product.studio?.model) {
@@ -169,25 +154,25 @@ async function initProductPage() {
     let notifySaved = false;
     addButton.disabled = true;
     try {
+      if ((product.sizes || []).length && !sizes.dataset.selectedSize) {
+        sizes.classList.add("needs-size");
+        message.dataset.type = "";
+        message.textContent = productText("selectSize", "Choose a size first.");
+        return;
+      }
+
       if (isPreviewProduct(product)) {
         await productRequest("/api/notify", {
           method: "POST",
           body: JSON.stringify({
             productId: product.id,
-            preferredSize: preferredSizeSelect?.value || ""
+            preferredSize: sizes.dataset.selectedSize || ""
           })
         });
         message.dataset.type = "success";
         message.textContent = productText("notifySaved", "You are on the list.");
         addButton.textContent = productText("notifySavedShort", "On the list");
         notifySaved = true;
-        return;
-      }
-
-      if ((product.sizes || []).length && !sizes.dataset.selectedSize) {
-        sizes.classList.add("needs-size");
-        message.dataset.type = "";
-        message.textContent = productText("selectSize", "Choose a size first.");
         return;
       }
 

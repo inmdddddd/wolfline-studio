@@ -334,12 +334,12 @@ async function hydrateCheckoutFromUser() {
   if (!form.elements.customerEmail.value) form.elements.customerEmail.value = user.email || "";
 }
 
-async function notifyForProduct(productId, button) {
+async function notifyForProduct(productId, button, preferredSize = "") {
   button.disabled = true;
   try {
     await shopRequest("/api/notify", {
       method: "POST",
-      body: JSON.stringify({ productId, preferredSize: "" })
+      body: JSON.stringify({ productId, preferredSize })
     });
     button.textContent = shopText("notifySaved", "You are on the list.");
   } catch (error) {
@@ -407,7 +407,18 @@ document.addEventListener("click", async (event) => {
     }
 
     if (notifyButton) {
-      await notifyForProduct(notifyButton.dataset.notifyProduct, notifyButton);
+      const card = notifyButton.closest(".product-card");
+      const specs = card?.querySelector(".product-specs");
+      const sizeHint = card?.querySelector(".product-size-hint");
+      const hasSizes = Boolean(specs?.querySelector("[data-size]"));
+      const selectedSize = specs?.dataset.selectedSize || "";
+
+      if (hasSizes && !selectedSize) {
+        specs.classList.add("needs-size");
+        if (sizeHint) sizeHint.hidden = false;
+      } else {
+        await notifyForProduct(notifyButton.dataset.notifyProduct, notifyButton, selectedSize);
+      }
     }
 
     if (removeButton) {
