@@ -1227,29 +1227,54 @@ function serveUploadedProductFile(response, pathname) {
   return true;
 }
 
-ensureDataFiles();
+function start() {
+  ensureDataFiles();
 
-http.createServer(async (request, response) => {
-  const url = new URL(request.url, `http://${request.headers.host || `127.0.0.1:${port}`}`);
-  const pathname = decodeURIComponent(url.pathname);
+  return http.createServer(async (request, response) => {
+    const url = new URL(request.url, `http://${request.headers.host || `127.0.0.1:${port}`}`);
+    const pathname = decodeURIComponent(url.pathname);
 
-  try {
-    if (await handleAuth(request, response, pathname)) return;
-    if (await handleShopApi(request, response, pathname)) return;
-    if (await handleAdminApi(request, response, pathname)) return;
+    try {
+      if (await handleAuth(request, response, pathname)) return;
+      if (await handleShopApi(request, response, pathname)) return;
+      if (await handleAdminApi(request, response, pathname)) return;
 
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      send(response, 405, "Method not allowed");
-      return;
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        send(response, 405, "Method not allowed");
+        return;
+      }
+
+      if (serveUploadedProductFile(response, pathname)) return;
+      serveFile(request, response, pathname);
+    } catch (error) {
+      console.error(error);
+      json(response, error.statusCode || 500, { error: error.statusCode ? error.message : "Server error." });
     }
+  }).listen(port, host, () => {
+    console.log(`BeCa platform running at http://127.0.0.1:${port}`);
+    console.log("Default admin: admin@beca.local / BecaAdmin2026!");
+  });
+}
 
-    if (serveUploadedProductFile(response, pathname)) return;
-    serveFile(request, response, pathname);
-  } catch (error) {
-    console.error(error);
-    json(response, error.statusCode || 500, { error: error.statusCode ? error.message : "Server error." });
-  }
-}).listen(port, host, () => {
-  console.log(`BeCa platform running at http://127.0.0.1:${port}`);
-  console.log("Default admin: admin@beca.local / BecaAdmin2026!");
-});
+if (require.main === module) {
+  start();
+}
+
+module.exports = {
+  start,
+  hashPassword,
+  verifyPassword,
+  normalizeEmail,
+  createUserRecord,
+  parseCookies,
+  parseMultipart,
+  fileToImageDataUrl,
+  saveDataUrlImage,
+  safePublicUser,
+  toSlug,
+  publicProduct,
+  sameOriginPost,
+  sanitizeProduct,
+  sanitizeCheckout,
+  canAccessFile
+};
