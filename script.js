@@ -110,7 +110,6 @@ const defaultCopy = {
     "design.note2.body": "Built around black, white and sharp accent graphics that slot into fits you already wear.",
     "drop.kicker": "Next drop",
     "drop.title": "First look before it goes public.",
-    "drop.countdownLabel": "Drop unlocks in",
     "drop.item1.meta": "Tee / graphic print",
     "drop.item1.title": "Oversized statement tee",
     "drop.item2.meta": "Accessory / limited",
@@ -221,7 +220,6 @@ const defaultCopy = {
     "design.note2.body": "Construite in jurul negrului, albului si accentelor grafice care merg in orice outfit.",
     "drop.kicker": "Urmatorul drop",
     "drop.title": "Primul preview, inainte sa devina public.",
-    "drop.countdownLabel": "Se deblocheaza in",
     "drop.item1.meta": "Tricou / print grafic",
     "drop.item1.title": "Tricou oversized statement",
     "drop.item2.meta": "Accesoriu / limitat",
@@ -282,24 +280,18 @@ const defaultCopy = {
 
 let copy = defaultCopy;
 
-const DROP_UNLOCK_AT = new Date("2026-07-16T20:00:00+03:00").getTime();
-
-function updateDropCountdown() {
-  const remaining = Math.max(0, DROP_UNLOCK_AT - Date.now());
-  const totalSeconds = Math.floor(remaining / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+function updateHeroGlitchCountdown() {
   const pad = (value) => String(value).padStart(2, "0");
+  const glitchValue = (max) => pad(Math.floor(Math.random() * (max + 1)));
 
-  document.querySelectorAll("[data-countdown-hours]").forEach((element) => {
-    element.textContent = pad(hours);
+  document.querySelectorAll("[data-glitch-hours]").forEach((element) => {
+    element.textContent = glitchValue(99);
   });
-  document.querySelectorAll("[data-countdown-minutes]").forEach((element) => {
-    element.textContent = pad(minutes);
+  document.querySelectorAll("[data-glitch-minutes]").forEach((element) => {
+    element.textContent = glitchValue(59);
   });
-  document.querySelectorAll("[data-countdown-seconds]").forEach((element) => {
-    element.textContent = pad(seconds);
+  document.querySelectorAll("[data-glitch-seconds]").forEach((element) => {
+    element.textContent = glitchValue(59);
   });
 }
 
@@ -346,12 +338,12 @@ function setLanguage(language, options = {}) {
     localStorage.setItem("beca-language", activeLanguage);
     localStorage.setItem("beca-language-source", "manual");
   }
-  updateDropCountdown();
   window.dispatchEvent(new CustomEvent("beca:locale-change", { detail: { language: activeLanguage } }));
 }
 
 setLanguage(detectLanguage(), { source: "auto" });
-window.setInterval(updateDropCountdown, 1000);
+updateHeroGlitchCountdown();
+window.setInterval(updateHeroGlitchCountdown, 120);
 applyLiquidGlass();
 
 function applyBrandingImages(branding) {

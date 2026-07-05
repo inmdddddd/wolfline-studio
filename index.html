@@ -11,7 +11,7 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=countdown-2">
+  <link rel="stylesheet" href="styles.css?v=glitch-everywhere-1">
   <script>
     if (location.protocol === "file:") {
       location.replace("http://127.0.0.1:4189/");
@@ -183,12 +183,6 @@
           <p class="beca-kicker" data-i18n="hero.kicker">Fresh drops / limited pieces</p>
           <h1 data-i18n="hero.title">Fresh graphics on clean everyday silhouettes.</h1>
           <p data-i18n="hero.body">Limited clothing and accessories built around sharp prints, strong contrast and a premium streetwear feel. Explore the 3D tee, then move into the latest drop.</p>
-          <div class="hero-countdown" aria-label="Drop countdown">
-            <span class="hero-countdown-label" data-i18n="drop.countdownLabel">Drop unlocks in</span>
-            <div class="hero-countdown-clock">
-              <span data-countdown-hours>00</span><em>:</em><span data-countdown-minutes>00</span><em>:</em><span data-countdown-seconds>00</span>
-            </div>
-          </div>
           <div class="beca-actions">
             <a href="#drop" data-i18n="hero.primary">Explore latest pieces</a>
             <a href="#register" data-auth-open="register" data-guest-only data-i18n="hero.secondary">Register</a>
@@ -263,6 +257,9 @@
               <span id="modelProgress">0%</span>
             </div>
           </div>
+        </div>
+        <div class="hero-glitch-countdown" aria-hidden="true">
+          <span data-glitch-hours>00</span><em>:</em><span data-glitch-minutes>00</span><em>:</em><span data-glitch-seconds>00</span>
         </div>
       </div>
     </section>
@@ -365,7 +362,7 @@
   </footer>
 
   <script src="locale.js?v=size-fix-1"></script>
-  <script src="script.js?v=countdown-1"></script>
+  <script src="script.js?v=glitch-everywhere-1"></script>
   <script src="shop.js?v=preview-fallback-1"></script>
   <script src="model-loader.js?v=no-drag-1"></script>
   <script src="intro.js?v=profile-menu-1"></script>
