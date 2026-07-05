@@ -3416,21 +3416,6 @@ body.beca-minimal {
   pointer-events: none;
 }
 
-.shirt-drag-layer {
-  position: absolute;
-  inset: 9% 12% 8% 12%;
-  z-index: 16;
-  border-radius: 999px;
-  cursor: grab;
-  touch-action: pan-y;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.shirt-drag-layer.is-dragging {
-  cursor: grabbing;
-  touch-action: none;
-}
-
 .shirt-scene::before {
   display: none;
 }
