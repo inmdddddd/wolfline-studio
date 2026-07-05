@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Product / BeCa x Wolfline Studio</title>
   <link rel="icon" href="favicon.ico" sizes="any">
   <script>
@@ -11,8 +11,8 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=font-sync-1">
-  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <link rel="stylesheet" href="styles.css?v=size-fix-3">
+  <script type="module" src="https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
 </head>
 <body class="beca-minimal product-page">
   <div class="cursor-glow" aria-hidden="true"></div>
@@ -24,9 +24,9 @@
       <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
     </a>
     <nav aria-label="Product navigation">
-      <a href="/#drop">Drop</a>
-      <a href="/#quality">Quality</a>
-      <a href="/#contact">Contact</a>
+      <a href="/#drop" data-i18n="nav.drop">Drop</a>
+      <a href="/#quality" data-i18n="nav.quality">Quality</a>
+      <a href="/#contact" data-i18n="nav.contact">Contact</a>
     </nav>
     <button class="mobile-menu-trigger" type="button" data-mobile-menu-open aria-expanded="false" aria-label="Open menu">
       <img src="assets/icon-menu.png" alt="">
@@ -119,9 +119,10 @@
     </section>
   </main>
 
-  <script src="locale.js?v=hype-waitlist-1"></script>
-  <script src="product.js?v=live-countdown-1"></script>
-  <script src="security.js?v=mobile-lock-zoom-1"></script>
+  <script src="locale.js?v=size-fix-1"></script>
+  <script src="script.js?v=size-fix-1"></script>
+  <script src="product.js?v=size-fix-2"></script>
+  <script src="security.js?v=size-fix-1"></script>
   <script src="auth.js?v=mobile-drawer-1"></script>
 </body>
 </html>

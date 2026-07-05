@@ -37,6 +37,7 @@
       limitedFallback: "Limited piece from the latest drop.",
       productMissing: "Product missing.",
       addedToCart: "Added to cart.",
+      selectSize: "Choose a size first.",
       pieceSingular: "piece",
       piecePlural: "pieces"
     },
@@ -73,6 +74,7 @@
       limitedFallback: "Piesa limitata din cel mai nou drop.",
       productMissing: "Produsul lipseste.",
       addedToCart: "Adaugat in cos.",
+      selectSize: "Alege o marime.",
       pieceSingular: "piesa",
       piecePlural: "piese"
     }

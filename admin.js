@@ -94,7 +94,10 @@ function renderProducts(products) {
     title.textContent = product.name;
     description.textContent = product.description || "No description yet.";
     price.textContent = money(product);
-    stock.textContent = `${product.stock} stock / ${product.status}${product.sizes?.length ? ` / ${product.sizes.join(", ")}` : ""}`;
+    const sizeBreakdown = product.sizeStock
+      ? (product.sizes || []).map((size) => `${size}:${product.sizeStock[size] ?? 0}`).join(", ")
+      : "";
+    stock.textContent = `${product.stock} stock / ${product.status}${sizeBreakdown ? ` / ${sizeBreakdown}` : (product.sizes?.length ? ` / ${product.sizes.join(", ")}` : "")}`;
     deleteButton.type = "button";
     deleteButton.dataset.delete = product.id;
     deleteButton.textContent = "Delete";
@@ -111,7 +114,7 @@ function renderProducts(products) {
       createField("Currency", "currency", product.currency || "GBP"),
       createField("Stock", "stock", product.stock, false, "number", "1"),
       createField("Image URL", "imageUrl", product.imageUrl || ""),
-      createField("Sizes", "sizes", Array.isArray(product.sizes) ? product.sizes.join(", ") : ""),
+      createField("Sizes (e.g. S:5, M:8, L:6, XL:2)", "sizes", sizeBreakdown || (Array.isArray(product.sizes) ? product.sizes.join(", ") : "")),
       createField("Color", "color", product.color || ""),
       createStatusField(product.status),
       createFileField(),
@@ -406,7 +409,7 @@ function renderOrders(orders) {
     meta.textContent = `${order.number || order.id} / ${new Date(order.createdAt).toLocaleString()}`;
     title.textContent = order.customerName;
     customer.textContent = `${order.customerEmail} / ${order.customerPhone} / ${order.customerAddress}`;
-    products.textContent = (order.items || []).map((entry) => `${entry.qty}x ${entry.name}`).join(", ");
+    products.textContent = (order.items || []).map((entry) => `${entry.qty}x ${entry.name}${entry.size ? ` (${entry.size})` : ""}`).join(", ");
     total.textContent = money(order);
 
     ["pending", "processing", "shipped", "completed", "cancelled"].forEach((value) => {

@@ -17,7 +17,7 @@
     ],
     "color": "",
     "description": "Capturing the fleeting warmth of the golden hour. The GOLDEN HOUR tee blends delicate floral imagery with sharp, astral geometry, creating a piece that feels both grounded and celestial. Designed to bring light into the everyday, this is wearable art for those who gravitate toward the sun.",
-    "updatedAt": "2026-07-03T20:41:41.614Z",
+    "updatedAt": "2026-07-05T12:52:38.009Z",
     "createdAt": "2026-07-03T20:41:41.614Z",
     "studio": {
       "model": "assets/models/tshirt-web.glb",
@@ -30,7 +30,18 @@
       },
       "textureUrl": "assets/products/studio-texture-515a8247-3f32-4a1d-b91e-7d1acfc4b1ba.png",
       "shirtColor": "#ffffff"
-    }
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
+    },
+    "nameRo": "",
+    "nameEn": "",
+    "imageDataUrl": "",
+    "descriptionRo": "",
+    "descriptionEn": ""
   },
   {
     "id": "0fc08b4d-d836-4293-9e22-232827231a24",
@@ -63,6 +74,12 @@
       },
       "textureUrl": "assets/products/studio-texture-3bff5fc9-f26e-4c2a-8696-c52666ed2a32.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   },
   {
@@ -96,6 +113,12 @@
       },
       "textureUrl": "assets/products/studio-texture-5759f521-846d-4f50-80cc-273f306a0c5c.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   },
   {
@@ -129,6 +152,12 @@
       },
       "textureUrl": "assets/products/studio-texture-43640a68-6781-4225-aa13-c91e1ccd3422.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   },
   {
@@ -162,6 +191,12 @@
       },
       "textureUrl": "assets/products/studio-texture-6b134f4a-753a-49f0-8662-5a713458f7fc.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   },
   {
@@ -195,6 +230,12 @@
       },
       "textureUrl": "assets/products/studio-texture-8a96f1e9-0166-4bf4-9dc7-4148caf29a78.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   },
   {
@@ -228,6 +269,12 @@
       },
       "textureUrl": "assets/products/studio-texture-dcab04c8-95ee-44b6-8503-fd81517cb115.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   },
   {
@@ -261,6 +308,12 @@
       },
       "textureUrl": "assets/products/studio-texture-a3c184a0-ae16-41aa-8341-639ba7c11fb6.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   },
   {
@@ -294,6 +347,12 @@
       },
       "textureUrl": "assets/products/studio-texture-d5f0a052-e25b-49c3-aa86-648651d87a06.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   },
   {
@@ -327,6 +386,12 @@
       },
       "textureUrl": "assets/products/studio-texture-eac9bb14-1399-4dc8-b1f6-7335072bae79.png",
       "shirtColor": "#ffffff"
+    },
+    "sizeStock": {
+      "S": 7,
+      "M": 6,
+      "L": 6,
+      "XL": 6
     }
   }
 ]

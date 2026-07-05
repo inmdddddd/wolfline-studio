@@ -30,6 +30,30 @@ function productImageSrc(product) {
 const isSafariShop = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
 const isMobileShop = window.matchMedia?.("(max-width: 760px), (pointer: coarse)")?.matches || /iphone|ipad|android|mobile/i.test(navigator.userAgent);
 
+const modelViewerLazyObserver = "IntersectionObserver" in window
+  ? new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const viewer = entry.target;
+        modelViewerLazyObserver.unobserve(viewer);
+        viewer.src = viewer.dataset.lazySrc;
+        applyModelViewerTexture(viewer, viewer.dataset.lazyTexture);
+      });
+    }, { rootMargin: "200px" })
+  : null;
+
+function lazyLoadModelViewer(viewer, modelUrl, textureUrl) {
+  if (!modelViewerLazyObserver) {
+    viewer.src = modelUrl;
+    applyModelViewerTexture(viewer, textureUrl);
+    return;
+  }
+
+  viewer.dataset.lazySrc = modelUrl;
+  viewer.dataset.lazyTexture = textureUrl || "";
+  modelViewerLazyObserver.observe(viewer);
+}
+
 async function applyModelViewerTexture(viewer, textureUrl) {
   if (!viewer || !textureUrl) return;
 
@@ -108,7 +132,6 @@ function renderProducts(products = []) {
       media.appendChild(image);
     } else if (product.studio?.model && !isSafariShop && !isMobileShop) {
       const viewer = document.createElement("model-viewer");
-      viewer.src = product.studio.model;
       viewer.alt = display.displayName;
       viewer.setAttribute("camera-orbit", "180deg 82deg 1.05m");
       viewer.setAttribute("min-camera-orbit", "auto 82deg 1.05m");
@@ -122,7 +145,7 @@ function renderProducts(products = []) {
       viewer.setAttribute("shadow-intensity", "0.95");
       viewer.setAttribute("exposure", "0.92");
       media.appendChild(viewer);
-      applyModelViewerTexture(viewer, product.studio.textureUrl);
+      lazyLoadModelViewer(viewer, product.studio.model, product.studio.textureUrl);
     } else if (imageSource) {
       const image = document.createElement("img");
       image.src = imageSource;
@@ -160,10 +183,27 @@ function renderProducts(products = []) {
       specs.appendChild(color);
     }
     (product.sizes || []).forEach((size) => {
-      const chip = document.createElement("span");
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.dataset.size = size;
       chip.textContent = size;
+      chip.setAttribute("aria-pressed", "false");
+      if (product.sizeStock && Number(product.sizeStock[size] || 0) <= 0) chip.disabled = true;
+      chip.addEventListener("click", () => {
+        specs.querySelectorAll("[data-size]").forEach((other) => {
+          other.classList.toggle("is-selected", other === chip);
+          other.setAttribute("aria-pressed", String(other === chip));
+        });
+        specs.dataset.selectedSize = size;
+        specs.classList.remove("needs-size");
+        sizeHint.hidden = true;
+      });
       specs.appendChild(chip);
     });
+    const sizeHint = document.createElement("span");
+    sizeHint.className = "product-size-hint";
+    sizeHint.hidden = true;
+    sizeHint.textContent = shopText("selectSize", "Choose a size first.");
     price.textContent = isPreviewProduct(product)
       ? shopText("unknownYet", "Unknown yet")
       : shopMoney(product.price, product.currency);
@@ -179,7 +219,7 @@ function renderProducts(products = []) {
 
     footer.className = "product-card-footer";
     footer.append(price, button);
-    card.append(media, meta, title, description, specs, footer);
+    card.append(media, meta, title, description, specs, sizeHint, footer);
     grid.appendChild(card);
   });
 }
@@ -229,15 +269,15 @@ function renderCart(cart) {
     const display = shopProduct(item.product);
 
     row.className = "cart-row";
-    title.textContent = display.displayName;
+    title.textContent = item.size ? `${display.displayName} (${item.size})` : display.displayName;
     meta.textContent = `${item.qty} x ${shopMoney(item.product.price, item.product.currency)}`;
     qty.type = "number";
     qty.min = "1";
     qty.max = String(Math.max(1, item.product.stock));
     qty.value = item.qty;
-    qty.dataset.cartQty = item.product.id;
+    qty.dataset.cartQty = item.key;
     remove.type = "button";
-    remove.dataset.removeCart = item.product.id;
+    remove.dataset.removeCart = item.key;
     remove.textContent = shopText("remove", "Remove");
 
     info.append(title, meta);
@@ -344,10 +384,22 @@ document.addEventListener("click", async (event) => {
     }
 
     if (addButton) {
+      const card = addButton.closest(".product-card");
+      const specs = card?.querySelector(".product-specs");
+      const sizeHint = card?.querySelector(".product-size-hint");
+      const hasSizes = Boolean(specs?.querySelector("[data-size]"));
+      const selectedSize = specs?.dataset.selectedSize || "";
+
+      if (hasSizes && !selectedSize) {
+        specs.classList.add("needs-size");
+        if (sizeHint) sizeHint.hidden = false;
+        return;
+      }
+
       addButton.disabled = true;
       const { cart } = await shopRequest("/api/cart/add", {
         method: "POST",
-        body: JSON.stringify({ productId: addButton.dataset.addToCart, qty: 1 })
+        body: JSON.stringify({ productId: addButton.dataset.addToCart, qty: 1, size: selectedSize })
       });
       renderCart(cart);
       setCartDrawer(true);
@@ -359,7 +411,7 @@ document.addEventListener("click", async (event) => {
     }
 
     if (removeButton) {
-      const { cart } = await shopRequest(`/api/cart/items/${removeButton.dataset.removeCart}`, {
+      const { cart } = await shopRequest(`/api/cart/items/${encodeURIComponent(removeButton.dataset.removeCart)}`, {
         method: "DELETE",
         body: "{}"
       });
@@ -376,7 +428,7 @@ document.addEventListener("change", async (event) => {
   const qty = event.target.closest("[data-cart-qty]");
   if (!qty) return;
 
-  const { cart } = await shopRequest(`/api/cart/items/${qty.dataset.cartQty}`, {
+  const { cart } = await shopRequest(`/api/cart/items/${encodeURIComponent(qty.dataset.cartQty)}`, {
     method: "PUT",
     body: JSON.stringify({ qty: qty.value })
   });

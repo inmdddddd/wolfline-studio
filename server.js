@@ -34,15 +34,26 @@ const types = {
   ".glb": "model/gltf-binary"
 };
 
+let generatedAdminPassword = null;
+let generatedAdminEmail = null;
+
 function ensureDataFiles() {
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(uploadDirResolved, { recursive: true });
 
-  if (!fs.existsSync(path.join(dataDir, "users.json"))) {
+  const existingUsers = readJson("users.json", []);
+  if (!Array.isArray(existingUsers) || existingUsers.length === 0) {
+    const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL || primaryAdminEmail);
+    const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(12).toString("base64url");
+    if (!process.env.ADMIN_PASSWORD) {
+      generatedAdminPassword = adminPassword;
+      generatedAdminEmail = adminEmail;
+    }
+
     const admin = createUserRecord({
-      email: "admin@beca.local",
+      email: adminEmail,
       name: "BeCa Admin",
-      password: "BecaAdmin2026!",
+      password: adminPassword,
       role: "admin"
     });
     writeJson("users.json", [admin]);
@@ -82,6 +93,15 @@ function ensureDataFiles() {
   if (!fs.existsSync(path.join(dataDir, "sessions.json"))) {
     writeJson("sessions.json", {});
   }
+
+  const products = readJson("products.json", []);
+  let migrated = false;
+  const migratedProducts = products.map((product) => {
+    if (!Array.isArray(product.sizes) || !product.sizes.length || product.sizeStock) return product;
+    migrated = true;
+    return { ...product, sizeStock: distributeStockAcrossSizes(Math.max(0, Math.floor(Number(product.stock) || 0)), product.sizes) };
+  });
+  if (migrated) writeJson("products.json", migratedProducts);
 }
 
 function readJson(fileName, fallback) {
@@ -97,6 +117,30 @@ function writeJson(fileName, data) {
   const tempPath = `${filePath}.tmp`;
   fs.writeFileSync(tempPath, JSON.stringify(data, null, 2));
   fs.renameSync(tempPath, filePath);
+}
+
+let stockLock = Promise.resolve();
+
+function withStockLock(task) {
+  const result = stockLock.then(task, task);
+  stockLock = result.then(() => {}, () => {});
+  return result;
+}
+
+function availableStock(product, size) {
+  if (product.sizeStock && size) return Math.max(0, Math.floor(Number(product.sizeStock[size]) || 0));
+  return Math.max(0, Math.floor(Number(product.stock) || 0));
+}
+
+function makeCartKey(productId, size) {
+  return size ? `${productId}::${size}` : productId;
+}
+
+function parseCartKey(key) {
+  const separatorAt = key.indexOf("::");
+  return separatorAt === -1
+    ? { productId: key, size: "" }
+    : { productId: key.slice(0, separatorAt), size: key.slice(separatorAt + 2) };
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
@@ -452,6 +496,7 @@ function publicProduct(product) {
     price: product.price,
     currency: product.currency,
     stock: product.stock,
+    sizeStock: product.sizeStock || null,
     imageUrl: product.imageUrl || "",
     imageDataUrl: product.imageDataUrl || "",
     sceneImageUrl: product.sceneImageUrl || "",
@@ -481,15 +526,94 @@ function sameOriginPost(request) {
   }
 }
 
+const rateLimitBuckets = new Map();
+
+function clientIp(request) {
+  const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || request.socket.remoteAddress || "unknown";
+}
+
+function isRateLimited(key, limit = 8, windowMs = 60000) {
+  const now = Date.now();
+  const recent = (rateLimitBuckets.get(key) || []).filter((timestamp) => now - timestamp < windowMs);
+  recent.push(now);
+  rateLimitBuckets.set(key, recent);
+  return recent.length > limit;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamps] of rateLimitBuckets) {
+    if (!timestamps.some((timestamp) => now - timestamp < 15 * 60000)) rateLimitBuckets.delete(key);
+  }
+}, 10 * 60000).unref();
+
+function parseSizesInput(rawSizes) {
+  const sizes = [];
+  const sizeStock = {};
+  let hasExplicitStock = false;
+
+  String(rawSizes || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .slice(0, 12)
+    .forEach((entry) => {
+      const [rawSize, rawQty] = entry.split(":").map((part) => part.trim());
+      const size = rawSize.slice(0, 12);
+      if (!size) return;
+      sizes.push(size);
+      if (rawQty !== undefined && rawQty !== "") {
+        hasExplicitStock = true;
+        sizeStock[size] = Math.max(0, Math.floor(Number(rawQty)) || 0);
+      }
+    });
+
+  return { sizes, sizeStock, hasExplicitStock };
+}
+
+function distributeStockAcrossSizes(totalStock, sizes) {
+  if (!sizes.length) return {};
+  const base = Math.floor(totalStock / sizes.length);
+  const remainder = totalStock - base * sizes.length;
+  const sizeStock = {};
+  sizes.forEach((size, index) => {
+    sizeStock[size] = base + (index < remainder ? 1 : 0);
+  });
+  return sizeStock;
+}
+
+function totalStockFromSizeStock(sizeStock) {
+  return Object.values(sizeStock).reduce((sum, qty) => sum + Math.max(0, Math.floor(Number(qty) || 0)), 0);
+}
+
 function sanitizeProduct(input, existing = {}) {
   const price = Number(input.price);
-  const stock = Number(input.stock);
+  const inputStock = Number(input.stock);
   const name = String(input.name || "").trim().slice(0, 100);
-  const sizes = String(input.sizes || "")
-    .split(",")
-    .map((size) => size.trim())
-    .filter(Boolean)
-    .slice(0, 12);
+  const { sizes: parsedSizes, sizeStock: explicitSizeStock, hasExplicitStock } = parseSizesInput(input.sizes);
+  const sizes = parsedSizes.length ? parsedSizes : (Array.isArray(existing.sizes) ? existing.sizes : []);
+
+  let sizeStock;
+  if (!sizes.length) {
+    sizeStock = undefined;
+  } else if (hasExplicitStock) {
+    sizeStock = sizes.reduce((map, size) => {
+      map[size] = explicitSizeStock[size] ?? existing.sizeStock?.[size] ?? 0;
+      return map;
+    }, {});
+  } else if (Number.isFinite(inputStock)) {
+    sizeStock = distributeStockAcrossSizes(Math.max(0, Math.floor(inputStock)), sizes);
+  } else if (existing.sizeStock) {
+    sizeStock = sizes.reduce((map, size) => {
+      map[size] = existing.sizeStock[size] ?? 0;
+      return map;
+    }, {});
+  } else {
+    sizeStock = distributeStockAcrossSizes(Math.max(0, Math.floor(Number(existing.stock) || 0)), sizes);
+  }
+
+  const stock = sizeStock ? totalStockFromSizeStock(sizeStock) : (Number.isFinite(inputStock) ? Math.max(0, Math.floor(inputStock)) : 0);
 
   return {
     ...existing,
@@ -502,10 +626,11 @@ function sanitizeProduct(input, existing = {}) {
     status: ["draft", "preview", "live", "sold-out"].includes(input.status) ? input.status : "draft",
     price: Number.isFinite(price) ? Math.max(0, price) : 0,
     currency: String(input.currency || "GBP").trim().slice(0, 8).toUpperCase(),
-    stock: Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0,
+    stock,
+    sizeStock,
     imageUrl: String(input.imageUrl || existing.imageUrl || "").trim().slice(0, 260),
     imageDataUrl: String(input.imageDataUrl || existing.imageDataUrl || "").trim(),
-    sizes: sizes.length ? sizes : (Array.isArray(existing.sizes) ? existing.sizes : []),
+    sizes,
     color: String(input.color || existing.color || "").trim().slice(0, 40),
     description: String(input.description || "").trim().slice(0, 900),
     descriptionRo: String(input.descriptionRo || existing.descriptionRo || "").trim().slice(0, 900),
@@ -518,11 +643,14 @@ function sanitizeProduct(input, existing = {}) {
 function buildCartPayload(cart) {
   const products = readJson("products.json", []);
   const items = Object.entries(cart.items || {})
-    .map(([productId, qty]) => {
+    .map(([key, qty]) => {
+      const { productId, size } = parseCartKey(key);
       const product = products.find((item) => item.id === productId);
       if (!product || product.status !== "live") return null;
       const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
       return {
+        key,
+        size,
         product: publicProduct(product),
         qty: safeQty,
         subtotal: Number(product.price || 0) * safeQty
@@ -667,6 +795,11 @@ async function handleAuth(request, response, pathname) {
   }
 
   if (pathname === "/auth/register") {
+    if (isRateLimited(`register:${clientIp(request)}`, 5, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
     const body = await readBody(request);
     const email = normalizeEmail(body.email);
     const password = String(body.password || "");
@@ -692,6 +825,11 @@ async function handleAuth(request, response, pathname) {
   }
 
   if (pathname === "/auth/login" || pathname === "/admin/login") {
+    if (isRateLimited(`login:${clientIp(request)}`, 8, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
     const body = await readBody(request);
     const email = normalizeEmail(body.email);
     const password = String(body.password || "");
@@ -806,6 +944,7 @@ async function handleShopApi(request, response, pathname) {
 
     const body = await readBody(request);
     const productId = String(body.productId || "");
+    const size = String(body.size || "").trim();
     const qty = Math.max(1, Math.min(20, Math.floor(Number(body.qty) || 1)));
     const product = readJson("products.json", []).find((item) => item.id === productId);
 
@@ -814,44 +953,63 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
-    if (product.stock <= 0) {
+    if (Array.isArray(product.sizes) && product.sizes.length && !product.sizes.includes(size)) {
+      json(response, 400, { error: "Alege o marime valida." });
+      return true;
+    }
+
+    if (availableStock(product, size) <= 0) {
       json(response, 409, { error: "Produsul este sold out." });
       return true;
     }
 
-    const { cartId, cart, carts } = getCart(request, response);
-    const currentQty = Number(cart.items[productId] || 0);
-    cart.items[productId] = Math.min(product.stock, currentQty + qty);
-    saveCart(cartId, cart, carts);
-    json(response, 200, { ok: true, cart: buildCartPayload(cart) });
+    const resultCart = await withStockLock(() => {
+      const { cartId, cart, carts } = getCart(request, response);
+      const key = makeCartKey(productId, size);
+      const currentQty = Number(cart.items[key] || 0);
+      const freshProduct = readJson("products.json", []).find((item) => item.id === productId);
+      const cap = freshProduct ? availableStock(freshProduct, size) : availableStock(product, size);
+      cart.items[key] = Math.min(cap, currentQty + qty);
+      saveCart(cartId, cart, carts);
+      return cart;
+    });
+
+    json(response, 200, { ok: true, cart: buildCartPayload(resultCart) });
     return true;
   }
 
-  const cartItemMatch = pathname.match(/^\/api\/cart\/items\/([a-f0-9-]+)$/);
+  const cartItemMatch = pathname.match(/^\/api\/cart\/items\/([^/]+)$/);
   if (cartItemMatch && (request.method === "PUT" || request.method === "DELETE")) {
     if (!sameOriginPost(request)) {
       json(response, 403, { error: "Request blocked." });
       return true;
     }
 
-    const productId = cartItemMatch[1];
-    const { cartId, cart, carts } = getCart(request, response);
+    const key = decodeURIComponent(cartItemMatch[1]);
+    const { productId, size } = parseCartKey(key);
+    const body = request.method === "PUT" ? await readBody(request) : {};
 
-    if (request.method === "DELETE") {
-      delete cart.items[productId];
-    } else {
-      const body = await readBody(request);
-      const qty = Math.floor(Number(body.qty) || 0);
-      if (qty <= 0) {
-        delete cart.items[productId];
+    const resultCart = await withStockLock(() => {
+      const { cartId, cart, carts } = getCart(request, response);
+
+      if (request.method === "DELETE") {
+        delete cart.items[key];
       } else {
-        const product = readJson("products.json", []).find((item) => item.id === productId);
-        cart.items[productId] = Math.min(product?.stock || qty, Math.max(1, qty));
+        const qty = Math.floor(Number(body.qty) || 0);
+        if (qty <= 0) {
+          delete cart.items[key];
+        } else {
+          const product = readJson("products.json", []).find((item) => item.id === productId);
+          const cap = product ? availableStock(product, size) : qty;
+          cart.items[key] = Math.min(cap, Math.max(1, qty));
+        }
       }
-    }
 
-    saveCart(cartId, cart, carts);
-    json(response, 200, { ok: true, cart: buildCartPayload(cart) });
+      saveCart(cartId, cart, carts);
+      return cart;
+    });
+
+    json(response, 200, { ok: true, cart: buildCartPayload(resultCart) });
     return true;
   }
 
@@ -864,67 +1022,99 @@ async function handleShopApi(request, response, pathname) {
     const session = getSession(request);
     const body = await readBody(request);
     const customer = sanitizeCheckout(body, session);
-    const { cartId, cart, carts } = getCart(request, response);
-    const payload = buildCartPayload(cart);
-
-    if (!payload.items.length) {
-      json(response, 400, { error: "Cartul este gol." });
-      return true;
-    }
 
     if (!customer.customerName || !customer.customerEmail.includes("@") || !customer.customerPhone || !customer.customerAddress) {
       json(response, 400, { error: "Completeaza nume, email, telefon si adresa." });
       return true;
     }
 
-    const products = readJson("products.json", []);
-    const productUpdates = [...products];
+    const outcome = await withStockLock(() => {
+      const { cartId, cart, carts } = getCart(request, response);
+      const payload = buildCartPayload(cart);
 
-    for (const item of payload.items) {
-      const productIndex = productUpdates.findIndex((product) => product.id === item.product.id);
-      if (productIndex === -1 || productUpdates[productIndex].status !== "live" || productUpdates[productIndex].stock < item.qty) {
-        json(response, 409, { error: `Stoc insuficient pentru ${item.product.name}.` });
-        return true;
+      if (!payload.items.length) {
+        return { error: "Cartul este gol." };
       }
 
-      productUpdates[productIndex] = {
-        ...productUpdates[productIndex],
-        stock: productUpdates[productIndex].stock - item.qty,
-        status: productUpdates[productIndex].stock - item.qty <= 0 ? "sold-out" : productUpdates[productIndex].status,
-        updatedAt: new Date().toISOString()
+      const products = readJson("products.json", []);
+      const productUpdates = [...products];
+
+      for (const item of payload.items) {
+        const productIndex = productUpdates.findIndex((product) => product.id === item.product.id);
+        const current = productIndex !== -1 ? productUpdates[productIndex] : null;
+        if (!current || current.status !== "live" || availableStock(current, item.size) < item.qty) {
+          return { error: `Stoc insuficient pentru ${item.product.name}.` };
+        }
+
+        const nextSizeStock = current.sizeStock && item.size
+          ? { ...current.sizeStock, [item.size]: current.sizeStock[item.size] - item.qty }
+          : current.sizeStock;
+        const nextStock = nextSizeStock ? totalStockFromSizeStock(nextSizeStock) : current.stock - item.qty;
+
+        productUpdates[productIndex] = {
+          ...current,
+          stock: nextStock,
+          sizeStock: nextSizeStock,
+          status: nextStock <= 0 ? "sold-out" : current.status,
+          updatedAt: new Date().toISOString()
+        };
+      }
+
+      const orders = readJson("orders.json", []);
+      const order = {
+        id: crypto.randomUUID(),
+        number: `BC-${String(orders.length + 1).padStart(4, "0")}`,
+        userId: session?.user.id || null,
+        ...customer,
+        status: "pending",
+        currency: payload.currency,
+        total: payload.total,
+        items: payload.items.map((item) => ({
+          productId: item.product.id,
+          name: item.product.name,
+          size: item.size || "",
+          price: item.product.price,
+          currency: item.product.currency,
+          qty: item.qty,
+          subtotal: item.subtotal
+        })),
+        createdAt: new Date().toISOString()
       };
+
+      orders.unshift(order);
+      writeJson("products.json", productUpdates);
+      writeJson("orders.json", orders);
+      cart.items = {};
+      saveCart(cartId, cart, carts);
+      return { order };
+    });
+
+    if (outcome.error) {
+      json(response, outcome.error.includes("gol") ? 400 : 409, { error: outcome.error });
+      return true;
     }
 
-    const orders = readJson("orders.json", []);
-    const order = {
-      id: crypto.randomUUID(),
-      number: `BC-${String(orders.length + 1).padStart(4, "0")}`,
-      userId: session?.user.id || null,
-      ...customer,
-      status: "pending",
-      currency: payload.currency,
-      total: payload.total,
-      items: payload.items.map((item) => ({
-        productId: item.product.id,
-        name: item.product.name,
-        price: item.product.price,
-        currency: item.product.currency,
-        qty: item.qty,
-        subtotal: item.subtotal
-      })),
-      createdAt: new Date().toISOString()
-    };
-
-    orders.unshift(order);
-    writeJson("products.json", productUpdates);
-    writeJson("orders.json", orders);
-    cart.items = {};
-    saveCart(cartId, cart, carts);
-    json(response, 200, { ok: true, order, cart: buildCartPayload(cart) });
+    const { cart } = getCart(request, response);
+    json(response, 200, { ok: true, order: outcome.order, cart: buildCartPayload(cart) });
     return true;
   }
 
   return false;
+}
+
+function paginate(request, list) {
+  const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+  const requestedSize = Number(url.searchParams.get("pageSize"));
+  const hasPaging = url.searchParams.has("page") || url.searchParams.has("pageSize");
+
+  if (!hasPaging) {
+    return { items: list, page: 1, pageSize: list.length, total: list.length };
+  }
+
+  const pageSize = Math.min(200, Math.max(1, Math.floor(requestedSize) || 50));
+  const page = Math.max(1, Math.floor(Number(url.searchParams.get("page"))) || 1);
+  const start = (page - 1) * pageSize;
+  return { items: list.slice(start, start + pageSize), page, pageSize, total: list.length };
 }
 
 async function handleAdminApi(request, response, pathname) {
@@ -959,8 +1149,13 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/users" && request.method === "GET") {
+    const users = readJson("users.json", []).map(safePublicUser);
+    const { items, page, pageSize, total } = paginate(request, users);
     json(response, 200, {
-      users: readJson("users.json", []).map(safePublicUser),
+      users: items,
+      page,
+      pageSize,
+      total,
       canManageRoles: session.user.email === primaryAdminEmail,
       primaryAdminEmail
     });
@@ -1006,17 +1201,23 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/products" && request.method === "GET") {
-    json(response, 200, { products: readJson("products.json", []) });
+    const products = readJson("products.json", []);
+    const { items, page, pageSize, total } = paginate(request, products);
+    json(response, 200, { products: items, page, pageSize, total });
     return true;
   }
 
   if (pathname === "/api/admin/orders" && request.method === "GET") {
-    json(response, 200, { orders: readJson("orders.json", []) });
+    const orders = readJson("orders.json", []);
+    const { items, page, pageSize, total } = paginate(request, orders);
+    json(response, 200, { orders: items, page, pageSize, total });
     return true;
   }
 
   if (pathname === "/api/admin/notifications" && request.method === "GET") {
-    json(response, 200, { notifications: readJson("notifications.json", []) });
+    const notifications = readJson("notifications.json", []);
+    const { items, page, pageSize, total } = paginate(request, notifications);
+    json(response, 200, { notifications: items, page, pageSize, total });
     return true;
   }
 
@@ -1252,7 +1453,10 @@ function start() {
     }
   }).listen(port, host, () => {
     console.log(`BeCa platform running at http://127.0.0.1:${port}`);
-    console.log("Default admin: admin@beca.local / BecaAdmin2026!");
+    if (generatedAdminPassword) {
+      console.log(`Generated admin account: ${generatedAdminEmail} / ${generatedAdminPassword}`);
+      console.log("Log in and change this password immediately (Account > Security).");
+    }
   });
 }
 

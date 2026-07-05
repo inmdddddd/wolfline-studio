@@ -111,10 +111,24 @@ async function initProductPage() {
   const preferredSizeSelect = document.querySelector("[data-preferred-size]");
   const previewNote = document.querySelector("[data-preview-note]");
   sizes.innerHTML = "";
+  delete sizes.dataset.selectedSize;
   if (preferredSizeSelect) preferredSizeSelect.innerHTML = "";
   (product.sizes || []).forEach((size) => {
-    const chip = document.createElement("span");
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.dataset.size = size;
     chip.textContent = size;
+    chip.setAttribute("aria-pressed", "false");
+    const sizeIsOut = product.sizeStock && Number(product.sizeStock[size] || 0) <= 0;
+    if (sizeIsOut) chip.disabled = true;
+    chip.addEventListener("click", () => {
+      sizes.querySelectorAll("[data-size]").forEach((other) => {
+        other.classList.toggle("is-selected", other === chip);
+        other.setAttribute("aria-pressed", String(other === chip));
+      });
+      sizes.dataset.selectedSize = size;
+      sizes.classList.remove("needs-size");
+    });
     sizes.appendChild(chip);
 
     if (preferredSizeSelect) {
@@ -170,9 +184,16 @@ async function initProductPage() {
         return;
       }
 
+      if ((product.sizes || []).length && !sizes.dataset.selectedSize) {
+        sizes.classList.add("needs-size");
+        message.dataset.type = "";
+        message.textContent = productText("selectSize", "Choose a size first.");
+        return;
+      }
+
       await productRequest("/api/cart/add", {
         method: "POST",
-        body: JSON.stringify({ productId: product.id, qty: 1 })
+        body: JSON.stringify({ productId: product.id, qty: 1, size: sizes.dataset.selectedSize || "" })
       });
       message.dataset.type = "success";
       message.textContent = productText("addedToCart", "Added to cart.");

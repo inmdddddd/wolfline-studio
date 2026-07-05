@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Client Access / BeCa</title>
   <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="stylesheet" href="styles.css?v=font-sync-1">
+  <link rel="stylesheet" href="styles.css?v=size-fix-3">
 </head>
 <body class="beca-minimal auth-page">
   <div class="cursor-glow" aria-hidden="true"></div>
@@ -24,53 +24,54 @@
 
     <section class="auth-card auth-combo-card">
       <div class="auth-combo-heading">
-        <p>Client access</p>
-        <h1>Login or register for drops.</h1>
+        <p data-i18n="auth.login.kicker">Client access</p>
+        <h1 data-i18n="auth.combo.title">Login or register for drops.</h1>
       </div>
 
       <div class="auth-tabs" aria-label="Account forms">
-        <a href="#login">Login</a>
-        <a href="#register">Register</a>
+        <a href="#login" data-i18n="auth.login.tab">Login</a>
+        <a href="#register" data-i18n="auth.register.tab">Register</a>
       </div>
 
       <div class="auth-combo-grid">
         <form id="login" action="/auth/login" method="post" data-auth-form>
-          <h2>Login</h2>
+          <h2 data-i18n="auth.login.tab">Login</h2>
           <label>
-            Email
+            <span data-i18n="auth.email">Email</span>
             <input name="email" type="email" autocomplete="email" required>
           </label>
           <label>
-            Password
+            <span data-i18n="auth.password">Password</span>
             <input name="password" type="password" autocomplete="current-password" required>
           </label>
-          <button type="submit">Login</button>
+          <button type="submit" data-i18n="auth.login.button">Login</button>
           <span class="form-message" data-form-message></span>
         </form>
 
         <form id="register" action="/auth/register" method="post" data-auth-form>
-          <h2>Register</h2>
+          <h2 data-i18n="auth.register.tab">Register</h2>
           <label>
-            Name
+            <span data-i18n="auth.name">Name</span>
             <input name="name" type="text" autocomplete="name" minlength="2" required>
           </label>
           <label>
-            Email
+            <span data-i18n="auth.email">Email</span>
             <input name="email" type="email" autocomplete="email" required>
           </label>
           <label>
-            Password
+            <span data-i18n="auth.password">Password</span>
             <input name="password" type="password" autocomplete="new-password" minlength="8" required>
           </label>
-          <button type="submit">Create account</button>
+          <button type="submit" data-i18n="auth.register.button">Create account</button>
           <span class="form-message" data-form-message></span>
         </form>
       </div>
     </section>
   </main>
 
-  <script src="security.js"></script>
-  <script src="script.js"></script>
+  <script src="locale.js?v=size-fix-1"></script>
+  <script src="security.js?v=size-fix-1"></script>
+  <script src="script.js?v=size-fix-1"></script>
   <script src="auth.js"></script>
 </body>
 </html>
