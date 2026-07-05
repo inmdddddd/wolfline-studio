@@ -65,7 +65,7 @@ async function productRequest(url, options = {}) {
   return payload;
 }
 
-function waitForProductModelReady(viewer, attemptsLeft = 10) {
+function waitForProductModelReady(viewer, attemptsLeft = 40) {
   return new Promise((resolve, reject) => {
     const check = (remaining) => {
       if (viewer.model && viewer.model.materials && viewer.model.materials.length) {
@@ -87,11 +87,6 @@ async function applyProductTexture(viewer, textureUrl, attempt = 0) {
 
   try {
     if (!viewer.model || !viewer.model.materials || !viewer.model.materials.length) {
-      await new Promise((resolve, reject) => {
-        if (viewer.model) { resolve(); return; }
-        viewer.addEventListener("load", resolve, { once: true });
-        setTimeout(() => reject(new Error("model-viewer load timeout")), 8000);
-      });
       await waitForProductModelReady(viewer);
     }
 

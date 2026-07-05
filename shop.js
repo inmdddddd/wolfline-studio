@@ -54,7 +54,7 @@ function lazyLoadModelViewer(viewer, modelUrl, textureUrl) {
   modelViewerLazyObserver.observe(viewer);
 }
 
-function waitForModelReady(viewer, attemptsLeft = 10) {
+function waitForModelReady(viewer, attemptsLeft = 40) {
   return new Promise((resolve, reject) => {
     const check = (remaining) => {
       if (viewer.model && viewer.model.materials && viewer.model.materials.length) {
@@ -72,31 +72,38 @@ function waitForModelReady(viewer, attemptsLeft = 10) {
 }
 
 async function applyModelViewerTexture(viewer, textureUrl, attempt = 0) {
-  if (!viewer || !textureUrl) return;
+  const tag = viewer?.id ? `[HERO-DEBUG #${viewer.id}]` : "[HERO-DEBUG]";
+  console.log(`${tag} applyModelViewerTexture called, attempt=${attempt}, textureUrl=${textureUrl}`);
+  if (!viewer || !textureUrl) {
+    console.log(`${tag} bailing: no viewer or no textureUrl`);
+    return;
+  }
 
   try {
     if (!viewer.model || !viewer.model.materials || !viewer.model.materials.length) {
-      await new Promise((resolve, reject) => {
-        if (viewer.model) { resolve(); return; }
-        viewer.addEventListener("load", resolve, { once: true });
-        setTimeout(() => reject(new Error("model-viewer load timeout")), 8000);
-      });
+      console.log(`${tag} model not ready yet, polling...`);
       await waitForModelReady(viewer);
+      console.log(`${tag} model is now ready`);
     }
 
+    console.log(`${tag} creating texture...`);
     const texture = await viewer.createTexture(textureUrl);
-    viewer.model.materials.forEach((material) => {
+    console.log(`${tag} texture created:`, texture, "materials count:", viewer.model.materials.length);
+    viewer.model.materials.forEach((material, index) => {
       material.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
       material.pbrMetallicRoughness.setBaseColorFactor([0.94, 0.94, 0.9, 1]);
       material.pbrMetallicRoughness.setMetallicFactor?.(0);
       material.pbrMetallicRoughness.setRoughnessFactor?.(0.98);
+      console.log(`${tag} material[${index}] texture set`);
     });
     forceModelViewerRepaint(viewer);
+    console.log(`${tag} done, repaint requested`);
   } catch (error) {
+    console.log(`${tag} error on attempt ${attempt}:`, error);
     if (attempt < 2) {
       window.setTimeout(() => applyModelViewerTexture(viewer, textureUrl, attempt + 1), 400);
     } else {
-      console.warn("[model-viewer texture] gave up after retries", error);
+      console.warn(`${tag} gave up after retries`, error);
     }
   }
 }
@@ -344,14 +351,17 @@ function setCartDrawer(open) {
 
 function randomizeHeroShirt(products) {
   const heroViewer = document.querySelector("#tshirtViewer");
+  console.log("[HERO-DEBUG] randomizeHeroShirt called, heroViewer found:", Boolean(heroViewer), "products count:", products.length);
   if (!heroViewer) return;
 
   const candidates = products.filter((product) => product.status === "live" && product.studio?.textureUrl);
+  console.log("[HERO-DEBUG] candidates with live status + textureUrl:", candidates.length);
   if (!candidates.length) return;
 
   const lastId = sessionStorage.getItem("beca-hero-last");
   const pool = candidates.length > 1 ? candidates.filter((product) => product.id !== lastId) : candidates;
   const pick = pool[Math.floor(Math.random() * pool.length)];
+  console.log("[HERO-DEBUG] picked product:", pick.id, pick.name, "textureUrl:", pick.studio.textureUrl);
   sessionStorage.setItem("beca-hero-last", pick.id);
   applyModelViewerTexture(heroViewer, pick.studio.textureUrl);
 }
