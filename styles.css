@@ -7045,6 +7045,8 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
 /* Site footer */
 .site-footer {
+  position: relative;
+  z-index: 1;
   max-width: 1180px;
   margin: 60px auto 0;
   padding: clamp(28px, 4vw, 44px) clamp(20px, 4vw, 32px);
