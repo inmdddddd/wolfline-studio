@@ -354,8 +354,9 @@ function randomizeHeroShirt(products) {
   console.log("[HERO-DEBUG] randomizeHeroShirt called, heroViewer found:", Boolean(heroViewer), "products count:", products.length);
   if (!heroViewer) return;
 
-  const candidates = products.filter((product) => product.status === "live" && product.studio?.textureUrl);
-  console.log("[HERO-DEBUG] candidates with live status + textureUrl:", candidates.length);
+  const liveCandidates = products.filter((product) => product.status === "live" && product.studio?.textureUrl);
+  const candidates = liveCandidates.length ? liveCandidates : products.filter((product) => product.studio?.textureUrl);
+  console.log("[HERO-DEBUG] candidates:", candidates.length, "(live-only:", liveCandidates.length, ")");
   if (!candidates.length) return;
 
   const lastId = sessionStorage.getItem("beca-hero-last");
