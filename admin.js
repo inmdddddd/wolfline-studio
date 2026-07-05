@@ -474,13 +474,174 @@ function renderUsers(users, options = {}) {
   });
 }
 
+const CONTENT_SCHEMA = [
+  { group: "Homepage — Hero", fields: [
+    { key: "hero.kicker", label: "Kicker", bilingual: true },
+    { key: "hero.title", label: "Titlu", bilingual: true, textarea: true },
+    { key: "hero.body", label: "Text", bilingual: true, textarea: true },
+    { key: "hero.primary", label: "Buton principal", bilingual: true },
+    { key: "hero.secondary", label: "Buton secundar", bilingual: true }
+  ] },
+  { group: "Homepage — Calitate", fields: [
+    { key: "quality.kicker", label: "Kicker", bilingual: true },
+    { key: "quality.title", label: "Titlu", bilingual: true },
+    { key: "quality.card1.title", label: "Card 1 - titlu", bilingual: true },
+    { key: "quality.card1.body", label: "Card 1 - text", bilingual: true, textarea: true },
+    { key: "quality.card2.title", label: "Card 2 - titlu", bilingual: true },
+    { key: "quality.card2.body", label: "Card 2 - text", bilingual: true, textarea: true },
+    { key: "quality.card3.title", label: "Card 3 - titlu", bilingual: true },
+    { key: "quality.card3.body", label: "Card 3 - text", bilingual: true, textarea: true }
+  ] },
+  { group: "Homepage — Design", fields: [
+    { key: "design.kicker", label: "Kicker", bilingual: true },
+    { key: "design.title", label: "Titlu", bilingual: true },
+    { key: "design.body", label: "Text", bilingual: true, textarea: true },
+    { key: "design.note1.title", label: "Nota 1 - titlu", bilingual: true },
+    { key: "design.note1.body", label: "Nota 1 - text", bilingual: true },
+    { key: "design.note2.title", label: "Nota 2 - titlu", bilingual: true },
+    { key: "design.note2.body", label: "Nota 2 - text", bilingual: true }
+  ] },
+  { group: "Homepage — Drop", fields: [
+    { key: "drop.kicker", label: "Kicker", bilingual: true },
+    { key: "drop.title", label: "Titlu", bilingual: true }
+  ] },
+  { group: "Homepage — Contact", fields: [
+    { key: "contact.kicker", label: "Kicker", bilingual: true },
+    { key: "contact.title", label: "Titlu", bilingual: true },
+    { key: "contact.button", label: "Buton", bilingual: true }
+  ] },
+  { group: "Despre noi", fields: [
+    { key: "about.hero.kicker", label: "Kicker" },
+    { key: "about.hero.title", label: "Titlu" },
+    { key: "about.hero.lede", label: "Introducere", textarea: true },
+    { key: "about.s1.title", label: "Sectiune 1 - titlu" },
+    { key: "about.s1.body1", label: "Sectiune 1 - paragraf 1", textarea: true },
+    { key: "about.s1.body2", label: "Sectiune 1 - paragraf 2", textarea: true },
+    { key: "about.s2.title", label: "Sectiune 2 - titlu" },
+    { key: "about.card1.title", label: "Card 1 - titlu" },
+    { key: "about.card1.body", label: "Card 1 - text", textarea: true },
+    { key: "about.card2.title", label: "Card 2 - titlu" },
+    { key: "about.card2.body", label: "Card 2 - text", textarea: true },
+    { key: "about.card3.title", label: "Card 3 - titlu" },
+    { key: "about.card3.body", label: "Card 3 - text", textarea: true },
+    { key: "about.cta.title", label: "CTA - titlu" },
+    { key: "about.cta.button", label: "CTA - buton" }
+  ] },
+  { group: "Intrebari frecvente", fields: [
+    { key: "faq.hero.kicker", label: "Kicker" },
+    { key: "faq.hero.title", label: "Titlu" },
+    { key: "faq.hero.lede", label: "Introducere", textarea: true },
+    ...[1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
+      { key: `faq.q${n}`, label: `Intrebare ${n}${n > 6 ? " (optional)" : ""}` },
+      { key: `faq.a${n}`, label: `Raspuns ${n}`, textarea: true }
+    ]),
+    { key: "faq.cta.title", label: "CTA - titlu" },
+    { key: "faq.cta.button", label: "CTA - buton" }
+  ] },
+  { group: "Suport", fields: [
+    { key: "support.hero.kicker", label: "Kicker" },
+    { key: "support.hero.title", label: "Titlu" },
+    { key: "support.hero.lede", label: "Introducere", textarea: true },
+    { key: "support.email", label: "Email" },
+    { key: "support.hours", label: "Program" },
+    { key: "support.responseTime", label: "Timp de raspuns" },
+    { key: "support.before.title", label: "Sectiune - titlu" },
+    { key: "support.before.body", label: "Sectiune - text", textarea: true },
+    { key: "support.merchant.title", label: "Date comerciant - titlu" },
+    { key: "support.merchant.body", label: "Date comerciant - text", textarea: true },
+    { key: "support.cta.title", label: "CTA - titlu" },
+    { key: "support.cta.button", label: "CTA - buton" }
+  ] },
+  { group: "Termeni si conditii", fields: [
+    { key: "terms.hero.kicker", label: "Kicker" },
+    { key: "terms.hero.title", label: "Titlu" },
+    { key: "terms.hero.lede", label: "Introducere", textarea: true },
+    ...[1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
+      { key: `terms.s${n}.title`, label: `Sectiune ${n} - titlu${n === 8 ? " (optional)" : ""}` },
+      { key: `terms.s${n}.body`, label: `Sectiune ${n} - text`, textarea: true }
+    ]),
+    { key: "terms.cta.title", label: "CTA - titlu" },
+    { key: "terms.cta.button", label: "CTA - buton" }
+  ] },
+  { group: "Confidentialitate", fields: [
+    { key: "privacy.hero.kicker", label: "Kicker" },
+    { key: "privacy.hero.title", label: "Titlu" },
+    { key: "privacy.hero.lede", label: "Introducere", textarea: true },
+    ...[1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
+      { key: `privacy.s${n}.title`, label: `Sectiune ${n} - titlu${n === 8 ? " (optional)" : ""}` },
+      { key: `privacy.s${n}.body`, label: `Sectiune ${n} - text`, textarea: true }
+    ]),
+    { key: "privacy.cta.title", label: "CTA - titlu" },
+    { key: "privacy.cta.button", label: "CTA - buton" }
+  ] }
+];
+
+function contentFieldValue(content, lang, key) {
+  return (content[lang] && content[lang][key]) || "";
+}
+
+function renderContentEditor(content) {
+  const container = document.querySelector("[data-content-editor]");
+  if (!container) return;
+  container.innerHTML = "";
+
+  CONTENT_SCHEMA.forEach((group) => {
+    const fieldset = document.createElement("fieldset");
+    const legend = document.createElement("legend");
+    legend.textContent = group.group;
+    fieldset.appendChild(legend);
+
+    const grid = document.createElement("div");
+    grid.className = "admin-form-grid";
+
+    group.fields.forEach((field) => {
+      if (field.bilingual) {
+        ["en", "ro"].forEach((lang) => {
+          const label = document.createElement("label");
+          label.textContent = `${field.label} (${lang.toUpperCase()})`;
+          const input = document.createElement(field.textarea ? "textarea" : "input");
+          input.name = `${lang}:${field.key}`;
+          input.value = contentFieldValue(content, lang, field.key);
+          if (field.textarea) input.rows = 3;
+          label.appendChild(input);
+          grid.appendChild(label);
+        });
+      } else {
+        const label = document.createElement("label");
+        label.textContent = field.label;
+        const input = document.createElement(field.textarea ? "textarea" : "input");
+        input.name = `both:${field.key}`;
+        input.value = contentFieldValue(content, "ro", field.key);
+        if (field.textarea) input.rows = 3;
+        label.appendChild(input);
+        grid.appendChild(label);
+      }
+    });
+
+    fieldset.appendChild(grid);
+    container.appendChild(fieldset);
+  });
+}
+
+async function uploadBrandingImage(file, key) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const { url } = await requestJson("/api/admin/content/image", { method: "POST", body: formData });
+  await requestJson("/api/admin/content", {
+    method: "PUT",
+    body: JSON.stringify({ branding: { [key]: url } })
+  });
+  return url;
+}
+
 async function loadDashboard() {
-  const [summary, { products }, usersPayload, { orders }, { notifications }] = await Promise.all([
+  const [summary, { products }, usersPayload, { orders }, { notifications }, content] = await Promise.all([
     requestJson("/api/admin/summary"),
     requestJson("/api/admin/products"),
     requestJson("/api/admin/users"),
     requestJson("/api/admin/orders"),
-    requestJson("/api/admin/notifications")
+    requestJson("/api/admin/notifications"),
+    requestJson("/api/admin/content")
   ]);
 
   renderSummary(summary);
@@ -492,6 +653,7 @@ async function loadDashboard() {
   });
   renderOrders(orders);
   renderNotifications(notifications);
+  renderContentEditor(content);
 }
 
 const productForm = document.querySelector("[data-product-form]");
@@ -644,6 +806,62 @@ document.addEventListener("change", async (event) => {
     body: JSON.stringify({ status: status.value })
   });
   await loadDashboard();
+});
+
+document.querySelector("[data-content-form]")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = form.querySelector("button[type='submit']");
+  const message = form.querySelector("[data-content-message]");
+  submitButton.disabled = true;
+  submitButton.textContent = "Se salveaza...";
+
+  const payload = { en: {}, ro: {} };
+  form.querySelectorAll("[data-content-editor] input, [data-content-editor] textarea").forEach((field) => {
+    const [scope, key] = field.name.split(":");
+    if (!scope || !key) return;
+    if (scope === "both") {
+      payload.en[key] = field.value;
+      payload.ro[key] = field.value;
+    } else {
+      payload[scope][key] = field.value;
+    }
+  });
+
+  try {
+    await requestJson("/api/admin/content", { method: "PUT", body: JSON.stringify(payload) });
+    message.dataset.type = "success";
+    message.textContent = "Salvat.";
+  } catch (error) {
+    message.dataset.type = "";
+    message.textContent = error.message;
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Salveaza continutul";
+  }
+});
+
+document.querySelectorAll("[data-branding-upload]").forEach((input) => {
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const key = input.dataset.brandingUpload;
+    const message = document.querySelector("[data-content-message]");
+    try {
+      const url = await uploadBrandingImage(file, key);
+      const preview = document.querySelector(`[data-branding-preview="${key}"]`);
+      if (preview) preview.src = url;
+      if (message) {
+        message.dataset.type = "success";
+        message.textContent = "Imagine actualizata.";
+      }
+    } catch (error) {
+      if (message) {
+        message.dataset.type = "";
+        message.textContent = error.message;
+      }
+    }
+  });
 });
 
 document.querySelectorAll("[data-logout]").forEach((button) => {

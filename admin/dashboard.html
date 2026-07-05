@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Admin Dashboard / BeCa</title>
   <link rel="icon" href="../favicon.ico" sizes="any">
-  <link rel="stylesheet" href="../styles.css?v=footer-4">
+  <link rel="stylesheet" href="../styles.css?v=cms-1">
   <script type="importmap">
     {
       "imports": {
@@ -20,9 +20,9 @@
 
   <header class="admin-topbar">
     <a class="auth-brand" href="/">
-      <img src="../assets/beca-logo.png" alt="">
+      <img src="../assets/beca-logo.png" alt="" data-content-img="logoUrl">
       <span>x</span>
-      <img src="../assets/wolfline-intro-logo.png" alt="">
+      <img src="../assets/wolfline-intro-logo.png" alt="" data-content-img="wolflineLogoUrl">
     </a>
     <button type="button" data-logout>Logout</button>
   </header>
@@ -40,6 +40,7 @@
         <button type="button" data-admin-tab="waitlist">Waitlist</button>
         <button type="button" data-admin-tab="customers">Customers</button>
         <button type="button" data-admin-tab="orders">Orders</button>
+        <button type="button" data-admin-tab="content">Continut</button>
       </nav>
     </aside>
 
@@ -223,12 +224,39 @@
         <h2>Incoming orders.</h2>
         <div class="admin-orders" data-orders></div>
       </div>
+
+      <div class="admin-panel admin-view" data-admin-view="content">
+        <div class="admin-view-head">
+          <div>
+            <p>Continut</p>
+            <h2>Editeaza textele si logo-urile site-ului.</h2>
+          </div>
+        </div>
+        <form data-content-form>
+          <fieldset class="admin-branding-fieldset">
+            <legend>Branding</legend>
+            <div class="admin-form-grid">
+              <label>Logo BeCa
+                <img class="admin-branding-preview" data-branding-preview="logoUrl" src="/assets/beca-logo.png" alt="">
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-branding-upload="logoUrl">
+              </label>
+              <label>Logo Wolfline
+                <img class="admin-branding-preview" data-branding-preview="wolflineLogoUrl" src="/assets/wolfline-intro-logo.png" alt="">
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-branding-upload="wolflineLogoUrl">
+              </label>
+            </div>
+          </fieldset>
+          <div data-content-editor></div>
+          <button type="submit">Salveaza continutul</button>
+          <span class="form-message" data-content-message></span>
+        </form>
+      </div>
     </section>
   </main>
 
   <script src="../security.js?v=size-fix-1"></script>
-  <script src="../script.js?v=footer-4"></script>
-  <script src="../admin.js?v=size-fix-2"></script>
+  <script src="../script.js?v=cms-1"></script>
+  <script src="../admin.js?v=cms-1"></script>
   <script type="module" src="../studio.js?v=photo-studio-poses-1"></script>
 </body>
 </html>

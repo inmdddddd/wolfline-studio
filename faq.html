@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Intrebari frecvente / BeCa x Wolfline Studio</title>
   <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="stylesheet" href="styles.css?v=footer-4">
+  <link rel="stylesheet" href="styles.css?v=cms-1">
 </head>
 <body class="beca-minimal info-page">
   <div class="cursor-glow" aria-hidden="true"></div>
@@ -17,9 +17,9 @@
 
   <header class="header beca-header">
     <a class="beca-logo" href="/" aria-label="BeCa x Wolfline Studio">
-      <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+      <img class="beca-logo-img" src="assets/beca-logo.png" alt="" data-content-img="logoUrl">
       <span class="beca-header-x">x</span>
-      <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+      <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="" data-content-img="wolflineLogoUrl">
     </a>
     <nav aria-label="Main navigation">
       <a href="/#drop">Drop</a>
@@ -57,9 +57,9 @@
     <aside class="mobile-menu-panel" aria-label="Mobile menu">
       <div class="mobile-menu-head">
         <a class="beca-logo mobile-menu-logo" href="/" data-mobile-menu-link aria-label="BeCa x Wolfline Studio">
-          <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+          <img class="beca-logo-img" src="assets/beca-logo.png" alt="" data-content-img="logoUrl">
           <span class="beca-header-x">x</span>
-          <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+          <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="" data-content-img="wolflineLogoUrl">
         </a>
         <button type="button" data-mobile-menu-close aria-label="Close menu">Inchide</button>
       </div>
@@ -78,41 +78,49 @@
 
   <main class="info-page-shell">
     <section class="info-hero">
-      <p class="beca-kicker">Ajutor rapid</p>
-      <h1>Intrebari frecvente.</h1>
-      <p class="info-lede">Raspunsuri la ce ne intreaba cel mai des clientii nostri.</p>
+      <p class="beca-kicker" data-i18n="faq.hero.kicker">Ajutor rapid</p>
+      <h1 data-i18n="faq.hero.title">Intrebari frecvente.</h1>
+      <p class="info-lede" data-i18n="faq.hero.lede">Raspunsuri la ce ne intreaba cel mai des clientii nostri.</p>
     </section>
 
     <section class="info-section faq-list">
       <details class="faq-item" open>
-        <summary>Cat dureaza livrarea?</summary>
-        <p>Comenzile sunt de obicei procesate in 1-3 zile lucratoare si livrate in 2-5 zile lucratoare, in functie de localitate.</p>
+        <summary data-i18n="faq.q1">Cat dureaza livrarea?</summary>
+        <p data-i18n="faq.a1">Comenzile sunt de obicei procesate in 1-3 zile lucratoare si livrate in 2-5 zile lucratoare, in functie de localitate.</p>
       </details>
       <details class="faq-item">
-        <summary>Ce marimi aveti disponibile?</summary>
-        <p>Majoritatea pieselor vin in S, M, L si XL. Stocul exact pe fiecare marime e afisat direct pe pagina produsului.</p>
+        <summary data-i18n="faq.q2">Ce marimi aveti disponibile?</summary>
+        <p data-i18n="faq.a2">Majoritatea pieselor vin in S, M, L si XL. Stocul exact pe fiecare marime e afisat direct pe pagina produsului.</p>
       </details>
       <details class="faq-item">
-        <summary>Pot returna sau schimba o comanda?</summary>
-        <p>Da, ai 14 zile calendaristice de la primirea coletului pentru a solicita retur sau schimb, conform legislatiei in vigoare. Scrie-ne la adresa de suport cu numarul comenzii.</p>
+        <summary data-i18n="faq.q3">Pot returna sau schimba o comanda?</summary>
+        <p data-i18n="faq.a3">Da, ai 14 zile calendaristice de la primirea coletului pentru a solicita retur sau schimb, conform legislatiei in vigoare. Scrie-ne la adresa de suport cu numarul comenzii.</p>
       </details>
       <details class="faq-item">
-        <summary>Ce metode de plata acceptati?</summary>
-        <p>Acceptam plata online cu cardul si, pentru anumite zone, plata ramburs la livrare.</p>
+        <summary data-i18n="faq.q4">Ce metode de plata acceptati?</summary>
+        <p data-i18n="faq.a4">Acceptam plata online cu cardul si, pentru anumite zone, plata ramburs la livrare.</p>
       </details>
       <details class="faq-item">
-        <summary>Cum aflu cand apare un drop nou?</summary>
-        <p>Inregistreaza-te pe site &mdash; contul tau primeste acces prioritar la drop-urile noi, inainte de lansarea publica.</p>
+        <summary data-i18n="faq.q5">Cum aflu cand apare un drop nou?</summary>
+        <p data-i18n="faq.a5">Inregistreaza-te pe site &mdash; contul tau primeste acces prioritar la drop-urile noi, inainte de lansarea publica.</p>
       </details>
       <details class="faq-item">
-        <summary>Ce fac daca produsul dorit e sold-out?</summary>
-        <p>Poti apasa "Anunta-ma cand e disponibil" pe pagina produsului, alegand marimea preferata &mdash; te anuntam daca revine in stoc.</p>
+        <summary data-i18n="faq.q6">Ce fac daca produsul dorit e sold-out?</summary>
+        <p data-i18n="faq.a6">Poti apasa "Anunta-ma cand e disponibil" pe pagina produsului, alegand marimea preferata &mdash; te anuntam daca revine in stoc.</p>
+      </details>
+      <details class="faq-item" data-optional-if-empty="faq.q7" hidden>
+        <summary data-i18n="faq.q7"></summary>
+        <p data-i18n="faq.a7"></p>
+      </details>
+      <details class="faq-item" data-optional-if-empty="faq.q8" hidden>
+        <summary data-i18n="faq.q8"></summary>
+        <p data-i18n="faq.a8"></p>
       </details>
     </section>
 
     <section class="info-section info-cta">
-      <h2>Nu ai gasit raspunsul cautat?</h2>
-      <a href="/support.html">Contacteaza echipa de suport</a>
+      <h2 data-i18n="faq.cta.title">Nu ai gasit raspunsul cautat?</h2>
+      <a href="/support.html" data-i18n="faq.cta.button">Contacteaza echipa de suport</a>
     </section>
   </main>
 
@@ -120,9 +128,9 @@
     <div class="footer-glow" aria-hidden="true"></div>
     <div class="footer-top">
       <a class="beca-logo" href="/" aria-label="BeCa x Wolfline Studio">
-        <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+        <img class="beca-logo-img" src="assets/beca-logo.png" alt="" data-content-img="logoUrl">
         <span class="beca-header-x">x</span>
-        <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+        <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="" data-content-img="wolflineLogoUrl">
       </a>
       <p class="footer-tagline">Streetwear in serii limitate, facut in Romania.</p>
     </div>
@@ -149,7 +157,7 @@
   </footer>
 
   <script src="locale.js?v=size-fix-1"></script>
-  <script src="script.js?v=footer-4"></script>
+  <script src="script.js?v=cms-1"></script>
   <script src="security.js?v=size-fix-1"></script>
   <script src="auth.js?v=mobile-drawer-1"></script>
 </body>

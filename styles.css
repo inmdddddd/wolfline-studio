@@ -4616,6 +4616,31 @@ body.beca-minimal {
   text-transform: uppercase;
 }
 
+.admin-panel fieldset {
+  margin: 0 0 24px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+}
+
+.admin-panel legend {
+  padding: 0 8px;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-branding-preview {
+  display: block;
+  height: 40px;
+  width: auto;
+  margin: 8px 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .auth-card input,
 .admin-panel input,
 .admin-panel select,

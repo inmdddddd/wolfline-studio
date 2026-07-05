@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Politica de confidentialitate / BeCa x Wolfline Studio</title>
   <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="stylesheet" href="styles.css?v=footer-4">
+  <link rel="stylesheet" href="styles.css?v=cms-1">
 </head>
 <body class="beca-minimal info-page">
   <div class="cursor-glow" aria-hidden="true"></div>
@@ -17,9 +17,9 @@
 
   <header class="header beca-header">
     <a class="beca-logo" href="/" aria-label="BeCa x Wolfline Studio">
-      <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+      <img class="beca-logo-img" src="assets/beca-logo.png" alt="" data-content-img="logoUrl">
       <span class="beca-header-x">x</span>
-      <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+      <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="" data-content-img="wolflineLogoUrl">
     </a>
     <nav aria-label="Main navigation">
       <a href="/#drop">Drop</a>
@@ -57,9 +57,9 @@
     <aside class="mobile-menu-panel" aria-label="Mobile menu">
       <div class="mobile-menu-head">
         <a class="beca-logo mobile-menu-logo" href="/" data-mobile-menu-link aria-label="BeCa x Wolfline Studio">
-          <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+          <img class="beca-logo-img" src="assets/beca-logo.png" alt="" data-content-img="logoUrl">
           <span class="beca-header-x">x</span>
-          <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+          <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="" data-content-img="wolflineLogoUrl">
         </a>
         <button type="button" data-mobile-menu-close aria-label="Close menu">Inchide</button>
       </div>
@@ -78,19 +78,19 @@
 
   <main class="info-page-shell">
     <section class="info-hero">
-      <p class="beca-kicker">Legal</p>
-      <h1>Politica de confidentialitate.</h1>
-      <p class="info-lede">Ultima actualizare: 5 iulie 2026. Explicam ce date colectam, de ce, si ce drepturi ai asupra lor.</p>
+      <p class="beca-kicker" data-i18n="privacy.hero.kicker">Legal</p>
+      <h1 data-i18n="privacy.hero.title">Politica de confidentialitate.</h1>
+      <p class="info-lede" data-i18n="privacy.hero.lede">Ultima actualizare: 5 iulie 2026. Explicam ce date colectam, de ce, si ce drepturi ai asupra lor.</p>
     </section>
 
     <section class="info-section">
-      <h2>1. Cine este operatorul datelor</h2>
-      <p><strong>[COMPLETEAZA]</strong> Ltd, societate inregistrata in Marea Britanie, numar de inregistrare Companies House <strong>[COMPLETEAZA]</strong>, cu sediul la <strong>[COMPLETEAZA adresa]</strong>, este operatorul datelor tale personale colectate prin acest site.</p>
-      <p>Pentru orice intrebare legata de datele tale, ne poti scrie la <a href="mailto:contact@beca-wlf.com">contact@beca-wlf.com</a>.</p>
+      <h2 data-i18n="privacy.s1.title">1. Cine este operatorul datelor</h2>
+      <p data-i18n="privacy.s1.body">[COMPLETEAZA] Ltd, societate inregistrata in Marea Britanie, numar de inregistrare Companies House [COMPLETEAZA], cu sediul la [COMPLETEAZA adresa], este operatorul datelor tale personale colectate prin acest site. Pentru orice intrebare legata de datele tale, ne poti scrie la contact@beca-wlf.com.</p>
     </section>
 
     <section class="info-section">
-      <h2>2. Ce date colectam</h2>
+      <h2 data-i18n="privacy.s2.title">2. Ce date colectam</h2>
+      <p data-i18n="privacy.s2.body">Date de cont (nume, email, parola criptata), date de comanda (nume, email, telefon, adresa de livrare) si date de plata (procesate direct de Stripe; noi nu stocam numere de card).</p>
       <div class="info-grid">
         <article>
           <strong>Date de cont</strong>
@@ -108,33 +108,38 @@
     </section>
 
     <section class="info-section">
-      <h2>3. De ce colectam aceste date</h2>
-      <p>Folosim datele tale exclusiv pentru a procesa comenzi, a-ti gestiona contul, a raspunde solicitarilor de suport si a respecta obligatii legale (contabilitate, retururi). Nu vindem si nu inchiriem datele tale catre terti in scop de marketing.</p>
+      <h2 data-i18n="privacy.s3.title">3. De ce colectam aceste date</h2>
+      <p data-i18n="privacy.s3.body">Folosim datele tale exclusiv pentru a procesa comenzi, a-ti gestiona contul, a raspunde solicitarilor de suport si a respecta obligatii legale (contabilitate, retururi). Nu vindem si nu inchiriem datele tale catre terti in scop de marketing.</p>
     </section>
 
     <section class="info-section">
-      <h2>4. Cu cine impartasim datele</h2>
-      <p>Datele de plata sunt procesate de <strong>Stripe</strong>, conform politicii proprii de confidentialitate a Stripe. Datele de livrare pot fi transmise curierului ales pentru finalizarea livrarii. Nu impartasim date cu alti terti in afara celor strict necesare pentru livrarea comenzii si procesarea platii.</p>
+      <h2 data-i18n="privacy.s4.title">4. Cu cine impartasim datele</h2>
+      <p data-i18n="privacy.s4.body">Datele de plata sunt procesate de Stripe, conform politicii proprii de confidentialitate a Stripe. Datele de livrare pot fi transmise curierului ales pentru finalizarea livrarii. Nu impartasim date cu alti terti in afara celor strict necesare pentru livrarea comenzii si procesarea platii.</p>
     </section>
 
     <section class="info-section">
-      <h2>5. Cat timp pastram datele</h2>
-      <p>Datele de cont sunt pastrate cat timp contul tau este activ. Datele de comanda sunt pastrate conform obligatiilor legale de arhivare contabila. Poti solicita oricand stergerea contului, cu exceptia datelor pe care suntem obligati legal sa le pastram.</p>
+      <h2 data-i18n="privacy.s5.title">5. Cat timp pastram datele</h2>
+      <p data-i18n="privacy.s5.body">Datele de cont sunt pastrate cat timp contul tau este activ. Datele de comanda sunt pastrate conform obligatiilor legale de arhivare contabila. Poti solicita oricand stergerea contului, cu exceptia datelor pe care suntem obligati legal sa le pastram.</p>
     </section>
 
     <section class="info-section">
-      <h2>6. Drepturile tale</h2>
-      <p>Ai dreptul sa soliciti accesul, rectificarea, stergerea sau restrictionarea prelucrarii datelor tale, precum si dreptul de a te opune prelucrarii sau de a solicita portabilitatea datelor. Pentru orice solicitare, scrie-ne la <a href="mailto:contact@beca-wlf.com">contact@beca-wlf.com</a>.</p>
+      <h2 data-i18n="privacy.s6.title">6. Drepturile tale</h2>
+      <p data-i18n="privacy.s6.body">Ai dreptul sa soliciti accesul, rectificarea, stergerea sau restrictionarea prelucrarii datelor tale, precum si dreptul de a te opune prelucrarii sau de a solicita portabilitatea datelor. Pentru orice solicitare, scrie-ne la contact@beca-wlf.com.</p>
     </section>
 
     <section class="info-section">
-      <h2>7. Cookie-uri</h2>
-      <p>Detalii complete despre cookie-urile folosite gasesti in <a href="/terms.html">Termeni si conditii</a>, sectiunea Cookie-uri.</p>
+      <h2 data-i18n="privacy.s7.title">7. Cookie-uri</h2>
+      <p data-i18n="privacy.s7.body">Detalii complete despre cookie-urile folosite gasesti in Termeni si conditii, sectiunea Cookie-uri.</p>
+    </section>
+
+    <section class="info-section" data-optional-if-empty="privacy.s8.title" hidden>
+      <h2 data-i18n="privacy.s8.title"></h2>
+      <p data-i18n="privacy.s8.body"></p>
     </section>
 
     <section class="info-section info-cta">
-      <h2>Ai intrebari despre datele tale?</h2>
-      <a href="mailto:contact@beca-wlf.com">Scrie-ne la contact@beca-wlf.com</a>
+      <h2 data-i18n="privacy.cta.title">Ai intrebari despre datele tale?</h2>
+      <a href="mailto:contact@beca-wlf.com" data-i18n="privacy.cta.button" data-i18n-mailto="support.email">Scrie-ne la contact@beca-wlf.com</a>
     </section>
   </main>
 
@@ -142,9 +147,9 @@
     <div class="footer-glow" aria-hidden="true"></div>
     <div class="footer-top">
       <a class="beca-logo" href="/" aria-label="BeCa x Wolfline Studio">
-        <img class="beca-logo-img" src="assets/beca-logo.png" alt="">
+        <img class="beca-logo-img" src="assets/beca-logo.png" alt="" data-content-img="logoUrl">
         <span class="beca-header-x">x</span>
-        <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="">
+        <img class="beca-logo-wolfline" src="assets/wolfline-intro-logo.png" alt="" data-content-img="wolflineLogoUrl">
       </a>
       <p class="footer-tagline">Streetwear in serii limitate, facut in Romania.</p>
     </div>
@@ -171,7 +176,7 @@
   </footer>
 
   <script src="locale.js?v=size-fix-1"></script>
-  <script src="script.js?v=footer-4"></script>
+  <script src="script.js?v=cms-1"></script>
   <script src="security.js?v=size-fix-1"></script>
   <script src="auth.js?v=mobile-drawer-1"></script>
 </body>

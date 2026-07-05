@@ -55,7 +55,7 @@ function applyLiquidGlass() {
   });
 }
 
-const copy = {
+const defaultCopy = {
   en: {
     "nav.drop": "Drop",
     "nav.quality": "Quality",
@@ -282,6 +282,8 @@ const copy = {
   }
 };
 
+let copy = defaultCopy;
+
 const DROP_UNLOCK_AT = new Date("2026-07-16T20:00:00+03:00").getTime();
 
 function formatDropCountdown(language) {
@@ -335,6 +337,17 @@ function setLanguage(language, options = {}) {
     button.setAttribute("aria-pressed", String(button.dataset.lang === activeLanguage));
   });
 
+  document.querySelectorAll("[data-optional-if-empty]").forEach((element) => {
+    const key = element.dataset.optionalIfEmpty;
+    element.hidden = !copy[activeLanguage][key];
+  });
+
+  document.querySelectorAll("[data-i18n-mailto]").forEach((element) => {
+    const key = element.dataset.i18nMailto;
+    const value = copy[activeLanguage][key];
+    if (value) element.href = `mailto:${value}`;
+  });
+
   if (options.source === "manual") {
     localStorage.setItem("beca-language", activeLanguage);
     localStorage.setItem("beca-language-source", "manual");
@@ -346,6 +359,27 @@ function setLanguage(language, options = {}) {
 setLanguage(detectLanguage(), { source: "auto" });
 window.setInterval(updateDropCountdown, 60000);
 applyLiquidGlass();
+
+function applyBrandingImages(branding) {
+  if (!branding) return;
+  document.querySelectorAll("[data-content-img]").forEach((element) => {
+    const key = element.dataset.contentImg;
+    if (branding[key]) element.src = branding[key];
+  });
+}
+
+fetch("/api/content")
+  .then((response) => (response.ok ? response.json() : null))
+  .then((data) => {
+    if (!data) return;
+    copy = {
+      en: { ...defaultCopy.en, ...data.en },
+      ro: { ...defaultCopy.ro, ...data.ro }
+    };
+    setLanguage(detectLanguage(), { source: "auto" });
+    applyBrandingImages(data.branding);
+  })
+  .catch(() => {});
 let glassResizeTimer;
 
 document.querySelectorAll("[data-lang]").forEach((button) => {

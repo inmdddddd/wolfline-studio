@@ -94,6 +94,10 @@ function ensureDataFiles() {
     writeJson("sessions.json", {});
   }
 
+  if (!fs.existsSync(path.join(dataDir, "content.json"))) {
+    writeJson("content.json", { en: {}, ro: {}, branding: {} });
+  }
+
   const products = readJson("products.json", []);
   let migrated = false;
   const migratedProducts = products.map((product) => {
@@ -859,6 +863,11 @@ async function handleAuth(request, response, pathname) {
 }
 
 async function handleShopApi(request, response, pathname) {
+  if (pathname === "/api/content" && request.method === "GET") {
+    json(response, 200, readJson("content.json", { en: {}, ro: {}, branding: {} }));
+    return true;
+  }
+
   if (pathname === "/api/products" && request.method === "GET") {
     const products = readJson("products.json", [])
       .filter((product) => product.status === "live" || product.status === "preview")
@@ -1128,6 +1137,42 @@ async function handleAdminApi(request, response, pathname) {
 
   if (request.method !== "GET" && !sameOriginPost(request)) {
     json(response, 403, { error: "Request blocked." });
+    return true;
+  }
+
+  if (pathname === "/api/admin/content" && request.method === "GET") {
+    json(response, 200, readJson("content.json", { en: {}, ro: {}, branding: {} }));
+    return true;
+  }
+
+  if (pathname === "/api/admin/content" && request.method === "PUT") {
+    const body = await readBody(request);
+    const current = readJson("content.json", { en: {}, ro: {}, branding: {} });
+    const next = {
+      en: { ...current.en, ...(body.en && typeof body.en === "object" ? body.en : {}) },
+      ro: { ...current.ro, ...(body.ro && typeof body.ro === "object" ? body.ro : {}) },
+      branding: { ...current.branding, ...(body.branding && typeof body.branding === "object" ? body.branding : {}) }
+    };
+    writeJson("content.json", next);
+    json(response, 200, { ok: true, content: next });
+    return true;
+  }
+
+  if (pathname === "/api/admin/content/image" && request.method === "POST") {
+    const contentType = request.headers["content-type"] || "";
+    if (!contentType.includes("multipart/form-data")) {
+      json(response, 400, { error: "Trimite imaginea ca multipart/form-data." });
+      return true;
+    }
+
+    const parsed = parseMultipart(await readBuffer(request), contentType);
+    const url = saveProductImage(parsed.files.image);
+    if (!url) {
+      json(response, 400, { error: "Imagine invalida." });
+      return true;
+    }
+
+    json(response, 200, { ok: true, url: `/${url}` });
     return true;
   }
 
