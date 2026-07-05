@@ -65,11 +65,36 @@ async function productRequest(url, options = {}) {
   return payload;
 }
 
-async function applyProductTexture(viewer, textureUrl) {
+function waitForProductModelReady(viewer, attemptsLeft = 10) {
+  return new Promise((resolve, reject) => {
+    const check = (remaining) => {
+      if (viewer.model && viewer.model.materials && viewer.model.materials.length) {
+        resolve();
+        return;
+      }
+      if (remaining <= 0) {
+        reject(new Error("model-viewer never became ready"));
+        return;
+      }
+      setTimeout(() => check(remaining - 1), 250);
+    };
+    check(attemptsLeft);
+  });
+}
+
+async function applyProductTexture(viewer, textureUrl, attempt = 0) {
   if (!viewer || !textureUrl) return;
 
-  async function apply() {
-    if (!viewer.model) return;
+  try {
+    if (!viewer.model || !viewer.model.materials || !viewer.model.materials.length) {
+      await new Promise((resolve, reject) => {
+        if (viewer.model) { resolve(); return; }
+        viewer.addEventListener("load", resolve, { once: true });
+        setTimeout(() => reject(new Error("model-viewer load timeout")), 8000);
+      });
+      await waitForProductModelReady(viewer);
+    }
+
     const texture = await viewer.createTexture(textureUrl);
     viewer.model.materials.forEach((material) => {
       material.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
@@ -77,12 +102,13 @@ async function applyProductTexture(viewer, textureUrl) {
       material.pbrMetallicRoughness.setMetallicFactor?.(0);
       material.pbrMetallicRoughness.setRoughnessFactor?.(0.98);
     });
-  }
-
-  if (viewer.model) {
-    await apply();
-  } else {
-    viewer.addEventListener("load", () => apply().catch(() => {}), { once: true });
+    viewer.requestUpdate?.();
+  } catch (error) {
+    if (attempt < 2) {
+      window.setTimeout(() => applyProductTexture(viewer, textureUrl, attempt + 1), 400);
+    } else {
+      console.warn("[model-viewer texture] gave up after retries", error);
+    }
   }
 }
 
