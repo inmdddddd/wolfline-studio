@@ -11,7 +11,7 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=hero-fallback-1">
+  <link rel="stylesheet" href="styles.css?v=countdown-2">
   <script type="module" src="https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
 </head>
 <body class="beca-minimal product-page">
@@ -32,6 +32,13 @@
       <img src="assets/icon-menu.png" alt="">
     </button>
   </header>
+
+  <div class="global-countdown" aria-label="Drop countdown">
+    <span data-i18n="drop.countdownLabel">Drop unlocks in</span>
+    <div class="global-countdown-clock">
+      <span data-countdown-hours>00</span><em>:</em><span data-countdown-minutes>00</span><em>:</em><span data-countdown-seconds>00</span>
+    </div>
+  </div>
 
   <div class="mobile-menu" data-mobile-menu aria-hidden="true">
     <button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Close menu"></button>
@@ -148,7 +155,7 @@
   </footer>
 
   <script src="locale.js?v=size-fix-1"></script>
-  <script src="script.js?v=hype-1"></script>
+  <script src="script.js?v=countdown-1"></script>
   <script src="product.js?v=poll-fix-1"></script>
   <script src="security.js?v=no-block-1"></script>
   <script src="auth.js?v=mobile-drawer-1"></script>

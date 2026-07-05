@@ -3928,7 +3928,6 @@ body.beca-minimal {
   font-weight: 950;
 }
 
-.drop-countdown,
 .product-preview-note {
   display: inline-flex;
   align-items: center;
@@ -3944,10 +3943,70 @@ body.beca-minimal {
   font-weight: 850;
 }
 
-.drop-countdown strong,
 .product-preview-note strong {
   color: var(--accent);
   text-transform: uppercase;
+}
+
+.hero-countdown,
+.global-countdown {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hero-countdown {
+  margin-top: 18px;
+}
+
+.global-countdown {
+  margin: 108px auto 0;
+  position: relative;
+  z-index: 8;
+}
+
+.hero-countdown-label,
+.global-countdown > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.hero-countdown-clock,
+.global-countdown-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.hero-countdown-clock span,
+.global-countdown-clock span {
+  color: var(--accent);
+  font-size: 1.3rem;
+  font-weight: 950;
+  min-width: 1.6ch;
+  text-align: center;
+}
+
+.global-countdown-clock span {
+  font-size: 1.1rem;
+}
+
+.hero-countdown-clock em,
+.global-countdown-clock em {
+  color: var(--accent);
+  font-style: normal;
+  opacity: 0.6;
+  font-weight: 950;
 }
 
 .product-card button,
@@ -4168,7 +4227,7 @@ body.beca-minimal {
   gap: 24px;
   align-items: center;
   margin: 0 auto;
-  padding: 120px 0 70px;
+  padding: 32px 0 70px;
 }
 
 .product-detail-viewer,
@@ -6919,7 +6978,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
   z-index: 8;
   max-width: 880px;
   margin: 0 auto;
-  padding: 120px clamp(20px, 4vw, 32px) 0;
+  padding: 32px clamp(20px, 4vw, 32px) 0;
 }
 
 .info-hero {

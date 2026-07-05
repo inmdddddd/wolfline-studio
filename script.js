@@ -111,7 +111,6 @@ const defaultCopy = {
     "drop.kicker": "Next drop",
     "drop.title": "First look before it goes public.",
     "drop.countdownLabel": "Drop unlocks in",
-    "drop.countdownValue": "11 days",
     "drop.item1.meta": "Tee / graphic print",
     "drop.item1.title": "Oversized statement tee",
     "drop.item2.meta": "Accessory / limited",
@@ -223,7 +222,6 @@ const defaultCopy = {
     "drop.kicker": "Urmatorul drop",
     "drop.title": "Primul preview, inainte sa devina public.",
     "drop.countdownLabel": "Se deblocheaza in",
-    "drop.countdownValue": "11 zile",
     "drop.item1.meta": "Tricou / print grafic",
     "drop.item1.title": "Tricou oversized statement",
     "drop.item2.meta": "Accesoriu / limitat",
@@ -286,26 +284,22 @@ let copy = defaultCopy;
 
 const DROP_UNLOCK_AT = new Date("2026-07-16T20:00:00+03:00").getTime();
 
-function formatDropCountdown(language) {
-  const remaining = Math.max(0, DROP_UNLOCK_AT - Date.now());
-  if (!remaining) return language === "ro" ? "deblocat" : "unlocked";
-
-  const minutes = Math.ceil(remaining / 60000);
-  const hours = Math.ceil(remaining / 3600000);
-  const days = Math.ceil(remaining / 86400000);
-
-  if (days > 1) return language === "ro" ? `${days} zile` : `${days} days`;
-  if (days === 1) return language === "ro" ? "1 zi" : "1 day";
-  if (hours > 1) return language === "ro" ? `${hours} ore` : `${hours} hours`;
-  if (hours === 1) return language === "ro" ? "1 ora" : "1 hour";
-  if (minutes > 1) return language === "ro" ? `${minutes} minute` : `${minutes} minutes`;
-  return language === "ro" ? "sub 1 minut" : "under 1 minute";
-}
-
 function updateDropCountdown() {
-  const language = document.documentElement.lang === "ro" ? "ro" : "en";
-  document.querySelectorAll("[data-drop-countdown]").forEach((element) => {
-    element.textContent = formatDropCountdown(language);
+  const remaining = Math.max(0, DROP_UNLOCK_AT - Date.now());
+  const totalSeconds = Math.floor(remaining / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (value) => String(value).padStart(2, "0");
+
+  document.querySelectorAll("[data-countdown-hours]").forEach((element) => {
+    element.textContent = pad(hours);
+  });
+  document.querySelectorAll("[data-countdown-minutes]").forEach((element) => {
+    element.textContent = pad(minutes);
+  });
+  document.querySelectorAll("[data-countdown-seconds]").forEach((element) => {
+    element.textContent = pad(seconds);
   });
 }
 
@@ -357,7 +351,7 @@ function setLanguage(language, options = {}) {
 }
 
 setLanguage(detectLanguage(), { source: "auto" });
-window.setInterval(updateDropCountdown, 60000);
+window.setInterval(updateDropCountdown, 1000);
 applyLiquidGlass();
 
 function applyBrandingImages(branding) {
