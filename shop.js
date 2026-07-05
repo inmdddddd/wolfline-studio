@@ -91,7 +91,7 @@ async function applyModelViewerTexture(viewer, textureUrl, attempt = 0) {
       material.pbrMetallicRoughness.setMetallicFactor?.(0);
       material.pbrMetallicRoughness.setRoughnessFactor?.(0.98);
     });
-    viewer.requestUpdate?.();
+    forceModelViewerRepaint(viewer);
   } catch (error) {
     if (attempt < 2) {
       window.setTimeout(() => applyModelViewerTexture(viewer, textureUrl, attempt + 1), 400);
@@ -99,6 +99,10 @@ async function applyModelViewerTexture(viewer, textureUrl, attempt = 0) {
       console.warn("[model-viewer texture] gave up after retries", error);
     }
   }
+}
+
+function forceModelViewerRepaint(viewer) {
+  viewer.requestUpdate?.();
 }
 
 async function shopRequest(url, options = {}) {
