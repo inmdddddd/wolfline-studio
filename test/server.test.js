@@ -179,8 +179,29 @@ test("sanitizeProduct clamps numbers, validates status and splits sizes", () => 
   assert.equal(product.stock, 3, "stock floored to an integer");
   assert.equal(product.status, "draft", "invalid status falls back to draft");
   assert.equal(product.currency, "GBP");
-  assert.equal(product.sizes.length, 12, "sizes limited to 12 entries");
+  assert.deepEqual(product.sizes, ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL"], "duplicate sizes are deduplicated");
   assert.match(product.id, /^[0-9a-f-]{36}$/);
+});
+
+test("sanitizeProduct does not lose stock when the size list has duplicates", () => {
+  const product = server.sanitizeProduct({
+    name: "Duplicate Sizes",
+    stock: "9",
+    sizes: "S,M,L,S,M,L"
+  });
+
+  assert.deepEqual(product.sizes, ["S", "M", "L"]);
+  assert.equal(product.stock, 9, "total stock must survive deduplication of repeated size entries");
+  assert.equal(
+    Object.values(product.sizeStock).reduce((sum, qty) => sum + qty, 0),
+    9,
+    "per-size stock must add back up to the total"
+  );
+});
+
+test("parseSizesInput caps unique sizes at 12 without counting duplicates against the limit", () => {
+  const { sizes } = server.parseSizesInput("A,A,A,B,C,D,E,F,G,H,I,J,K,L,M");
+  assert.deepEqual(sizes, ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]);
 });
 
 test("sanitizeProduct preserves existing id, createdAt and sizes fallback", () => {

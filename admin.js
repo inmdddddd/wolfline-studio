@@ -25,7 +25,7 @@ function adminImageSrc(src = "") {
 }
 
 function productImageSrc(product) {
-  return product.imageDataUrl || product.sceneImageDataUrl || product.imageUrl || "";
+  return product.imageUrl || "";
 }
 
 function renderSummary(summary) {

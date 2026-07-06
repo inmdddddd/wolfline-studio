@@ -24,7 +24,7 @@ function isPreviewProduct(product) {
 }
 
 function productImageSrc(product) {
-  return product.imageDataUrl || product.sceneImageDataUrl || product.imageUrl || "";
+  return product.imageUrl || "";
 }
 
 const isSafariShop = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);

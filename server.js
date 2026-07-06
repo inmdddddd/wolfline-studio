@@ -342,11 +342,9 @@ async function readProductPayload(request, existing = {}) {
   if (contentType.includes("multipart/form-data")) {
     const parsed = parseMultipart(await readBuffer(request), contentType);
     const imageUrl = saveProductImage(parsed.files.image);
-    const imageDataUrl = fileToImageDataUrl(parsed.files.image);
     return {
       ...parsed.fields,
-      imageUrl: imageUrl || parsed.fields.imageUrl || existing.imageUrl || "",
-      imageDataUrl: imageDataUrl || existing.imageDataUrl || ""
+      imageUrl: imageUrl || parsed.fields.imageUrl || existing.imageUrl || ""
     };
   }
 
@@ -505,9 +503,7 @@ function publicProduct(product) {
     stock: product.stock,
     sizeStock: product.sizeStock || null,
     imageUrl: product.imageUrl || "",
-    imageDataUrl: product.imageDataUrl || "",
     sceneImageUrl: product.sceneImageUrl || "",
-    sceneImageDataUrl: product.sceneImageDataUrl || "",
     sizes: Array.isArray(product.sizes) ? product.sizes : [],
     color: product.color || "",
     description: product.description || "",
@@ -557,6 +553,7 @@ setInterval(() => {
 
 function parseSizesInput(rawSizes) {
   const sizes = [];
+  const seen = new Set();
   const sizeStock = {};
   let hasExplicitStock = false;
 
@@ -564,11 +561,12 @@ function parseSizesInput(rawSizes) {
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean)
-    .slice(0, 12)
     .forEach((entry) => {
+      if (sizes.length >= 12) return;
       const [rawSize, rawQty] = entry.split(":").map((part) => part.trim());
       const size = rawSize.slice(0, 12);
-      if (!size) return;
+      if (!size || seen.has(size)) return;
+      seen.add(size);
       sizes.push(size);
       if (rawQty !== undefined && rawQty !== "") {
         hasExplicitStock = true;
@@ -636,7 +634,6 @@ function sanitizeProduct(input, existing = {}) {
     stock,
     sizeStock,
     imageUrl: String(input.imageUrl || existing.imageUrl || "").trim().slice(0, 260),
-    imageDataUrl: String(input.imageDataUrl || existing.imageDataUrl || "").trim(),
     sizes,
     color: String(input.color || existing.color || "").trim().slice(0, 40),
     description: String(input.description || "").trim().slice(0, 900),
@@ -1293,7 +1290,6 @@ async function handleAdminApi(request, response, pathname) {
     const product = sanitizeProduct({
       ...body,
       imageUrl: imageUrl || body.imageUrl || "",
-      imageDataUrl: body.previewImage || body.imageDataUrl || "",
       status: body.status || "draft"
     });
 
@@ -1365,9 +1361,7 @@ async function handleAdminApi(request, response, pathname) {
     products[index] = {
       ...products[index],
       imageUrl,
-      imageDataUrl: body.image || products[index].imageDataUrl || "",
       sceneImageUrl: imageUrl,
-      sceneImageDataUrl: body.image || products[index].sceneImageDataUrl || "",
       updatedAt: new Date().toISOString()
     };
     writeJson("products.json", products);
@@ -1560,6 +1554,7 @@ module.exports = {
   publicProduct,
   sameOriginPost,
   sanitizeProduct,
+  parseSizesInput,
   sanitizeCheckout,
   canAccessFile
 };

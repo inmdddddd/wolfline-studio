@@ -19,14 +19,42 @@ function createLocalStorage(initial = {}) {
   };
 }
 
+// Stubs Intl.DateTimeFormat().resolvedOptions().timeZone so tests don't
+// depend on the host machine's real system timezone (locale.js uses the
+// timezone, alongside browser language, to detect the visitor's region).
+// Everything else (NumberFormat, etc.) still delegates to the real Intl.
+function createIntlStub(timeZone) {
+  return new Proxy(Intl, {
+    get(target, prop) {
+      if (prop === "DateTimeFormat") {
+        return (...args) => {
+          const formatter = new target.DateTimeFormat(...args);
+          return new Proxy(formatter, {
+            get(formatterTarget, formatterProp) {
+              if (formatterProp === "resolvedOptions") {
+                return () => ({ ...formatterTarget.resolvedOptions(), timeZone });
+              }
+              const value = formatterTarget[formatterProp];
+              return typeof value === "function" ? value.bind(formatterTarget) : value;
+            }
+          });
+        };
+      }
+      return target[prop];
+    }
+  });
+}
+
 // Loads locale.js in an isolated sandbox with stubbed browser globals and
-// returns the window.BecaRegion API it exposes.
-function loadRegion({ languages = ["en-GB"], storage = {} } = {}) {
+// returns the window.BecaRegion API it exposes. timeZone defaults to a
+// neutral, non-RO/non-UK zone so language stubs are what actually drive
+// detection in tests, regardless of the machine running them.
+function loadRegion({ languages = ["en-GB"], storage = {}, timeZone = "America/New_York" } = {}) {
   const sandbox = {
     window: {},
     navigator: { languages, language: languages[0] || "" },
     localStorage: createLocalStorage(storage),
-    Intl,
+    Intl: createIntlStub(timeZone),
     Date,
     console
   };
