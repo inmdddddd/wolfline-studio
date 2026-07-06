@@ -7092,10 +7092,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
   background: linear-gradient(90deg, transparent, rgba(199, 255, 97, 0.7), transparent);
 }
 
-.site-footer .beca-logo img {
-  height: 30px;
-}
-
 .footer-top {
   position: relative;
   display: flex;
@@ -7109,12 +7105,16 @@ body[data-hero-auth="login"] .beca-hero-copy {
 }
 
 .footer-top .beca-logo {
-  height: 88px;
+  height: 140px;
+}
+
+.site-footer .beca-logo img {
+  height: 140px;
 }
 
 .footer-top .beca-logo-img {
-  width: 88px;
-  height: 88px;
+  width: 140px;
+  height: 140px;
 }
 
 .footer-tagline {
