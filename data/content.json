@@ -430,7 +430,7 @@
     "checkout.trustNote": "Datele tale sunt criptate si folosite doar pentru procesarea acestei comenzi."
   },
   "branding": {
-    "logoUrl": "/assets/beca-logo.png",
+    "logoUrl": "/assets/beca-logo.png?v=2",
     "wolflineLogoUrl": "/assets/wolfline-intro-logo.png"
   }
 }
