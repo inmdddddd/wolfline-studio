@@ -179,7 +179,7 @@ const defaultCopy = {
     "nav.quality": "Calitate",
     "nav.contact": "Contact",
     "hero.kicker": "Drop 001 — editie strict limitata",
-    "hero.title": "Urmatorul drop se incarca. Prinde-l inainte sa dispara.",
+    "hero.title": "Urmatorul drop se incarca. Prinde‑l inainte sa dispara.",
     "hero.body": "Printuri indraznete, bumbac gros, numere limitate — fara restock, niciodata. Roteste tricoul 3D, apoi asigura-ti accesul devreme inainte de lansarea publica.",
     "hero.primary": "Vezi dropul",
     "hero.secondary": "Acces devreme",

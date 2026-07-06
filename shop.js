@@ -162,6 +162,8 @@ function renderProducts(products = []) {
       const image = document.createElement("img");
       image.src = imageSource;
       image.alt = display.displayName;
+      image.loading = "lazy";
+      image.decoding = "async";
       image.onerror = () => {
         image.src = "assets/tshirt-3d-poster.png";
       };
@@ -187,6 +189,8 @@ function renderProducts(products = []) {
       const image = document.createElement("img");
       image.src = imageSource;
       image.alt = display.displayName;
+      image.loading = "lazy";
+      image.decoding = "async";
       image.onerror = () => {
         image.src = "assets/tshirt-3d-poster.png";
       };
