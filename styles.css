@@ -3203,7 +3203,7 @@ body.beca-minimal {
   border-radius: 22px;
   background:
     linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.24)),
-    url("assets/studio-stage-bg.png") 50% 50% / cover no-repeat;
+    url("assets/studio-stage-bg.png?v=2") 50% 50% / cover no-repeat;
   color: var(--accent);
   font-size: 0.78rem;
   font-weight: 950;
@@ -3783,7 +3783,7 @@ body.beca-minimal {
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.24)),
-    url("assets/studio-stage-bg.png") 50% 50% / cover no-repeat;
+    url("assets/studio-stage-bg.png?v=2") 50% 50% / cover no-repeat;
 }
 
 .product-detail-viewer model-viewer {
@@ -4970,7 +4970,7 @@ body.beca-minimal {
   border-radius: 20px;
   background:
     linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.12)),
-    url("assets/studio-stage-bg.png") 50% 50% / cover no-repeat;
+    url("assets/studio-stage-bg.png?v=2") 50% 50% / cover no-repeat;
 }
 
 .photo-stage::after {
