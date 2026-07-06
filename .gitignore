@@ -8,6 +8,7 @@ data/carts.json
 data/orders.json
 data/users.json
 data/notifications.json
+data/analytics.json
 assets/models/tshirt-fbx/
 assets/models/tshirt-obj/
 assets/models/tshirt-texture/

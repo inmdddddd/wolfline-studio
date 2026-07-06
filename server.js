@@ -101,6 +101,10 @@ function ensureDataFiles() {
     writeJson("content.json", { en: {}, ro: {}, branding: {} });
   }
 
+  if (!fs.existsSync(path.join(dataDir, "analytics.json"))) {
+    writeJson("analytics.json", { totalPageviews: 0, byDay: {} });
+  }
+
   const products = readJson("products.json", []);
   let migrated = false;
   const migratedProducts = products.map((product) => {
@@ -124,6 +128,26 @@ function writeJson(fileName, data) {
   const tempPath = `${filePath}.tmp`;
   fs.writeFileSync(tempPath, JSON.stringify(data, null, 2));
   fs.renameSync(tempPath, filePath);
+}
+
+function isTrackablePageRequest(pathname) {
+  if (pathname.startsWith("/api/") || pathname.startsWith("/admin/")) return false;
+  const extension = path.extname(pathname);
+  return extension === "" || extension === ".html";
+}
+
+function trackPageview(pathname) {
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
+    analytics.totalPageviews = (analytics.totalPageviews || 0) + 1;
+    if (!analytics.byDay[day]) analytics.byDay[day] = { pageviews: 0, paths: {} };
+    analytics.byDay[day].pageviews += 1;
+    analytics.byDay[day].paths[pathname] = (analytics.byDay[day].paths[pathname] || 0) + 1;
+    writeJson("analytics.json", analytics);
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 let stockLock = Promise.resolve();
@@ -1180,6 +1204,8 @@ async function handleAdminApi(request, response, pathname) {
     const users = readJson("users.json", []);
     const products = readJson("products.json", []);
     const orders = readJson("orders.json", []);
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
+    const today = new Date().toISOString().slice(0, 10);
     json(response, 200, {
       users: users.length,
       clients: users.filter((user) => user.role === "client").length,
@@ -1188,7 +1214,40 @@ async function handleAdminApi(request, response, pathname) {
       previewProducts: products.filter((product) => product.status === "preview").length,
       notifications: readJson("notifications.json", []).length,
       orders: orders.length,
-      revenue: orders.filter((order) => order.status !== "cancelled").reduce((total, order) => total + Number(order.total || 0), 0)
+      revenue: orders.filter((order) => order.status !== "cancelled").reduce((total, order) => total + Number(order.total || 0), 0),
+      pageviewsToday: analytics.byDay[today] ? analytics.byDay[today].pageviews : 0
+    });
+    return true;
+  }
+
+  if (pathname === "/api/admin/analytics" && request.method === "GET") {
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
+    const days = [];
+    const pathTotals = {};
+    const today = new Date();
+
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().slice(0, 10);
+      const entry = analytics.byDay[key];
+      days.push({ date: key, pageviews: entry ? entry.pageviews : 0 });
+      if (entry) {
+        for (const [path, count] of Object.entries(entry.paths)) {
+          pathTotals[path] = (pathTotals[path] || 0) + count;
+        }
+      }
+    }
+
+    const topPages = Object.entries(pathTotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([path, count]) => ({ path, count }));
+
+    json(response, 200, {
+      totalPageviews: analytics.totalPageviews || 0,
+      last14Days: days,
+      topPages
     });
     return true;
   }
@@ -1433,6 +1492,17 @@ function serveFile(request, response, pathname) {
 
   fs.readFile(filePath, (error, data) => {
     if (error) {
+      const extension = path.extname(filePath);
+      if (extension === "" || extension === ".html") {
+        fs.readFile(path.resolve(root, "404.html"), (notFoundError, notFoundData) => {
+          if (notFoundError) {
+            send(response, 404, "Not found");
+            return;
+          }
+          send(response, 404, notFoundData, { "Content-Type": types[".html"], "Cache-Control": "no-store" });
+        });
+        return;
+      }
       send(response, 404, "Not found");
       return;
     }
@@ -1504,6 +1574,10 @@ function start() {
   return http.createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || `127.0.0.1:${port}`}`);
     const pathname = decodeURIComponent(url.pathname);
+
+    if (request.method === "GET" && isTrackablePageRequest(pathname)) {
+      trackPageview(pathname);
+    }
 
     try {
       if (await handleAuth(request, response, pathname)) return;

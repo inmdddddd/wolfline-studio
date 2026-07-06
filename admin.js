@@ -35,6 +35,21 @@ function renderSummary(summary) {
   document.querySelector("[data-summary-preview]").textContent = summary.previewProducts || 0;
   document.querySelector("[data-summary-notifications]").textContent = summary.notifications || 0;
   document.querySelector("[data-summary-orders]").textContent = summary.orders;
+  document.querySelector("[data-summary-pageviews]").textContent = summary.pageviewsToday || 0;
+}
+
+function renderAnalytics(analytics) {
+  const dayFormatter = new Intl.DateTimeFormat("ro-RO", { day: "2-digit", month: "2-digit" });
+  const daysList = document.querySelector("[data-analytics-days]");
+  daysList.innerHTML = (analytics.last14Days || [])
+    .map((day) => `<li><span>${dayFormatter.format(new Date(`${day.date}T00:00:00`))}</span><strong>${day.pageviews}</strong></li>`)
+    .join("");
+
+  const pagesList = document.querySelector("[data-analytics-top-pages]");
+  const topPages = analytics.topPages || [];
+  pagesList.innerHTML = topPages.length
+    ? topPages.map((page) => `<li><span>${page.path}</span><strong>${page.count}</strong></li>`).join("")
+    : "<li><span>Fara date inca</span></li>";
 }
 
 function setAdminView(view) {
@@ -635,13 +650,14 @@ async function uploadBrandingImage(file, key) {
 }
 
 async function loadDashboard() {
-  const [summary, { products }, usersPayload, { orders }, { notifications }, content] = await Promise.all([
+  const [summary, { products }, usersPayload, { orders }, { notifications }, content, analytics] = await Promise.all([
     requestJson("/api/admin/summary"),
     requestJson("/api/admin/products"),
     requestJson("/api/admin/users"),
     requestJson("/api/admin/orders"),
     requestJson("/api/admin/notifications"),
-    requestJson("/api/admin/content")
+    requestJson("/api/admin/content"),
+    requestJson("/api/admin/analytics")
   ]);
 
   renderSummary(summary);
@@ -654,6 +670,7 @@ async function loadDashboard() {
   renderOrders(orders);
   renderNotifications(notifications);
   renderContentEditor(content);
+  renderAnalytics(analytics);
 }
 
 const productForm = document.querySelector("[data-product-form]");
