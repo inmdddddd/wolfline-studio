@@ -2503,83 +2503,24 @@ body.beca-minimal {
   position: relative;
   z-index: 2;
   --intro-beca-size: min(315px, 29vw);
-  --intro-wolf-size: min(450px, 39vw);
-  --intro-x-size: clamp(4.4rem, 7.2vw, 6.8rem);
-  --intro-x-gap: clamp(58px, 5vw, 78px);
-  --intro-center-nudge: clamp(12px, 2vw, 26px);
-  --beca-shift: clamp(138px, 15vw, 188px);
   width: min(980px, 94vw);
   height: 300px;
   transform: translateY(72px);
 }
 
-.intro-logo-line::after {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 1;
-  content: "";
-  pointer-events: none;
-}
-
-.intro-logo-line::after {
-  width: min(720px, 74vw);
-  height: 76px;
-  background:
-    linear-gradient(90deg, transparent, rgba(199, 255, 97, 0.18), transparent),
-    repeating-linear-gradient(0deg, transparent 0 9px, rgba(255, 255, 255, 0.12) 10px, transparent 11px);
-  mix-blend-mode: screen;
-  opacity: 0;
-  transform: translate(-50%, -50%) scaleX(0) skewX(-18deg);
-  transform-origin: center;
-  animation: introGlitchSweep 680ms steps(2, end) 1820ms forwards;
-}
-
 .intro-beca-logo {
   position: absolute;
-  left: calc(50% - var(--intro-center-nudge));
+  left: 50%;
   top: 50%;
   z-index: 3;
   width: var(--intro-beca-size);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.76);
   transform-origin: center;
-  filter: invert(1) brightness(2.8) contrast(1.2) blur(12px) drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+  filter: blur(12px) drop-shadow(0 0 0 rgba(199, 255, 97, 0));
   animation:
     becaLogoIntroMove 1900ms cubic-bezier(0.16, 1, 0.3, 1) 120ms forwards,
     logoLightFlicker 340ms steps(2, end) 1880ms 1;
-}
-
-.intro-x {
-  position: absolute;
-  left: calc(50% - var(--intro-center-nudge));
-  top: 50%;
-  z-index: 3;
-  color: var(--accent);
-  font-size: var(--intro-x-size);
-  font-weight: 950;
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.72);
-  transform-origin: center;
-  text-shadow: 0 0 26px rgba(199, 255, 97, 0.38);
-  animation:
-    introXIn 620ms cubic-bezier(0.16, 1, 0.3, 1) 2060ms forwards,
-    logoLightFlicker 280ms steps(2, end) 2240ms 1;
-}
-
-.intro-wolfline-logo {
-  position: absolute;
-  left: calc(50% + var(--intro-x-gap) - var(--intro-center-nudge));
-  top: 50%;
-  z-index: 3;
-  width: var(--intro-wolf-size);
-  opacity: 0;
-  filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.24));
-  transform: translate(36px, -50%) scale(0.9);
-  transform-origin: left center;
-  animation:
-    wolflineIntroIn 760ms cubic-bezier(0.16, 1, 0.3, 1) 2440ms forwards,
-    logoWolfLightFlicker 320ms steps(2, end) 2600ms 1;
 }
 
 .intro-exit-x {
@@ -2768,7 +2709,7 @@ body.beca-minimal {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 52px;
+  height: 56px;
   color: var(--text);
   text-decoration: none;
   opacity: 1;
@@ -2777,29 +2718,10 @@ body.beca-minimal {
 }
 
 .beca-logo-img {
-  width: 92px;
-  height: 52px;
-  margin-right: -18px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
-  filter: invert(1) brightness(2.8) contrast(1.2) drop-shadow(0 0 12px rgba(255, 255, 255, 0.16));
-}
-
-.beca-header-x {
-  display: inline-block;
-  margin: 0 -6px;
-  color: var(--accent);
-  font-size: 1.28rem;
-  font-weight: 950;
-  line-height: 1;
-  text-shadow: 0 0 14px rgba(199, 255, 97, 0.32);
-}
-
-.beca-logo-wolfline {
-  width: clamp(156px, 17vw, 206px);
-  height: 36px;
-  object-fit: contain;
-  object-position: left center;
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.14));
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.16));
 }
 
 .profile-menu {
@@ -2971,45 +2893,17 @@ body.beca-minimal {
   0% {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.76);
-    filter: invert(1) brightness(2.8) contrast(1.2) blur(12px) drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+    filter: blur(12px) drop-shadow(0 0 0 rgba(199, 255, 97, 0));
   }
   24% {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
-    filter: invert(1) brightness(2.8) contrast(1.2) blur(0) drop-shadow(0 0 34px rgba(255, 255, 255, 0.2));
+    filter: blur(0) drop-shadow(0 0 34px rgba(199, 255, 97, 0.28));
   }
-  58% {
+  100% {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
-    filter: invert(1) brightness(2.8) contrast(1.2) blur(0) drop-shadow(0 0 34px rgba(255, 255, 255, 0.2));
-  }
-  100% {
-    opacity: 1;
-    transform: translate(calc(-50% - var(--beca-shift)), -50%) scale(0.9);
-    filter: invert(1) brightness(2.8) contrast(1.2) blur(0) drop-shadow(0 0 34px rgba(255, 255, 255, 0.2));
-  }
-}
-
-@keyframes introGlitchSweep {
-  0% {
-    opacity: 0;
-    transform: translate(-62%, -50%) scaleX(0.18) skewX(-18deg);
-  }
-  22% {
-    opacity: 0.7;
-    transform: translate(-56%, -50%) scaleX(0.9) skewX(-18deg);
-  }
-  44% {
-    opacity: 0.18;
-    transform: translate(-44%, -50%) scaleX(0.46) skewX(-18deg);
-  }
-  68% {
-    opacity: 0.62;
-    transform: translate(-48%, -50%) scaleX(1.06) skewX(-18deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-38%, -50%) scaleX(0.2) skewX(-18deg);
+    filter: blur(0) drop-shadow(0 0 34px rgba(199, 255, 97, 0.28));
   }
 }
 
@@ -3019,39 +2913,11 @@ body.beca-minimal {
   }
   30% {
     opacity: 0.72;
-    filter: invert(1) brightness(3.1) contrast(1.35) drop-shadow(5px 0 0 rgba(199, 255, 97, 0.28));
+    filter: drop-shadow(5px 0 0 rgba(199, 255, 97, 0.28));
   }
   58% {
     opacity: 1;
-    filter: invert(1) brightness(2.75) contrast(1.2) drop-shadow(-4px 0 0 rgba(255, 255, 255, 0.18));
-  }
-}
-
-@keyframes logoWolfLightFlicker {
-  0%, 100% {
-    opacity: 1;
-  }
-  34% {
-    opacity: 0.76;
-    filter: drop-shadow(5px 0 0 rgba(199, 255, 97, 0.28));
-  }
-  62% {
-    opacity: 1;
     filter: drop-shadow(-4px 0 0 rgba(255, 255, 255, 0.18));
-  }
-}
-
-@keyframes introXIn {
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-@keyframes wolflineIntroIn {
-  to {
-    opacity: 1;
-    transform: translate(0, -50%) scale(1);
   }
 }
 
@@ -4643,25 +4509,10 @@ body.beca-minimal {
   font-weight: 950;
 }
 
-.auth-brand img:first-child {
+.auth-brand img {
   width: 74px;
   height: 74px;
   object-fit: contain;
-  filter: brightness(0) invert(1);
-}
-
-.auth-brand img:last-child {
-  width: 210px;
-  max-width: 40vw;
-  height: auto;
-  object-fit: contain;
-}
-
-.auth-brand span {
-  color: var(--accent);
-  font-size: 2rem;
-  font-weight: 950;
-  text-shadow: 0 0 22px rgba(199, 255, 97, 0.42);
 }
 
 .auth-card,
@@ -5225,9 +5076,6 @@ body.beca-minimal {
     min-height: 520px;
   }
 
-  .auth-brand img:last-child {
-    width: 170px;
-  }
 }
 
 .admin-app-shell {
@@ -6361,20 +6209,9 @@ body[data-hero-auth="login"] .beca-hero-copy {
   }
 
   .beca-logo-img,
-  .auth-brand img:first-child {
+  .auth-brand img {
     width: 42px;
     height: 42px;
-  }
-
-  .beca-logo-wolfline,
-  .auth-brand img:last-child {
-    width: clamp(116px, 36vw, 160px);
-    max-width: 42vw;
-  }
-
-  .beca-header-x,
-  .auth-brand span {
-    font-size: 1.15rem;
   }
 
   .beca-header nav {
@@ -6729,11 +6566,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
 }
 
 @media (max-width: 520px) {
-  .beca-logo-wolfline,
-  .auth-brand img:last-child {
-    width: 124px;
-  }
-
   .floating-shop-actions {
     max-width: calc(100vw - 20px);
   }
@@ -6793,11 +6625,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
   .intro-logo-line {
     --intro-beca-size: clamp(118px, 34vw, 176px);
-    --intro-wolf-size: clamp(168px, 43vw, 236px);
-    --intro-x-size: clamp(2.8rem, 10vw, 4.1rem);
-    --intro-x-gap: clamp(34px, 9vw, 52px);
-    --intro-center-nudge: clamp(4px, 1.5vw, 10px);
-    --beca-shift: clamp(82px, 23vw, 122px);
     width: min(560px, 96vw);
     height: 210px;
     transform: translateY(22px);
@@ -6805,18 +6632,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
   .intro-beca-logo {
     width: var(--intro-beca-size);
-  }
-
-  .intro-x {
-    font-size: var(--intro-x-size);
-  }
-
-  .intro-wolfline-logo {
-    width: var(--intro-wolf-size);
-  }
-
-  .intro-logo-line::after {
-    width: min(420px, 82vw);
   }
 
   .beca-header {
@@ -7025,20 +6840,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
   .beca-logo-img {
     width: 44px;
     height: 44px;
-    margin-right: -12px;
-    flex: 0 0 auto;
-  }
-
-  .beca-logo-wolfline {
-    width: clamp(108px, 31vw, 152px);
-    max-width: 34vw;
-    height: 30px;
-    flex: 0 1 auto;
-    object-position: left center;
-  }
-
-  .beca-header-x {
-    margin: 0 -3px;
     flex: 0 0 auto;
   }
 
@@ -7050,15 +6851,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
 @media (max-width: 420px) {
   .intro-logo-line {
     --intro-beca-size: clamp(102px, 31vw, 138px);
-    --intro-wolf-size: clamp(140px, 42vw, 184px);
-    --intro-x-size: clamp(2.45rem, 9vw, 3.4rem);
-    --intro-x-gap: clamp(28px, 8vw, 38px);
-    --beca-shift: clamp(72px, 22vw, 94px);
-  }
-
-  .beca-logo-wolfline {
-    width: clamp(96px, 28vw, 122px);
-    max-width: 31vw;
   }
 }
 
@@ -7116,11 +6908,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
   .account-topbar .auth-brand {
     justify-content: center;
     width: 100%;
-  }
-
-  .account-topbar .auth-brand img:last-child {
-    width: clamp(132px, 38vw, 176px);
-    max-width: 46vw;
   }
 }
 
@@ -7319,6 +7106,15 @@ body[data-hero-auth="login"] .beca-hero-copy {
   padding-bottom: clamp(24px, 3vw, 36px);
   margin-bottom: clamp(24px, 3vw, 36px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.footer-top .beca-logo {
+  height: 88px;
+}
+
+.footer-top .beca-logo-img {
+  width: 88px;
+  height: 88px;
 }
 
 .footer-tagline {
