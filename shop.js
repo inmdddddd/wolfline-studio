@@ -535,12 +535,33 @@ document.querySelector("[data-checkout-form]")?.addEventListener("submit", async
   }
 });
 
-loadShop().catch(() => {
-  const grid = document.querySelector("[data-product-grid]");
-  if (grid) {
-    grid.innerHTML = `<article class="shop-loading"><span>${shopText("drop", "Drop")}</span><h3>${shopText("productsLoadFailed", "Products could not load.")}</h3></article>`;
-  }
-});
+function startShop() {
+  loadShop().catch(() => {
+    const grid = document.querySelector("[data-product-grid]");
+    if (grid) {
+      grid.innerHTML = `<article class="shop-loading"><span>${shopText("drop", "Drop")}</span><h3>${shopText("productsLoadFailed", "Products could not load.")}</h3></article>`;
+    }
+  });
+}
+
+if (document.querySelector("#becaIntro")) {
+  // The hero shirt texture swap and every product card's own model-viewer
+  // (each its own WebGL context) used to fire immediately, invisibly
+  // competing with the intro splash for CPU/GPU/network the whole time it
+  // played. Wait for the intro to signal it's wrapping up (or a bounded
+  // fallback) before starting that work.
+  let started = false;
+  const startOnce = () => {
+    if (started) return;
+    started = true;
+    startShop();
+  };
+  window.addEventListener("beca:intro-exiting", startOnce, { once: true });
+  window.setTimeout(startOnce, 6500);
+} else {
+  startShop();
+}
+
 hydrateCheckoutFromUser().catch(() => {});
 
 window.addEventListener("beca:locale-change", () => {

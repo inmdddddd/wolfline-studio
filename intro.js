@@ -19,6 +19,7 @@ if (becaIntro) {
 
   Promise.race([Promise.all([logoReady, minTimeElapsed]), safetyTimeout]).then(() => {
     becaIntro.classList.add("is-exiting");
+    window.dispatchEvent(new CustomEvent("beca:intro-exiting"));
 
     window.setTimeout(() => {
       becaIntro.classList.add("is-done");
@@ -28,4 +29,6 @@ if (becaIntro) {
       becaIntro.remove();
     }, 1740);
   });
+} else {
+  window.dispatchEvent(new CustomEvent("beca:intro-exiting"));
 }
