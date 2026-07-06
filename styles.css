@@ -2531,8 +2531,11 @@ body.beca-minimal {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.04);
   transform-origin: center;
-  animation: introExitX 1180ms cubic-bezier(0.16, 1, 0.3, 1) 3260ms forwards;
   pointer-events: none;
+}
+
+.beca-intro.is-exiting .intro-exit-x {
+  animation: introExitX 1180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .intro-exit-x::before {
@@ -2547,7 +2550,10 @@ body.beca-minimal {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.02);
   transform-origin: center;
-  animation: introLimeFlood 1180ms cubic-bezier(0.16, 1, 0.3, 1) 3260ms forwards;
+}
+
+.beca-intro.is-exiting .intro-exit-x::before {
+  animation: introLimeFlood 1180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .intro-exit-x span {
