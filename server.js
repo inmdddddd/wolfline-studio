@@ -31,7 +31,10 @@ const types = {
   ".webp": "image/webp",
   ".gif": "image/gif",
   ".ico": "image/x-icon",
-  ".glb": "model/gltf-binary"
+  ".glb": "model/gltf-binary",
+  ".xml": "application/xml; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8"
 };
 
 let generatedAdminPassword = null;
@@ -1447,6 +1450,34 @@ function serveFile(request, response, pathname) {
   });
 }
 
+const SITE_ORIGIN = "https://beca-wlf.com";
+
+function serveSitemap(response) {
+  const products = readJson("products.json", []);
+  const staticEntries = [
+    { path: "/", priority: "1.0" },
+    { path: "/about.html", priority: "0.7" },
+    { path: "/faq.html", priority: "0.5" },
+    { path: "/support.html", priority: "0.5" }
+  ];
+  const productEntries = products
+    .filter((product) => product.status === "live" || product.status === "preview")
+    .map((product) => ({
+      path: `/product.html?slug=${encodeURIComponent(product.slug)}`,
+      priority: "0.8",
+      lastmod: product.updatedAt
+    }));
+
+  const urls = [...staticEntries, ...productEntries].map((entry) => {
+    const lastmod = entry.lastmod ? `\n    <lastmod>${entry.lastmod.slice(0, 10)}</lastmod>` : "";
+    return `  <url>\n    <loc>${SITE_ORIGIN}${entry.path}</loc>${lastmod}\n    <priority>${entry.priority}</priority>\n  </url>`;
+  }).join("\n");
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+
+  send(response, 200, xml, { "Content-Type": "application/xml; charset=utf-8" });
+}
+
 function serveUploadedProductFile(response, pathname) {
   if (!pathname.startsWith(uploadRoutePrefix)) return false;
 
@@ -1487,6 +1518,11 @@ function start() {
 
       if (request.method !== "GET" && request.method !== "HEAD") {
         send(response, 405, "Method not allowed");
+        return;
+      }
+
+      if (pathname === "/sitemap.xml") {
+        serveSitemap(response);
         return;
       }
 

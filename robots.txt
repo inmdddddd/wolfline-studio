@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /account.html
+Disallow: /login.html
+Disallow: /api/
+
+Sitemap: https://beca-wlf.com/sitemap.xml

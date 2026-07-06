@@ -121,7 +121,16 @@ async function initProductPage() {
 
   const { product } = await productRequest(`/api/products/${encodeURIComponent(slug)}`);
   const display = productDisplay(product);
-  document.title = `${display.displayName} / BeCa x Wolfline Studio`;
+  document.title = `${display.displayName} / BeCa`;
+  const metaDescription = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
+  document.querySelector("[data-product-meta-description]")?.setAttribute("content", metaDescription);
+  document.querySelector("[data-product-og-title]")?.setAttribute("content", `${display.displayName} / BeCa`);
+  document.querySelector("[data-product-og-description]")?.setAttribute("content", metaDescription);
+  document.querySelector("[data-product-og-url]")?.setAttribute("content", `https://beca-wlf.com/product.html?slug=${encodeURIComponent(slug)}`);
+  const ogImage = productImageSrc(product);
+  if (ogImage && !ogImage.startsWith("data:")) {
+    document.querySelector("[data-product-og-image]")?.setAttribute("content", new URL(ogImage, "https://beca-wlf.com/").href);
+  }
   document.querySelector("[data-product-category]").textContent = isPreviewProduct(product)
     ? `${display.displayCategory || productText("piece", "Piece")} / ${productText("previewOnly", "preview")}`
     : `${display.displayCategory || productText("piece", "Piece")} / ${window.BecaRegion?.stockText?.(product.stock) || (product.stock > 0 ? `${product.stock} left` : "sold out")}`;
