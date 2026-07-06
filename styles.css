@@ -127,141 +127,6 @@ body.is-magnetic .cursor-glow {
   opacity: 0.9;
 }
 
-.intro {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  background:
-    radial-gradient(circle at 50% 45%, rgba(232, 184, 75, 0.16), transparent 24rem),
-    linear-gradient(180deg, #050706, #010202);
-  overflow: hidden;
-  pointer-events: none;
-  animation: introFadeOut 520ms ease 5400ms forwards;
-}
-
-.intro::before,
-.intro::after {
-  position: absolute;
-  inset: 0;
-  content: "";
-  pointer-events: none;
-}
-
-.intro::before {
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
-  background-size: 82px 82px;
-  opacity: 0.5;
-}
-
-.intro::after {
-  background: linear-gradient(90deg, transparent, rgba(232, 184, 75, 0.22), transparent);
-  opacity: 0;
-  transform: translateX(-120%) skewX(-16deg);
-  animation: introScan 920ms steps(2, end) 420ms 2;
-}
-
-.intro-stage {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  justify-items: center;
-  transform-origin: center;
-}
-
-.intro-wolf {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  z-index: 1;
-  width: min(760px, 88vw);
-  height: auto;
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(1.08) rotate(-8deg);
-  filter:
-    invert(1)
-    brightness(0.62)
-    contrast(1.45)
-    drop-shadow(0 0 80px rgba(232, 184, 75, 0.2));
-  mix-blend-mode: screen;
-  animation:
-    introWolfIn 1100ms ease 520ms forwards,
-    introWolfFloat 3200ms ease-in-out 1500ms infinite alternate;
-}
-
-.intro-logo-wrap {
-  position: relative;
-  width: min(560px, 74vw);
-  height: clamp(84px, 12vw, 138px);
-  margin-bottom: 24px;
-  transform-origin: center;
-  animation: introLogoOut 760ms ease 3900ms forwards;
-}
-
-.intro-logo {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transform-origin: center;
-}
-
-.intro-logo-main {
-  filter: drop-shadow(0 0 32px rgba(232, 184, 75, 0.12));
-  opacity: 0;
-  animation:
-    introLogoIn 980ms cubic-bezier(0.16, 1, 0.3, 1) 220ms forwards,
-    introLogoPulse 1300ms ease-in-out 1300ms 1;
-}
-
-.intro-logo-glitch {
-  opacity: 0;
-  mix-blend-mode: screen;
-  filter: invert(73%) sepia(89%) saturate(449%) hue-rotate(38deg) brightness(108%) contrast(104%);
-}
-
-.intro-logo-glitch-a {
-  animation: introLogoGlitchA 1040ms steps(2, end) 360ms 2;
-}
-
-.intro-logo-glitch-b {
-  filter: invert(1) contrast(1.2);
-  animation: introLogoGlitchB 960ms steps(2, end) 460ms 2;
-}
-
-.intro-kicker,
-.intro-text {
-  margin: 0;
-  text-align: center;
-  opacity: 0;
-  transform: translateY(18px);
-  filter: blur(8px);
-}
-
-.intro-kicker {
-  color: var(--accent);
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  animation:
-    introTextIn 860ms ease 1550ms forwards,
-    introTextOut 700ms ease 3300ms forwards;
-}
-
-.intro-text {
-  max-width: min(520px, calc(100vw - 40px));
-  margin-top: 12px;
-  color: rgba(242, 242, 236, 0.76);
-  font-size: clamp(1rem, 2vw, 1.24rem);
-  animation:
-    introTextIn 860ms ease 1900ms forwards,
-    introTextOut 700ms ease 3300ms forwards;
-}
-
 .glass-filter {
   position: absolute;
   width: 0;
@@ -1695,137 +1560,6 @@ h2 {
   }
 }
 
-@keyframes introLogoIn {
-  0% {
-    opacity: 0;
-    transform: scale(1.18);
-    filter: blur(12px) drop-shadow(0 0 0 rgba(232, 184, 75, 0));
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    filter: blur(0) drop-shadow(0 0 32px rgba(232, 184, 75, 0.12));
-  }
-}
-
-@keyframes introLogoPulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  45% {
-    transform: scale(1.035);
-  }
-}
-
-@keyframes introLogoGlitchA {
-  0%, 100% {
-    opacity: 0;
-    clip-path: inset(0);
-    transform: translate(0, 0);
-  }
-  18% {
-    opacity: 0.8;
-    clip-path: inset(0 0 66% 0);
-    transform: translate(-14px, -3px);
-  }
-  36% {
-    opacity: 0.55;
-    clip-path: inset(42% 0 28% 0);
-    transform: translate(12px, 2px);
-  }
-  58% {
-    opacity: 0.72;
-    clip-path: inset(74% 0 0 0);
-    transform: translate(-8px, 4px);
-  }
-}
-
-@keyframes introLogoGlitchB {
-  0%, 100% {
-    opacity: 0;
-    clip-path: inset(0);
-    transform: translate(0, 0);
-  }
-  22% {
-    opacity: 0.46;
-    clip-path: inset(16% 0 58% 0);
-    transform: translate(16px, 3px);
-  }
-  48% {
-    opacity: 0.34;
-    clip-path: inset(60% 0 18% 0);
-    transform: translate(-12px, -2px);
-  }
-}
-
-@keyframes introTextIn {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
-@keyframes introTextOut {
-  to {
-    opacity: 0;
-    transform: translateY(-14px);
-    filter: blur(8px);
-  }
-}
-
-@keyframes introWolfIn {
-  to {
-    opacity: 0.34;
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
-  }
-}
-
-@keyframes introWolfFloat {
-  from {
-    transform: translate(-52%, -50%) scale(1) rotate(-2deg);
-    opacity: 0.28;
-  }
-  to {
-    transform: translate(-48%, -51%) scale(1.06) rotate(2deg);
-    opacity: 0.4;
-  }
-}
-
-@keyframes introScan {
-  0% {
-    opacity: 0;
-    transform: translateX(-120%) skewX(-16deg);
-  }
-  35% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(120%) skewX(-16deg);
-  }
-}
-
-@keyframes introLogoOut {
-  0% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(0, -18px, 0) scale(0.94);
-    filter: blur(10px);
-  }
-}
-
-@keyframes introFadeOut {
-  to {
-    opacity: 0;
-    visibility: hidden;
-  }
-}
-
 @keyframes liquidDrift {
   0% {
     transform: translate3d(-7%, -5%, 0) rotate(-9deg) scale(1);
@@ -2166,15 +1900,6 @@ h2 {
     display: none;
   }
 
-  .intro-logo-wrap {
-    width: min(360px, 82vw);
-    height: 86px;
-  }
-
-  .intro-text {
-    font-size: 0.95rem;
-  }
-
   .hero-actions,
   .contact-actions {
     width: 100%;
@@ -2446,10 +2171,6 @@ body.beca-minimal {
   background: #020403;
 }
 
-.beca-minimal .intro {
-  display: none;
-}
-
 .beca-minimal .cursor-glow {
   z-index: 72;
   width: 280px;
@@ -2465,128 +2186,6 @@ body.beca-minimal {
   width: 380px;
   height: 380px;
   opacity: 0.86;
-}
-
-.beca-intro {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: grid;
-  place-items: center;
-  background:
-    radial-gradient(circle at 52% 57%, rgba(232, 184, 75, 0.11), transparent 24rem),
-    linear-gradient(180deg, #050706, #010202);
-  overflow: hidden;
-}
-
-.beca-intro::before,
-.beca-intro::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.beca-intro::before {
-  background:
-    linear-gradient(90deg, transparent, rgba(232, 184, 75, 0.12), transparent),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 6px);
-  opacity: 0.4;
-  animation: becaIntroScan 1100ms steps(2, end) 240ms 2;
-}
-
-.beca-intro::after {
-  background: radial-gradient(circle at 52% 57%, transparent 0 36%, rgba(0, 0, 0, 0.86) 78%);
-}
-
-.intro-logo-line {
-  position: relative;
-  z-index: 2;
-  --intro-beca-size: min(315px, 29vw);
-  width: min(980px, 94vw);
-  height: 300px;
-  transform: translateY(72px);
-}
-
-.intro-beca-logo {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 3;
-  width: var(--intro-beca-size);
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.76);
-  transform-origin: center;
-  filter: blur(12px) drop-shadow(0 0 0 rgba(232, 184, 75, 0));
-  animation: becaLogoIntroMove 2100ms cubic-bezier(0.16, 1, 0.3, 1) 120ms forwards;
-}
-
-.intro-exit-x {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 5;
-  width: 220vmax;
-  height: 220vmax;
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.04);
-  transform-origin: center;
-  pointer-events: none;
-}
-
-.beca-intro.is-exiting .intro-exit-x {
-  animation: introExitX 1180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.intro-exit-x::before {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 120vmax;
-  height: 120vmax;
-  content: "";
-  background: var(--accent);
-  border-radius: 999px;
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.02);
-  transform-origin: center;
-}
-
-.beca-intro.is-exiting .intro-exit-x::before {
-  animation: introLimeFlood 1180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.intro-exit-x span {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 30vmax;
-  height: 250vmax;
-  background: var(--accent);
-  border-radius: 999px;
-  box-shadow:
-    0 0 54px rgba(232, 184, 75, 0.38),
-    0 0 120px rgba(232, 184, 75, 0.18);
-  transform-origin: center;
-}
-
-.intro-exit-x span:first-child {
-  transform: translate(-50%, -50%) rotate(32deg);
-}
-
-.intro-exit-x span:last-child {
-  transform: translate(-50%, -50%) rotate(-32deg);
-}
-
-.beca-intro.is-done {
-  opacity: 0;
-  filter: blur(10px);
-  transform: scale(1.01);
-  transition:
-    opacity 820ms ease,
-    filter 820ms ease,
-    transform 820ms ease;
-  pointer-events: none;
 }
 
 .beca-header {
@@ -2891,83 +2490,6 @@ body.beca-minimal {
 
 .profile-logout-row {
   margin-top: 6px;
-}
-
-@keyframes becaLogoIntroMove {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.76);
-    filter: blur(12px) drop-shadow(0 0 0 rgba(232, 184, 75, 0));
-  }
-  22% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    filter: blur(0) drop-shadow(0 0 34px rgba(232, 184, 75, 0.28));
-  }
-  84% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    filter: blur(0) drop-shadow(0 0 34px rgba(232, 184, 75, 0.28));
-  }
-  89% {
-    opacity: 0.72;
-    transform: translate(-50%, -50%) scale(1);
-    filter: blur(0) drop-shadow(5px 0 0 rgba(232, 184, 75, 0.28));
-  }
-  93% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    filter: blur(0) drop-shadow(-4px 0 0 rgba(255, 255, 255, 0.18));
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    filter: blur(0) drop-shadow(0 0 34px rgba(232, 184, 75, 0.28));
-  }
-}
-
-@keyframes becaIntroScan {
-  0%, 100% {
-    transform: translateX(-18%);
-    opacity: 0.12;
-  }
-  50% {
-    transform: translateX(18%);
-    opacity: 0.5;
-  }
-}
-
-@keyframes introExitX {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.04);
-  }
-  24% {
-    opacity: 1;
-  }
-  72% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.22);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(2.15);
-  }
-}
-
-@keyframes introLimeFlood {
-  0%, 56% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.02);
-  }
-  76% {
-    opacity: 0.72;
-    transform: translate(-50%, -50%) scale(0.72);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(2.15);
-  }
 }
 
 .beca-hero {
@@ -6628,17 +6150,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
     overflow: hidden;
   }
 
-  .intro-logo-line {
-    --intro-beca-size: clamp(118px, 34vw, 176px);
-    width: min(560px, 96vw);
-    height: 210px;
-    transform: translateY(22px);
-  }
-
-  .intro-beca-logo {
-    width: var(--intro-beca-size);
-  }
-
   .beca-header {
     align-items: center;
     gap: 10px;
@@ -6853,12 +6364,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
   }
 }
 
-@media (max-width: 420px) {
-  .intro-logo-line {
-    --intro-beca-size: clamp(102px, 31vw, 138px);
-  }
-}
-
 @media (max-width: 760px) {
   html,
   body {
@@ -6874,7 +6379,6 @@ body[data-hero-auth="login"] .beca-hero-copy {
   }
 
   .site-scene,
-  .beca-intro,
   .cart-drawer,
   .mobile-menu {
     width: 100vw;
