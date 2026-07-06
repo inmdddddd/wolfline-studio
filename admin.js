@@ -250,7 +250,7 @@ async function buildSceneImage() {
   drawCover(ctx, background, canvas.width, canvas.height);
 
   ctx.save();
-  ctx.shadowColor = `rgba(199, 255, 97, ${0.38 * (photoState.glow / 100)})`;
+  ctx.shadowColor = `rgba(232, 184, 75, ${0.38 * (photoState.glow / 100)})`;
   ctx.shadowBlur = 36 * (photoState.glow / 100);
   ctx.drawImage(productLayer, 0, 0, canvas.width, canvas.height);
   ctx.restore();
