@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>BeCa x Wolfline Studio</title>
+  <title>BeCa</title>
   <link rel="icon" href="favicon.ico" sizes="any">
   <script>
     window.__BECA_IS_SAFARI__ = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
@@ -11,7 +11,7 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=glitch-everywhere-1">
+  <link rel="stylesheet" href="styles.css?v=trust-story-1">
   <script>
     if (location.protocol === "file:") {
       location.replace("http://127.0.0.1:4189/");
@@ -165,6 +165,12 @@
         <label><span data-i18n="cart.phone">Phone</span><input name="customerPhone" autocomplete="tel" required></label>
         <label><span data-i18n="cart.address">Address</span><textarea name="customerAddress" rows="3" required></textarea></label>
         <button type="submit" data-i18n="cart.placeOrder">Place order</button>
+        <p class="checkout-trust-note" data-i18n="checkout.trustNote">Your details are encrypted and used only to process this order.</p>
+        <ul class="trust-strip" aria-label="Why shop with us">
+          <li data-i18n="trust.shipping">Ships in 2–5 business days</li>
+          <li data-i18n="trust.returns">Easy 14-day returns</li>
+          <li data-i18n="trust.payment">100% secure payment</li>
+        </ul>
         <span class="form-message" data-checkout-message></span>
       </form>
     </aside>
@@ -182,6 +188,11 @@
             <a href="#register" data-auth-open="register" data-guest-only data-i18n="hero.secondary">Register</a>
             <a href="/account.html" data-user-only hidden data-i18n="hero.account">My account</a>
           </div>
+          <ul class="trust-strip" aria-label="Why shop with us">
+            <li data-i18n="trust.shipping">Ships in 2–5 business days</li>
+            <li data-i18n="trust.returns">Easy 14-day returns</li>
+            <li data-i18n="trust.payment">100% secure payment</li>
+          </ul>
         </div>
 
         <div class="hero-auth-view" data-hero-view="auth" aria-hidden="true">
@@ -300,6 +311,13 @@
       </div>
     </section>
 
+    <section class="brand-section story-section" id="story" aria-label="Brand story">
+      <p class="beca-kicker" data-i18n="story.kicker">The story</p>
+      <h2 data-i18n="story.title">One obsession: graphics that don't look mass-produced.</h2>
+      <p data-i18n="story.body">BeCa started as a frustration with generic streetwear. Every print is drawn in-house, every run is capped on purpose, and every piece ships from Romania in small, deliberate batches — not a warehouse full of the same shirt.</p>
+      <a class="story-link" href="/about.html" data-i18n="story.cta">Read the full story</a>
+    </section>
+
     <section class="brand-section drop-section" id="drop" aria-label="Latest drop">
       <div class="section-heading">
         <p data-i18n="drop.kicker">Latest drop</p>
@@ -355,7 +373,7 @@
   </footer>
 
   <script src="locale.js?v=size-fix-1"></script>
-  <script src="script.js?v=glitch-everywhere-1"></script>
+  <script src="script.js?v=trust-story-1"></script>
   <script src="shop.js?v=preview-fallback-1"></script>
   <script src="model-loader.js?v=no-drag-1"></script>
   <script src="intro.js?v=profile-menu-1"></script>

@@ -3673,6 +3673,50 @@ body.beca-minimal {
   align-content: end;
 }
 
+.story-section {
+  max-width: 760px;
+}
+
+.story-section > p:first-child {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.story-section h2 {
+  margin: 0 0 18px;
+  color: var(--text);
+  font-size: clamp(1.9rem, 3.6vw, 3rem);
+  line-height: 1.05;
+  font-weight: 950;
+  text-wrap: balance;
+}
+
+.story-section > p:not(:first-child) {
+  margin: 0 0 24px;
+  color: rgba(242, 242, 236, 0.68);
+  font-size: 1.02rem;
+  line-height: 1.6;
+}
+
+.story-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .design-notes div {
   padding: 18px;
   border: 1px solid rgba(242, 242, 236, 0.12);
@@ -3826,6 +3870,73 @@ body.beca-minimal {
 
 .product-card h3 {
   cursor: pointer;
+}
+
+.product-materials {
+  margin: 4px 0 22px;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.product-materials-title {
+  margin: 0 0 14px;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.product-materials dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.product-materials dt {
+  margin: 0 0 2px;
+  color: rgba(242, 242, 236, 0.55);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.product-materials dd {
+  margin: 0;
+  color: rgba(242, 242, 236, 0.85);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.trust-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trust-strip li {
+  position: relative;
+  padding-left: 16px;
+  color: rgba(242, 242, 236, 0.6);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.trust-strip li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .product-specs {
@@ -4195,6 +4306,19 @@ body.beca-minimal {
 .checkout-form {
   display: grid;
   gap: 10px;
+}
+
+.checkout-trust-note {
+  margin: 2px 0 0;
+  color: rgba(242, 242, 236, 0.5);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.checkout-form .trust-strip {
+  justify-content: center;
+  margin: 0;
 }
 
 .checkout-form label {
