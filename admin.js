@@ -891,6 +891,34 @@ document.querySelectorAll("[data-logout]").forEach((button) => {
   });
 });
 
+document.querySelectorAll("[data-email-test]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const message = button.parentElement.querySelector("[data-email-test-message]");
+    button.disabled = true;
+    if (message) {
+      message.dataset.type = "";
+      message.textContent = "Se trimite...";
+    }
+
+    try {
+      const result = await requestJson("/api/admin/email/test", { method: "POST" });
+      if (!message) return;
+      if (!result.configured) {
+        message.textContent = "SMTP nu este configurat (lipsesc variabilele de mediu).";
+      } else if (result.ok) {
+        message.dataset.type = "success";
+        message.textContent = "Email trimis. Verifica inbox-ul.";
+      } else {
+        message.textContent = `Trimiterea a esuat (${result.reason}). Verifica data/email-outbox.json.`;
+      }
+    } catch (error) {
+      if (message) message.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+});
+
 loadDashboard().catch(() => {
   window.location.href = "/admin/login.html";
 });

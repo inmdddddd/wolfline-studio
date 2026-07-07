@@ -3,6 +3,32 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 
+// Minimal local-only .env loader (no npm dependency). Real hosting env vars
+// (e.g. Render's Environment Variables panel) are set before the process
+// starts and always take precedence over .env - this only fills gaps.
+(function loadDotEnv() {
+  const envPath = path.join(__dirname, ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  fs.readFileSync(envPath, "utf8").split("\n").forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) return;
+
+    const equalsIndex = line.indexOf("=");
+    if (equalsIndex === -1) return;
+
+    const key = line.slice(0, equalsIndex).trim();
+    let value = line.slice(equalsIndex + 1).trim();
+    if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
+    if (!(key in process.env)) process.env[key] = value;
+  });
+})();
+
+const email = require("./lib/email");
+
 const root = __dirname;
 const rootResolved = path.resolve(root);
 const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(root, "data");
@@ -103,6 +129,10 @@ function ensureDataFiles() {
 
   if (!fs.existsSync(path.join(dataDir, "analytics.json"))) {
     writeJson("analytics.json", { totalPageviews: 0, byDay: {} });
+  }
+
+  if (!fs.existsSync(path.join(dataDir, "email-outbox.json"))) {
+    writeJson("email-outbox.json", []);
   }
 
   const products = readJson("products.json", []);
@@ -1179,6 +1209,9 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
+    const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${outcome.order.id}`;
+    email.sendMail(email.buildOrderConfirmationEmail(outcome.order, orderUrl)).catch(() => {});
+
     const { cart } = getCart(request, response);
     json(response, 200, { ok: true, order: outcome.order, cart: buildCartPayload(cart) });
     return true;
@@ -1314,6 +1347,25 @@ async function handleAdminApi(request, response, pathname) {
       last14Days: days,
       topPages
     });
+    return true;
+  }
+
+  if (pathname === "/api/admin/email/test" && request.method === "POST") {
+    const config = email.getConfig();
+    const configured = email.isConfigured(config);
+
+    if (!configured) {
+      json(response, 200, { ok: false, configured: false, reason: "smtp-not-configured" });
+      return true;
+    }
+
+    const result = await email.sendMail({
+      to: session.user.email,
+      subject: "Test SMTP BeCa",
+      text: "Acesta este un email de test trimis din panoul admin BeCa pentru a confirma ca SMTP-ul functioneaza."
+    });
+
+    json(response, 200, { ...result, configured: true });
     return true;
   }
 
@@ -1520,12 +1572,19 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
+    const previousStatus = orders[index].status;
     orders[index] = {
       ...orders[index],
       status,
       updatedAt: new Date().toISOString()
     };
     writeJson("orders.json", orders);
+
+    if (previousStatus !== status) {
+      const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${orders[index].id}`;
+      email.sendMail(email.buildOrderStatusEmail(orders[index], orderUrl)).catch(() => {});
+    }
+
     json(response, 200, { ok: true, order: orders[index] });
     return true;
   }
