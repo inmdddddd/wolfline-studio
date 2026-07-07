@@ -113,6 +113,15 @@ function ensureDataFiles() {
     return { ...product, sizeStock: distributeStockAcrossSizes(Math.max(0, Math.floor(Number(product.stock) || 0)), product.sizes) };
   });
   if (migrated) writeJson("products.json", migratedProducts);
+
+  const orders = readJson("orders.json", []);
+  let migratedOrders = false;
+  const migratedOrdersList = orders.map((order) => {
+    if (order.status !== "completed") return order;
+    migratedOrders = true;
+    return { ...order, status: "delivered" };
+  });
+  if (migratedOrders) writeJson("orders.json", migratedOrdersList);
 }
 
 function readJson(fileName, fallback) {
@@ -375,6 +384,27 @@ async function readProductPayload(request, existing = {}) {
   return readBody(request);
 }
 
+// TODO(security, etapa 2): script-src 'unsafe-inline' is needed because a handful of pages
+// have small inline <script> blocks (Safari sniffing, the file:// redirect guard, the
+// three.js importmap on admin/dashboard.html) and no nonce/hash pipeline exists yet since
+// there's no build step. Move those blocks into external files (or add a per-request nonce)
+// and drop 'unsafe-inline' from script-src once that's done.
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://unpkg.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",
+  "connect-src 'self' https://unpkg.com blob:",
+  "worker-src 'self' blob:",
+  "media-src 'self'",
+  "frame-src 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'"
+].join("; ");
+
 function send(response, status, body, headers = {}) {
   response.writeHead(status, {
     "Content-Type": "text/plain; charset=utf-8",
@@ -382,6 +412,7 @@ function send(response, status, body, headers = {}) {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     ...headers
   });
   response.end(body);
@@ -538,6 +569,27 @@ function publicProduct(product) {
       textureUrl: product.studio.textureUrl || "",
       shirtColor: product.studio.shirtColor || "#ffffff"
     } : null
+  };
+}
+
+function publicOrder(order) {
+  return {
+    id: order.id,
+    number: order.number,
+    status: order.status,
+    currency: order.currency,
+    total: order.total,
+    items: (order.items || []).map((item) => ({
+      name: item.name,
+      size: item.size || "",
+      price: item.price,
+      currency: item.currency,
+      qty: item.qty,
+      subtotal: item.subtotal
+    })),
+    customerName: order.customerName,
+    customerAddress: order.customerAddress,
+    createdAt: order.createdAt
   };
 }
 
@@ -1099,7 +1151,7 @@ async function handleShopApi(request, response, pathname) {
         number: `BC-${String(orders.length + 1).padStart(4, "0")}`,
         userId: session?.user.id || null,
         ...customer,
-        status: "pending",
+        status: "confirmed",
         currency: payload.currency,
         total: payload.total,
         items: payload.items.map((item) => ({
@@ -1129,6 +1181,19 @@ async function handleShopApi(request, response, pathname) {
 
     const { cart } = getCart(request, response);
     json(response, 200, { ok: true, order: outcome.order, cart: buildCartPayload(cart) });
+    return true;
+  }
+
+  const orderDetailMatch = pathname.match(/^\/api\/orders\/([0-9a-f-]{36})$/);
+  if (orderDetailMatch && request.method === "GET") {
+    const order = readJson("orders.json", []).find((item) => item.id === orderDetailMatch[1]);
+
+    if (!order) {
+      json(response, 404, { error: "Comanda nu exista." });
+      return true;
+    }
+
+    json(response, 200, { order: publicOrder(order) });
     return true;
   }
 
@@ -1440,7 +1505,7 @@ async function handleAdminApi(request, response, pathname) {
   if (orderMatch && request.method === "PUT") {
     const body = await readBody(request);
     const status = String(body.status || "");
-    const allowedStatuses = ["pending", "processing", "shipped", "completed", "cancelled"];
+    const allowedStatuses = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
 
     if (!allowedStatuses.includes(status)) {
       json(response, 400, { error: "Status invalid." });

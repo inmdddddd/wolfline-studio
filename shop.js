@@ -518,15 +518,11 @@ document.querySelector("[data-checkout-form]")?.addEventListener("submit", async
   button.disabled = true;
 
   try {
-    const { order, cart } = await shopRequest("/api/checkout", {
+    const { order } = await shopRequest("/api/checkout", {
       method: "POST",
       body: JSON.stringify(data)
     });
-    message.dataset.type = "success";
-    message.textContent = shopText("orderReceived", `Order ${order.number} received.`, { number: order.number });
-    renderCart(cart);
-    setCartMode("cart");
-    await loadShop();
+    window.location.href = `/thank-you.html?order=${encodeURIComponent(order.id)}`;
   } catch (error) {
     message.dataset.type = "";
     message.textContent = error.message;

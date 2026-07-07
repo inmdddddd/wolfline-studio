@@ -427,7 +427,7 @@ function renderOrders(orders) {
     products.textContent = (order.items || []).map((entry) => `${entry.qty}x ${entry.name}${entry.size ? ` (${entry.size})` : ""}`).join(", ");
     total.textContent = money(order);
 
-    ["pending", "processing", "shipped", "completed", "cancelled"].forEach((value) => {
+    ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"].forEach((value) => {
       const option = document.createElement("option");
       option.value = value;
       option.textContent = value;

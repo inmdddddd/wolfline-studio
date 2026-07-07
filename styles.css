@@ -6633,6 +6633,38 @@ body[data-hero-auth="login"] .beca-hero-copy {
   text-decoration: none;
 }
 
+.info-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.thank-you-items {
+  margin-bottom: 18px;
+}
+
+.thank-you-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border: 1px solid rgba(232, 184, 75, 0.3);
+  border-radius: 16px;
+  background: rgba(232, 184, 75, 0.06);
+  font-size: 1.1rem;
+}
+
+.thank-you-total-row strong {
+  color: var(--accent);
+}
+
+.thank-you-loading {
+  padding: 40px 0;
+  color: var(--muted);
+  text-align: center;
+}
+
 .faq-list {
   display: grid;
   gap: 10px;
