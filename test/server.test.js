@@ -78,6 +78,36 @@ test("parseCookies returns an empty object when no cookie header is present", ()
   assert.deepEqual(server.parseCookies({ headers: {} }), {});
 });
 
+test("clientIp trusts x-forwarded-for only when the socket connection itself is from a local proxy", () => {
+  const fromLocalProxy = {
+    socket: { remoteAddress: "127.0.0.1" },
+    headers: { "x-forwarded-for": "203.0.113.5, 10.0.0.1" }
+  };
+  assert.equal(server.clientIp(fromLocalProxy), "203.0.113.5", "trusted proxy: use the header, first hop");
+
+  const fromIpv6LocalProxy = {
+    socket: { remoteAddress: "::1" },
+    headers: { "x-forwarded-for": "203.0.113.9" }
+  };
+  assert.equal(server.clientIp(fromIpv6LocalProxy), "203.0.113.9");
+});
+
+test("clientIp ignores a spoofed x-forwarded-for when the connection is not from a trusted proxy", () => {
+  // This is the production-audit regression: a direct internet client can set
+  // any x-forwarded-for value it likes. Without the trusted-proxy check, that
+  // value would previously have been used as-is, letting an attacker rotate
+  // their claimed IP to bypass every rate limiter keyed on clientIp().
+  const directInternetClient = {
+    socket: { remoteAddress: "203.0.113.66" },
+    headers: { "x-forwarded-for": "1.2.3.4" }
+  };
+  assert.equal(server.clientIp(directInternetClient), "203.0.113.66", "must use the real socket address, not the spoofed header");
+});
+
+test("clientIp falls back to \"unknown\" when neither the socket nor a trusted header has an address", () => {
+  assert.equal(server.clientIp({ socket: {}, headers: {} }), "unknown");
+});
+
 test("toSlug lowercases, strips accents and collapses separators", () => {
   assert.equal(server.toSlug("  Golden Hour Tee!  "), "golden-hour-tee");
   assert.equal(server.toSlug("Ștefan's Édition"), "stefan-s-edition");

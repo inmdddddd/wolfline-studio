@@ -760,9 +760,24 @@ function sameOriginPost(request) {
 
 const rateLimitBuckets = new Map();
 
+// x-forwarded-for is set by whoever makes the TCP connection to this process -
+// on the VPS that's nginx (trusted, connecting from localhost), but if this
+// process were ever reachable directly (misconfigured proxy, no proxy at all),
+// any client could set that header to any value and pick their own IP, which
+// would let them bypass every rate limiter keyed on it below. Only trust the
+// header when the actual socket connection comes from localhost, i.e. from a
+// reverse proxy on the same machine - not from the public internet.
+const TRUSTED_PROXY_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+
 function clientIp(request) {
-  const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
-  return forwarded || request.socket.remoteAddress || "unknown";
+  const remote = request.socket?.remoteAddress || "";
+
+  if (TRUSTED_PROXY_ADDRESSES.has(remote)) {
+    const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
+    if (forwarded) return forwarded;
+  }
+
+  return remote || "unknown";
 }
 
 function isRateLimited(key, limit = 8, windowMs = 60000) {
@@ -2810,5 +2825,6 @@ module.exports = {
   sanitizeProduct,
   parseSizesInput,
   sanitizeCheckout,
-  canAccessFile
+  canAccessFile,
+  clientIp
 };
