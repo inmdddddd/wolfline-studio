@@ -3,35 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>AETHER STUDIO — Born from light. Made with weight.</title>
-  <meta name="description" content="AETHER STUDIO: elevated essentials cut from heavy cotton, released in small archive drops. Explore the current piece and request access to the next release.">
+  <title>AETHER — Primordial Deity of the Upper Sky</title>
+  <meta name="description" content="Aether: the primordial Greek deity of the upper sky, divine light and pure heavenly air. Enter the sanctuary and read the myth of the light born from darkness.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="canonical" href="https://aether-studio.example/">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="AETHER STUDIO">
-  <meta property="og:title" content="AETHER STUDIO — Born from light. Made with weight.">
-  <meta property="og:description" content="Elevated essentials cut from heavy cotton, released in small archive drops.">
+  <meta property="og:site_name" content="AETHER">
+  <meta property="og:title" content="AETHER — Primordial Deity of the Upper Sky">
+  <meta property="og:description" content="The pure, luminous air breathed only by the gods — where mortal sky ends and divine light begins.">
   <meta property="og:url" content="https://aether-studio.example/">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="AETHER STUDIO — Born from light. Made with weight.">
-  <meta name="twitter:description" content="Elevated essentials cut from heavy cotton, released in small archive drops.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230b0b0c'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='34' fill='%23bfa46a' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+  <meta name="twitter:title" content="AETHER — Primordial Deity of the Upper Sky">
+  <meta name="twitter:description" content="The pure, luminous air breathed only by the gods.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23151322'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='34' fill='%23c9a86a' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
   <script>
     window.__BECA_IS_SAFARI__ = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
     if (window.__BECA_IS_SAFARI__) {
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=aether-1">
-  <link rel="stylesheet" href="aether-theme.css?v=aether-1">
+  <link rel="stylesheet" href="styles.css?v=aether-4">
+  <link rel="stylesheet" href="aether-theme.css?v=aether-4">
   <script>
     if (location.protocol === "file:") {
       location.replace("http://127.0.0.1:4189/");
     }
   </script>
-  <script type="module" src="https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
 </head>
-<body class="beca-minimal">
+<body class="beca-minimal has-hero-video">
   <svg class="glass-filter" width="0" height="0" aria-hidden="true" focusable="false">
     <filter id="liquid-glass-refraction">
       <feTurbulence type="fractalNoise" baseFrequency="0.018 0.045" numOctaves="2" seed="7" result="noise" />
@@ -41,6 +40,24 @@
 
   <div class="cursor-glow" aria-hidden="true"></div>
 
+  <!-- Site-wide fixed video background. Stays pinned behind every section
+       while the page scrolls (not just behind the hero). Put your file at
+       aether/assets/aether-hero.mp4 (already in place). Playback/loop
+       behaviour lives in aether-hero-video.js, which toggles
+       is-video-ready / is-video-blocked on <body>. -->
+  <div class="aether-bg-fallback" aria-hidden="true"></div>
+  <video
+    class="aether-bg-video"
+    data-aether-hero-video
+    autoplay
+    muted
+    playsinline
+    preload="auto"
+    aria-hidden="true">
+    <source src="assets/aether-hero.mp4" type="video/mp4">
+  </video>
+  <div class="aether-bg-overlay" aria-hidden="true"></div>
+
   <div class="site-scene" aria-hidden="true">
     <div class="scene-aurora"></div>
     <div class="scene-particles"></div>
@@ -48,14 +65,14 @@
   </div>
 
   <header class="header beca-header">
-    <a class="beca-logo" href="#top" aria-label="AETHER STUDIO">
+    <a class="beca-logo" href="#top" aria-label="AETHER">
       <span class="aether-wordmark">AETHER<small>STUDIO</small></span>
       <img class="beca-logo-img" src="assets/beca-logo.png" alt="" data-content-img="logoUrl" hidden>
     </a>
     <nav aria-label="Main navigation">
-      <a href="#drop" data-i18n="nav.drop">Drop</a>
-      <a href="#quality" data-i18n="nav.quality">Quality</a>
-      <a href="#contact" data-i18n="nav.contact">Contact</a>
+      <a href="#primordial-light">Myth</a>
+      <a href="#lineage">Lineage</a>
+      <a href="#relic">Sanctuary</a>
       <a href="#login" data-auth-open="login" data-guest-only>Login</a>
       <div class="profile-menu" data-user-only hidden>
         <button type="button" class="profile-trigger" data-profile-toggle aria-expanded="false" aria-label="Profile menu">
@@ -75,7 +92,7 @@
             <a href="/admin/dashboard.html" data-admin-only hidden><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Admin Panel</a>
             <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Settings</a>
             <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-privacy.png" alt=""></span>Privacy & Security</a>
-            <a href="/#contact"><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span>Help & Support</a>
+            <a href="/support.html"><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span>Help & Support</a>
           </div>
           <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span>Logout</button>
         </div>
@@ -90,16 +107,16 @@
     <button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Close menu"></button>
     <aside class="mobile-menu-panel" aria-label="Mobile menu">
       <div class="mobile-menu-head">
-        <a class="beca-logo mobile-menu-logo" href="#top" data-mobile-menu-link aria-label="AETHER STUDIO">
+        <a class="beca-logo mobile-menu-logo" href="#top" data-mobile-menu-link aria-label="AETHER">
           <span class="aether-wordmark">AETHER<small>STUDIO</small></span>
         </a>
         <button type="button" data-mobile-menu-close aria-label="Close menu" data-i18n="mobile.close">Close</button>
       </div>
 
       <div class="mobile-menu-section">
-        <a href="#drop" data-mobile-menu-link data-i18n="nav.drop">Drop</a>
-        <a href="#quality" data-mobile-menu-link data-i18n="nav.quality">Quality</a>
-        <a href="#contact" data-mobile-menu-link data-i18n="nav.contact">Contact</a>
+        <a href="#primordial-light" data-mobile-menu-link>Myth</a>
+        <a href="#lineage" data-mobile-menu-link>Lineage</a>
+        <a href="#relic" data-mobile-menu-link>Sanctuary</a>
         <button type="button" data-cart-toggle data-mobile-menu-link data-i18n="cart.title">Cart</button>
       </div>
 
@@ -122,7 +139,7 @@
           <a href="/admin/dashboard.html" data-admin-only hidden data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Admin Panel</a>
           <a href="/account.html#settings" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Settings</a>
           <a href="/account.html#settings" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-privacy.png" alt=""></span>Privacy & Security</a>
-          <a href="/#contact" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span>Help & Support</a>
+          <a href="/support.html" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span>Help & Support</a>
         </div>
         <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span>Logout</button>
       </div>
@@ -183,22 +200,31 @@
   </div>
 
   <main id="top">
-    <section class="beca-hero" aria-label="Hero with 3D piece">
-      <div class="beca-hero-copy" id="heroAccess">
+    <!-- ====================================================================
+         AETHER TEMPLE HERO (component: .aether-temple-hero)
+         Full-screen, self-contained. #heroAccess / [data-hero-view] /
+         [data-auth-panel] / [data-auth-tab] structure below is required by
+         script.js's auth toggle (setHeroAuthMode/closeHeroAuth) — do not
+         rename those attributes even when restyling further.
+
+         The background video itself is NOT in here — it's a page-level
+         fixed layer (.aether-bg-video, right after <body>) that stays
+         pinned behind every section as the page scrolls, not just this
+         one. This section just centers the glass card on top of it.
+         ==================================================================== -->
+    <section class="aether-temple-hero" aria-label="Aether, primordial deity of the upper sky">
+      <div class="aether-temple-hero__copy" id="heroAccess">
         <div class="hero-copy-view is-active" data-hero-view="intro">
-          <p class="beca-kicker">The first drop</p>
-          <h1>AETHER STUDIO</h1>
-          <p>Born from light. Made with weight. Elevated essentials cut from heavy cotton, built around silence, structure and permanence — released in small archive drops instead of endless restocks.</p>
-          <div class="beca-actions">
-            <a href="#drop">Shop the first drop</a>
-            <a href="#story">Explore the archive</a>
-            <a href="/account.html" data-user-only hidden data-i18n="hero.account">My account</a>
+          <div class="aether-glass-card">
+            <p class="aether-temple-hero__eyebrow">Primordial Deity of the Upper Sky</p>
+            <h1 class="aether-temple-hero__title">AETHER</h1>
+            <p class="aether-temple-hero__subtitle">Aether is not the sky we see, but the divine air above it — the pure light breathed by the gods.</p>
+            <div class="aether-temple-hero__actions">
+              <a class="aether-btn aether-btn--glass" href="#relic">Enter the Sanctuary</a>
+              <a class="aether-btn aether-btn--glass aether-btn--ghost" href="#primordial-light">Read the Myth</a>
+              <a class="aether-btn aether-btn--glass aether-btn--ghost" href="/account.html" data-user-only hidden>My account</a>
+            </div>
           </div>
-          <ul class="trust-strip" aria-label="Why shop with us">
-            <li data-i18n="trust.shipping">Ships in 2–5 business days</li>
-            <li data-i18n="trust.returns">Easy 14-day returns</li>
-            <li data-i18n="trust.payment">100% secure payment</li>
-          </ul>
         </div>
 
         <div class="hero-auth-view" data-hero-view="auth" aria-hidden="true">
@@ -246,120 +272,139 @@
           </form>
         </div>
       </div>
-      <div class="beca-shirt-stage">
-        <div class="shirt-scene" id="shirtScene">
-          <model-viewer
-            class="floating-shirt"
-            id="tshirtViewer"
-            src="assets/models/tshirt-web.glb"
-            alt="Piesa 3D"
-            camera-orbit="0deg 82deg 1.35m"
-            min-camera-orbit="auto 82deg 1.35m"
-            max-camera-orbit="auto 82deg 1.35m"
-            min-field-of-view="20deg"
-            max-field-of-view="20deg"
-            auto-rotate
-            rotation-per-second="24deg"
-            shadow-intensity="0.85"
-            exposure="1.2"
-            interaction-prompt="none">
-          </model-viewer>
-          <div class="model-loader">
-            <div class="loader-ring" style="--progress: 0%">
-              <span id="modelProgress">0%</span>
-            </div>
-          </div>
-        </div>
-        <div class="hero-glitch-countdown" aria-hidden="true">
-          <span data-glitch-hours>00</span><em>:</em><span data-glitch-minutes>00</span><em>:</em><span data-glitch-seconds>00</span>
-        </div>
-      </div>
     </section>
 
-    <section class="brand-section quality-section" id="quality" aria-label="Material and construction">
-      <div class="section-heading">
-        <p>Craft first</p>
-        <h2>Weight, structure, and nothing extra.</h2>
+    <!-- ==================== Primordial Light ==================== -->
+    <section class="aether-section aether-section--tight reveal" id="primordial-light" aria-label="Who is Aether">
+      <div class="aether-section-head">
+        <span class="aether-eyebrow">Who Is Aether</span>
+        <h2>Born of Darkness, Keeper of Light</h2>
       </div>
-      <div class="feature-grid">
-        <article class="feature-card">
-          <span>01</span>
-          <h3>Heavy cotton</h3>
-          <p>Every piece is cut from dense, structured cotton chosen for how it holds shape over years, not seasons.</p>
-        </article>
-        <article class="feature-card">
-          <span>02</span>
-          <h3>Restrained form</h3>
-          <p>No loud graphics, no noise. Silhouette and proportion carry the design, front and back.</p>
-        </article>
-        <article class="feature-card">
-          <span>03</span>
-          <h3>Archive drops</h3>
-          <p>Small, numbered releases. Once a piece sells out, it is retired to the archive — not reprinted.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="brand-section design-section" id="design" aria-label="Design direction">
-      <div class="design-copy">
-        <p>Design direction</p>
-        <h2>Quiet by design. Deliberate by construction.</h2>
-        <p>Every AETHER piece starts from proportion and fabric weight before it starts from print. The goal is permanence: garments that feel considered on day one and still hold their form years later.</p>
-      </div>
-      <div class="design-notes">
+      <div class="aether-light-grid">
         <div>
-          <strong>Minimal palette</strong>
-          <span>A tight range of tonal neutrals, built to layer without competing.</span>
+          <p>In the beginning, before Olympus and the gods who would come to rule it, Chaos gave rise to Erebus — the primordial Darkness — and Nyx, the primordial Night. From their union came two children: Hemera, the Day, and Aether, the shining upper air.</p>
+          <p>Where Hemera governed the coming and going of daylight upon the mortal earth, Aether ruled the bright, rarefied air above it: the atmosphere breathed only by the immortals, older than Olympus itself.</p>
         </div>
-        <div>
-          <strong>Considered fit</strong>
-          <span>Cut for structure on the body, not for logos to sit on top of.</span>
-        </div>
+        <div class="aether-light-rule" aria-hidden="true"></div>
+        <blockquote>A paradox at the root of creation — pure light, born from the deepest dark.</blockquote>
       </div>
     </section>
 
-    <section class="brand-section story-section aether-editorial" id="story" aria-label="Brand story">
-      <p class="beca-kicker">The archive</p>
-      <h2>Built slowly, released rarely.</h2>
-      <p>AETHER STUDIO exists for pieces that don't need to shout. Every release is developed over a long cycle, produced in a small, fixed quantity, and retired the moment it sells through. What remains lives on in the archive — a record of what was made, not a promise that it will be made again.</p>
+    <div class="aether-divider reveal" aria-hidden="true"></div>
+
+    <!-- ==================== The Realm Above Olympus ==================== -->
+    <section class="aether-realm reveal" id="realm" aria-label="The realm above Olympus">
+      <div class="aether-realm-inner">
+        <span class="aether-eyebrow">The Realm Above Olympus</span>
+        <p>Beyond cloud. Beyond storm. Beyond the reach of mortal breath. The realm of Aether exists beyond cloud, storm, and mortal breath — where the turbid air of earth gives way to a clear, radiant firmament the ancients believed clothed the heavens in permanent light.</p>
+        <p>Not a place the gods visit. The air they are made of.</p>
+      </div>
     </section>
 
-    <section class="brand-section drop-section" id="drop" aria-label="Current drop">
-      <div class="section-heading">
-        <p>Current drop</p>
-        <h2>001 — the first form.</h2>
+    <!-- ==================== Symbols of Aether ==================== -->
+    <section class="aether-section" id="symbols" aria-label="Symbols of Aether">
+      <div class="aether-section-head reveal">
+        <span class="aether-eyebrow">Symbols of Aether</span>
+        <h2>Four Faces of the Upper Sky</h2>
       </div>
-      <div class="shop-layout">
+      <div class="aether-symbols reveal">
+        <article class="aether-symbol-card">
+          <span class="aether-symbol-glyph">Φ</span>
+          <h3>Light</h3>
+          <p>The unclouded radiance that fills the space between the earth and the throne of the gods.</p>
+        </article>
+        <article class="aether-symbol-card">
+          <span class="aether-symbol-glyph">Ψ</span>
+          <h3>Air</h3>
+          <p>Not wind, not the breath of men — the finer element the immortals alone take into their lungs.</p>
+        </article>
+        <article class="aether-symbol-card">
+          <span class="aether-symbol-glyph">Ω</span>
+          <h3>Purity</h3>
+          <p>Untouched by mist or storm, the aether was held to be incorruptible — the clearest substance in creation.</p>
+        </article>
+        <article class="aether-symbol-card">
+          <span class="aether-symbol-glyph">Α</span>
+          <h3>Eternity</h3>
+          <p>Older than Olympus, older than the gods who rule it — Aether belongs to the first order of things.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ==================== Mythological Lineage ==================== -->
+    <section class="aether-section aether-section--tight" id="lineage" aria-label="Mythological lineage">
+      <div class="aether-section-head reveal">
+        <span class="aether-eyebrow">Mythological Lineage</span>
+        <h2>Descended From the First Dark</h2>
+      </div>
+      <div class="aether-lineage reveal">
+        <div class="aether-lineage-row">
+          <div class="aether-lineage-node">Chaos</div>
+        </div>
+        <div class="aether-lineage-connector"></div>
+        <div class="aether-lineage-row">
+          <div class="aether-lineage-node">Erebus</div>
+          <span class="aether-lineage-plus">+</span>
+          <div class="aether-lineage-node">Nyx</div>
+        </div>
+        <div class="aether-lineage-connector"></div>
+        <div class="aether-lineage-row">
+          <div class="aether-lineage-node is-focus">Aether</div>
+          <span class="aether-lineage-plus">&amp;</span>
+          <div class="aether-lineage-node">Hemera</div>
+        </div>
+        <p class="aether-lineage-note">As told in Hesiod's <em>Theogony</em>, the earliest surviving account of the origins of the Greek gods.</p>
+      </div>
+    </section>
+
+    <div class="aether-divider reveal" aria-hidden="true"></div>
+
+    <!-- ==================== Temple / Statue Concept (shop) ==================== -->
+    <section class="aether-section aether-relic" id="relic" aria-label="Sacred gallery">
+      <div class="aether-section-head reveal">
+        <span class="aether-eyebrow">The Sacred Relic</span>
+        <h2>A Fragment Brought Down From the Sanctuary</h2>
+        <p>Not merchandise. A single fragment, cut and finished in the manner of the temple itself — offered once, in a fixed and final quantity.</p>
+      </div>
+      <div class="aether-relic-frame reveal">
         <div class="drop-strip product-grid" data-product-grid>
           <article class="shop-loading">
             <span>Loading</span>
-            <h3>Fetching the current piece.</h3>
+            <h3>Fetching the current relic.</h3>
           </article>
         </div>
       </div>
+      <!-- FUTURE ASSET SLOT: a full statue render/GLB of the sanctuary's
+           guardian form will be introduced here in a future release,
+           alongside or in place of the relic grid above. -->
+      <p class="aether-relic-note reveal">A statue render of the sanctuary's guardian form is being prepared for a future release.</p>
     </section>
 
-    <section class="brand-section contact-section" id="contact" aria-label="Contact">
-      <p>Stay close</p>
-      <h2>Access to future drops is by request.</h2>
-      <a href="#register" data-auth-open="register" data-guest-only>Register for drop access</a>
-      <a href="/account.html" data-user-only hidden data-i18n="contact.account">Open my account</a>
+    <!-- ==================== Final CTA ==================== -->
+    <section class="aether-final-cta reveal" aria-label="Ascend">
+      <span class="aether-final-cta__eyebrow">The Ascent</span>
+      <h2>Where the Air Turns to Light</h2>
+      <p>Register your name among those permitted to ascend beyond the clouds, before the sanctuary opens its gates to all.</p>
+      <div class="aether-temple-hero__actions">
+        <a class="aether-btn aether-btn--on-dark" href="#register" data-auth-open="register" data-guest-only>Register for Access</a>
+        <a class="aether-btn aether-btn--ghost" href="/account.html" data-user-only hidden>Open My Account</a>
+      </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="footer-glow" aria-hidden="true"></div>
     <div class="footer-top">
-      <a class="beca-logo" href="/" aria-label="AETHER STUDIO">
+      <a class="beca-logo" href="/" aria-label="AETHER">
         <span class="aether-wordmark">AETHER<small>STUDIO</small></span>
       </a>
-      <p class="footer-tagline">Born from light. Made with weight.</p>
+      <p class="footer-tagline">The pure light breathed by the gods.</p>
     </div>
     <div class="footer-columns">
       <div class="footer-col">
         <strong data-i18n="footer.company">Company</strong>
         <a href="/about.html" data-i18n="footer.about">About us</a>
-        <a href="/#contact" data-i18n="nav.contact">Contact</a>
+        <a href="/support.html" data-i18n="nav.contact">Contact</a>
       </div>
       <div class="footer-col">
         <strong data-i18n="footer.help">Help</strong>
@@ -380,11 +425,12 @@
     </div>
   </footer>
 
-  <script src="locale.js?v=aether-1"></script>
-  <script src="script.js?v=aether-1"></script>
-  <script src="shop.js?v=aether-1"></script>
-  <script src="model-loader.js?v=aether-1"></script>
-  <script src="auth.js?v=aether-1"></script>
-  <script src="security.js?v=aether-1"></script>
+  <script src="locale.js?v=aether-4"></script>
+  <script src="script.js?v=aether-4"></script>
+  <script src="shop.js?v=aether-4"></script>
+  <script src="auth.js?v=aether-4"></script>
+  <script src="security.js?v=aether-4"></script>
+  <script src="aether-effects.js?v=aether-4"></script>
+  <script src="aether-hero-video.js?v=aether-4"></script>
 </body>
 </html>

@@ -1,61 +1,134 @@
-/* AETHER STUDIO theme layer. Linked AFTER the shared engine stylesheet
-   (linked separately in <head> as styles.css, which resolves to the shared
-   root file via the brand static-file fallback in server.js). Almost every
-   colour in the engine stylesheet is driven by CSS custom properties, so
-   redefining the tokens below re-skins the entire site without duplicating
-   any layout rules. Only a handful of Aether-specific pieces (display type,
-   wordmark, archive badge) are added on top. */
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap");
+/* ============================================================================
+   AETHER — theme of the primordial upper sky.
+
+   Linked AFTER the shared engine stylesheet (styles.css, resolved to the
+   shared root file via the brand static-file fallback in server.js). This
+   file is a full visual rebuild of the Aether instance, not a recolour of
+   the BeCa/streetwear theme: new palette (marble, pale gold, lavender mist,
+   sky blue, reflective water), new type pairing (Cinzel + Cormorant
+   Garamond), a bespoke full-screen hero built from scratch (see the
+   "AETHER TEMPLE HERO" block below), and a new set of section components
+   that do not reuse the old .feature-grid / .info-section templates.
+
+   Section map of this file:
+     1. Fonts + design tokens
+     2. Global typography
+     3. Wordmark
+     4. Ambient sky (site-wide background layer, reused DOM nodes)
+     5. Film grain
+     6. AETHER TEMPLE HERO — video edition + liquid glass card
+     6b. Glass header (hero page only)
+     7. Buttons (incl. glass variant)
+     8. Greek key divider / column ornament
+     9. Scroll reveal
+    10. Section components: Primordial Light, Realm Above Olympus,
+        Symbols of Aether, Mythological Lineage, Temple/Statue Concept,
+        Final CTA
+    11. Shared chrome touch-ups (cart, auth panel, footer)
+    12. Responsive
+   ============================================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap");
+
+/* ---------- 1. Design tokens ---------- */
 
 :root {
-  --bg: #0b0b0c;
-  --panel: #141415;
-  --panel-2: #1a1a1b;
-  --text: #e8e1d2;
-  --muted: #9a978c;
-  --line: rgba(232, 225, 210, 0.14);
-  --accent: #bfa46a;
-  --accent-2: #c8b89b;
+  /* Base engine tokens — kept as a deep twilight (not pure black) so the
+     shared chrome (nav, cart drawer, mobile menu, forms) that assumes
+     light-text-on-dark stays legible everywhere except inside the hero,
+     which supplies its own light backdrop and overrides text colour
+     locally (see section 6). */
+  --bg: #151322;
+  --panel: #1d1b2e;
+  --panel-2: #242239;
+  --text: #f4efe7;
+  --muted: #a9a1bf;
+  --line: rgba(201, 168, 106, 0.22);
+  --accent: #c9a86a;
+  --accent-2: #b9aed1;
+
+  /* Aether palette. */
+  --aether-marble: #faf8f2;
+  --aether-marble-shadow: #e3dbe9;
+  --aether-ink: #2b2a3d;
+  --aether-ink-soft: #524f6b;
+  --aether-gold: #c9a86a;
+  --aether-gold-bright: #eed4a0;
+  --aether-lavender: #b9aed1;
+  --aether-lavender-deep: #6f6690;
+  --aether-sky-blue: #bcd4e6;
+  --aether-silver: #c9cdd8;
+  --aether-water: #9fb8cc;
+  --aether-void: #0c0b16;
 }
+
+/* ---------- 2. Global typography ---------- */
 
 body {
-  font-family: "Inter Tight", "Segoe UI", Arial, sans-serif;
+  font-family: "Cormorant Garamond", "Inter Tight", "Segoe UI", serif;
+  font-size: 1.08rem;
 }
 
-h1, h2,
-.beca-kicker + h1,
+h1, h2, h3,
+.beca-kicker,
 .auth-brand,
-.aether-wordmark {
-  font-family: "Fraunces", "Inter Tight", serif;
-  font-optical-sizing: auto;
+.aether-wordmark,
+.aether-eyebrow,
+button,
+.beca-actions a,
+nav a,
+.footer-col strong {
+  font-family: "Cinzel", "Cormorant Garamond", serif;
 }
 
-h1 {
-  font-weight: 500;
-  letter-spacing: -0.01em;
+h1, h2, h3 {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text);
 }
 
-/* Text wordmark used everywhere the engine expects a logo <img> - AETHER has
-   no image asset, so the brand mark is set in type, which also matches the
-   "clean typography" brand direction better than a placeholder graphic. */
+p, li, dd, .info-lede {
+  font-family: "Cormorant Garamond", "Inter Tight", serif;
+  line-height: 1.75;
+}
+
+nav a,
+.beca-kicker,
+.aether-eyebrow,
+.footer-col strong,
+.trust-strip li,
+button,
+.beca-actions a {
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+.beca-kicker {
+  color: var(--aether-gold);
+  font-weight: 600;
+}
+
+/* ---------- 3. Wordmark ---------- */
+
 .aether-wordmark {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.35em;
-  font-family: "Fraunces", serif;
-  font-size: 1.2rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  gap: 0.4em;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
   color: var(--text);
   text-transform: uppercase;
 }
 
 .aether-wordmark small {
-  font-family: "Inter Tight", sans-serif;
-  font-size: 0.55em;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  color: var(--accent);
+  font-family: "Cormorant Garamond", serif;
+  font-size: 0.6em;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  color: var(--aether-gold);
+  text-transform: uppercase;
 }
 
 .beca-logo-img,
@@ -63,47 +136,803 @@ h1 {
   display: none;
 }
 
-/* Archive-piece badge (product page): "PRIVATE ARCHIVE / 001/001 / NOT FOR
-   MASS RELEASE" for extremely limited stock (stock <= 1 by convention). */
-.archive-badge {
+/* ---------- 4. Ambient sky (site-wide, behind every section) ----------
+   Reuses the existing .site-scene/.scene-aurora/.scene-particles/
+   .scene-beams DOM nodes already present on every Aether page (no markup
+   change needed) as a deep twilight backdrop with drifting lavender/blue
+   mist and soft gold motes — distinct from BeCa's black/gold aurora. */
+
+.site-scene {
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(185, 174, 209, 0.16), transparent 55%),
+    radial-gradient(circle at 15% 85%, rgba(201, 168, 106, 0.07), transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(159, 184, 204, 0.1), transparent 50%),
+    linear-gradient(180deg, #0c0b16 0%, #151322 45%, #191730 100%);
+  filter: none;
+}
+
+.site-scene::before {
+  background: radial-gradient(ellipse at 50% 0%, rgba(201, 168, 106, 0.16), transparent 60%);
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+
+.site-scene::after {
+  background:
+    radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0) 0 20rem, rgba(0, 0, 0, 0.26) 60rem),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.28), transparent 30%, transparent 70%, rgba(0, 0, 0, 0.32));
+  opacity: 0.65;
+}
+
+.scene-aurora {
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(185, 174, 209, 0.18), transparent 60%),
+    radial-gradient(ellipse 50% 35% at 80% 15%, rgba(188, 212, 230, 0.12), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 50% 90%, rgba(201, 168, 106, 0.1), transparent 65%);
+  filter: blur(60px);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  transform: none;
+  animation: aetherDrift 36s ease-in-out infinite alternate;
+}
+
+.scene-particles {
+  display: block;
+  background-image:
+    radial-gradient(2px 2px at 12% 22%, rgba(238, 212, 160, 0.85), transparent 60%),
+    radial-gradient(2px 2px at 28% 68%, rgba(244, 239, 231, 0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 44% 14%, rgba(185, 174, 209, 0.8), transparent 60%),
+    radial-gradient(2px 2px at 62% 52%, rgba(238, 212, 160, 0.65), transparent 60%),
+    radial-gradient(1.5px 1.5px at 76% 30%, rgba(244, 239, 231, 0.6), transparent 60%),
+    radial-gradient(2px 2px at 88% 74%, rgba(188, 212, 230, 0.65), transparent 60%),
+    radial-gradient(1.5px 1.5px at 34% 88%, rgba(238, 212, 160, 0.55), transparent 60%);
+  opacity: 0.75;
+  animation: aetherMotes 28s linear infinite;
+}
+
+.scene-beams {
+  display: block;
+  background: repeating-conic-gradient(from 0deg at 50% 0%, rgba(238, 212, 160, 0.04) 0deg 1.2deg, transparent 1.2deg 6deg);
+  opacity: 0.3;
+  mix-blend-mode: screen;
+}
+
+@keyframes aetherDrift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-2%, 1.5%, 0) scale(1.04); }
+}
+
+@keyframes aetherMotes {
+  0% { transform: translateY(0); opacity: 0.55; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-aurora, .scene-particles { animation: none; }
+}
+
+/* ---------- 5. Film grain (subtle, site-wide) ---------- */
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ============================================================================
+   6. AETHER TEMPLE HERO — video edition
+   The hero SECTION (markup: aether/index.html, `<section
+   class="aether-temple-hero">`) is just a full-screen flex box that centers
+   the glass card — it holds no background layers of its own.
+
+   The video itself is a page-level fixed background (`.aether-bg-fallback`
+   / `.aether-bg-video` / `.aether-bg-overlay`, siblings of `.site-scene`
+   near the top of <body>), pinned behind EVERY section while the page
+   scrolls, not just the hero. That's deliberate: put your file at
+   aether/assets/aether-hero.mp4 (already in place).
+
+   Layer order (back to front): .site-scene (existing ambient gradient) ->
+   .aether-bg-fallback (static gradient, always present so there is never a
+   black flash) -> .aether-bg-video (the loop, aether-hero-video.js) ->
+   .aether-bg-overlay (dark scrim, keeps text readable in EVERY section,
+   not just over the hero's glass card) -> grain -> actual page content.
+
+   Behaviour (autoplay, the 0-10s intro then 6-10s loop, reduced-motion,
+   blocked-autoplay fallback) lives entirely in aether-hero-video.js, which
+   toggles `is-video-ready` / `is-video-blocked` on <body>.
+   ============================================================================ */
+
+.aether-temple-hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Always-present backdrop: shows through whenever the video is absent,
+   still loading, blocked by the browser's autoplay policy, or hidden for
+   prefers-reduced-motion. Never a flash of black. */
+.aether-bg-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 8%, rgba(255, 250, 240, 0.14), transparent 60%),
+    linear-gradient(180deg, #1c1a30 0%, #171529 42%, #0f0e1c 100%);
+}
+
+.aether-bg-video {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+
+body.is-video-ready .aether-bg-video {
+  opacity: 1;
+}
+
+/* Autoplay was blocked or the video failed: keep it fully hidden so the
+   fallback gradient above is what's shown, never a stuck/black frame. */
+body.is-video-blocked .aether-bg-video {
+  display: none;
+}
+
+/* Scrim: dark/purple/gold, keeps text readable in every section over the
+   moving footage, not just the hero's glass card — stronger and more
+   uniform than a hero-only vignette would need to be. */
+.aether-bg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 6%, rgba(201, 168, 106, 0.14), transparent 55%),
+    linear-gradient(180deg, rgba(9, 8, 16, 0.74) 0%, rgba(13, 11, 22, 0.68) 30%, rgba(13, 11, 22, 0.74) 70%, rgba(9, 8, 16, 0.86) 100%);
+  pointer-events: none;
+}
+
+/* Hero copy wrapper (unstyled positioning only — the visual card is
+   .aether-glass-card, one level in). */
+.aether-temple-hero__copy {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 640px);
+  padding: max(96px, calc(92px + env(safe-area-inset-top))) 0 max(48px, env(safe-area-inset-bottom));
+}
+
+/* ---------- Liquid glass card ---------- */
+
+.aether-glass-card {
+  position: relative;
+  text-align: center;
+  padding: clamp(36px, 6vw, 64px) clamp(24px, 5vw, 56px);
+  border-radius: 28px;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 46%, rgba(201, 168, 106, 0.07));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.16),
+    0 40px 100px rgba(5, 4, 12, 0.5);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+}
+
+/* No backdrop-filter support: fall back to a solid-enough panel so text
+   stays legible over any video frame. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .aether-glass-card {
+    background: rgba(18, 16, 30, 0.86);
+  }
+}
+
+.aether-glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.55), rgba(201, 168, 106, 0.15) 40%, rgba(255, 255, 255, 0.06));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.aether-temple-hero__eyebrow {
   display: inline-flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 18px;
-  margin-bottom: 18px;
-  border: 1px solid var(--accent);
-  border-radius: 2px;
-  background: rgba(191, 164, 106, 0.06);
-}
-
-.archive-badge span {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.22em;
+  align-items: center;
+  gap: 14px;
+  color: var(--aether-gold-bright);
+  font-family: "Cinzel", serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.34em;
   text-transform: uppercase;
-  color: var(--accent);
+  margin-bottom: 26px;
 }
 
-.archive-badge span:first-child {
-  color: var(--text);
+.aether-temple-hero__eyebrow::before,
+.aether-temple-hero__eyebrow::after {
+  content: "";
+  width: 30px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--aether-gold));
 }
 
-/* Editorial block: large negative space, quiet luxury pacing. */
-.aether-editorial {
-  max-width: 640px;
+.aether-temple-hero__eyebrow::after {
+  background: linear-gradient(90deg, var(--aether-gold), transparent);
+}
+
+.aether-temple-hero__title {
+  font-family: "Cinzel", serif;
+  font-weight: 700;
+  font-size: clamp(2.9rem, 12vw, 6.2rem);
+  line-height: 0.96;
+  letter-spacing: 0.05em;
+  margin: 0 0 22px;
+  color: var(--aether-marble);
+  text-shadow: 0 4px 44px rgba(201, 168, 106, 0.35);
+  overflow-wrap: break-word;
+}
+
+.aether-temple-hero__subtitle {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: clamp(1.08rem, 2.4vw, 1.4rem);
+  color: rgba(244, 239, 231, 0.88);
+  max-width: 520px;
+  margin: 0 auto 36px;
+}
+
+.aether-temple-hero__actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
+/* Two buttons side by side down to ~460px, then stack full-width. */
+@media (max-width: 480px) {
+  .aether-temple-hero__actions {
+    flex-direction: column;
+  }
+
+  .aether-temple-hero__actions .aether-btn {
+    width: 100%;
+  }
+}
+
+/* ---------- 7. Buttons ---------- */
+
+.aether-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 34px;
+  font-family: "Cinzel", serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  border: 1px solid var(--aether-gold);
+  border-radius: 1px;
+  background: transparent;
+  color: var(--aether-ink);
+  overflow: hidden;
+  isolation: isolate;
+  transition: color 380ms ease, border-color 380ms ease, box-shadow 380ms ease;
+  cursor: pointer;
+}
+
+.aether-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, var(--aether-gold-bright), var(--aether-gold));
+  transform: translateY(102%);
+  transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.aether-btn:hover {
+  color: var(--aether-void);
+  border-color: var(--aether-gold-bright);
+  box-shadow: 0 0 32px rgba(201, 168, 106, 0.5);
+}
+
+.aether-btn:hover::before {
+  transform: translateY(0);
+}
+
+/* Lower-emphasis variant. Every current usage sits on a dark background
+   (hero glass card over video, final CTA on the twilight body bg), so this
+   uses light ink appropriate for that — not the dark-ink colours a
+   light-background button would need. */
+.aether-btn--ghost {
+  border-color: rgba(244, 239, 231, 0.32);
+  color: rgba(244, 239, 231, 0.85);
+}
+
+.aether-btn--ghost::before {
+  background: linear-gradient(180deg, #fff, var(--aether-lavender));
+}
+
+.aether-btn--ghost:hover {
+  color: var(--aether-void);
+  border-color: var(--aether-lavender);
+  box-shadow: 0 0 32px rgba(185, 174, 209, 0.45);
+}
+
+/* Dark-context variant, used below the hero (on the twilight body bg). */
+.aether-btn--on-dark {
+  color: var(--aether-gold-bright);
+  border-color: var(--aether-gold);
+}
+
+.aether-btn--on-dark:hover {
+  color: var(--aether-void);
+}
+
+/* ---------- 8. Greek key divider / column ornament ---------- */
+
+.aether-divider {
+  width: 100%;
+  height: 14px;
+  margin: 0 auto;
+  max-width: 220px;
+  opacity: 0.8;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='14' viewBox='0 0 56 14'%3E%3Cpath d='M0 13V1h6v6h6V1h6v10h6V5h6v8h6V1h6v6h6V1h6' fill='none' stroke='%23c9a86a' stroke-width='1.4'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 56px 14px;
+}
+
+.aether-btn--glass {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--aether-marble);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .aether-btn--glass {
+    background: rgba(30, 27, 46, 0.72);
+  }
+}
+
+.aether-btn--glass::before {
+  background: linear-gradient(180deg, var(--aether-gold-bright), var(--aether-gold));
+}
+
+.aether-btn--glass:hover {
+  color: var(--aether-void);
+  border-color: var(--aether-gold-bright);
+  box-shadow: 0 0 32px rgba(238, 212, 160, 0.4);
+}
+
+/* Secondary glass button (e.g. "Read the Myth" next to the primary "Enter
+   the Sanctuary"): same blur, dimmer border, so the two hero actions read
+   as primary/secondary rather than two identical buttons. Two-class
+   selector so this wins regardless of declaration order above. */
+.aether-btn--glass.aether-btn--ghost {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.aether-btn--glass.aether-btn--ghost:hover {
+  border-color: var(--aether-lavender);
+  box-shadow: 0 0 28px rgba(185, 174, 209, 0.35);
+}
+
+/* ---------- 6b. Glass header — hero page only ----------
+   The shared engine header (.header) is already a floating glass pill
+   (blur, gradient, inner highlights) but is position:absolute, so it
+   scrolls away with the page. Scoped to `.has-hero-video` (set on <body>
+   only in aether/index.html, the one page with the video hero) so every
+   other Aether page keeps its existing header behaviour untouched. */
+
+.has-hero-video .header {
+  position: fixed;
+  top: max(20px, env(safe-area-inset-top));
+}
+
+/* ---------- 9. Scroll reveal ---------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 950ms cubic-bezier(0.2, 0.7, 0.2, 1), transform 950ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.reveal.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal--stagger.is-revealed {
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ---------- 10. Section components ---------- */
+
+.aether-section {
+  position: relative;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 120px 24px;
+}
+
+.aether-section--tight {
+  max-width: 780px;
+}
+
+.aether-section-head {
+  max-width: 640px;
+  margin: 0 auto 56px;
   text-align: center;
 }
 
-.aether-editorial p {
-  color: var(--muted);
-  font-size: 1.05rem;
-  line-height: 1.8;
+.aether-eyebrow {
+  display: inline-block;
+  color: var(--aether-gold);
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  margin-bottom: 18px;
 }
 
-@media (max-width: 720px) {
-  .aether-editorial {
-    padding: 72px 20px;
+.aether-section-head h2 {
+  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+  margin: 14px 0 18px;
+}
+
+.aether-section-head p {
+  color: var(--muted);
+  font-size: 1.18rem;
+  font-style: italic;
+}
+
+/* -- Primordial Light: asymmetric two-column mythology intro -- */
+
+.aether-light-grid {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 48px;
+  align-items: start;
+  text-align: left;
+}
+
+.aether-light-rule {
+  align-self: stretch;
+  background: linear-gradient(180deg, transparent, var(--aether-gold), transparent);
+}
+
+.aether-light-grid p {
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
+.aether-light-grid blockquote {
+  margin: 0;
+  padding-left: 22px;
+  border-left: 2px solid var(--aether-gold);
+  font-style: italic;
+  font-size: 1.35rem;
+  color: var(--text);
+}
+
+/* -- Realm Above Olympus: full-bleed atmospheric band -- */
+
+.aether-realm {
+  position: relative;
+  padding: 140px 24px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.aether-realm::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 30%, rgba(185, 174, 209, 0.18), transparent 65%),
+    radial-gradient(ellipse 70% 40% at 50% 100%, rgba(201, 168, 106, 0.1), transparent 60%);
+  pointer-events: none;
+}
+
+.aether-realm-inner {
+  position: relative;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.aether-realm p {
+  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  font-style: italic;
+  color: var(--aether-sky-blue);
+  line-height: 1.65;
+}
+
+/* -- Symbols of Aether -- */
+
+.aether-symbols {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.aether-symbol-card {
+  position: relative;
+  padding: 46px 24px;
+  background: var(--panel);
+  text-align: center;
+  transition: background-color 420ms ease;
+}
+
+.aether-symbol-card:hover {
+  background: var(--panel-2);
+}
+
+.aether-symbol-glyph {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--aether-gold);
+  color: var(--aether-gold-bright);
+  font-family: "Cinzel", serif;
+  font-size: 1.1rem;
+  transition: box-shadow 380ms ease, transform 380ms ease;
+}
+
+.aether-symbol-card:hover .aether-symbol-glyph {
+  box-shadow: 0 0 28px rgba(201, 168, 106, 0.5);
+  transform: scale(1.08);
+}
+
+.aether-symbol-card h3 {
+  font-size: 0.95rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.aether-symbol-card p {
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+/* -- Mythological Lineage -- */
+
+.aether-lineage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.aether-lineage-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.aether-lineage-node {
+  padding: 15px 24px;
+  border: 1px solid rgba(201, 168, 106, 0.35);
+  background: rgba(250, 248, 242, 0.03);
+  font-family: "Cinzel", serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.aether-lineage-node.is-focus {
+  border-color: var(--aether-gold);
+  color: var(--aether-gold-bright);
+  box-shadow: 0 0 26px rgba(201, 168, 106, 0.28);
+}
+
+.aether-lineage-connector {
+  width: 1px;
+  height: 38px;
+  background: linear-gradient(180deg, transparent, var(--aether-gold), transparent);
+}
+
+.aether-lineage-plus {
+  color: var(--aether-gold);
+  font-family: "Cinzel", serif;
+  font-size: 0.9rem;
+}
+
+.aether-lineage-note {
+  max-width: 480px;
+  margin: 32px auto 0;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* -- Temple / Statue Concept (the actual shop, reframed as a relic) -- */
+
+.aether-relic {
+  position: relative;
+}
+
+.aether-relic-frame {
+  position: relative;
+  max-width: 680px;
+  margin: 0 auto 12px;
+  padding: 40px 20px 20px;
+}
+
+.aether-relic-frame::before,
+.aether-relic-frame::after {
+  content: "";
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--aether-gold);
+  opacity: 0.7;
+}
+
+.aether-relic-frame::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.aether-relic-frame::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
+.drop-strip.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.product-card {
+  background: linear-gradient(180deg, rgba(250, 248, 242, 0.06), rgba(250, 248, 242, 0.02));
+  border: 1px solid rgba(201, 168, 106, 0.25);
+  border-radius: 2px;
+  transition: transform 420ms ease, box-shadow 420ms ease, border-color 420ms ease;
+}
+
+.product-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--aether-gold);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(201, 168, 106, 0.18);
+}
+
+/* small marker for the future 3D statue render slot inside the relic
+   section — currently occupied by the real product model-viewer. */
+.aether-relic-note {
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.98rem;
+  margin-top: 18px;
+}
+
+/* -- Final CTA -- */
+
+.aether-final-cta {
+  position: relative;
+  text-align: center;
+  padding: 160px 24px;
+  overflow: hidden;
+}
+
+.aether-final-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 20%, rgba(238, 212, 160, 0.16), transparent 65%);
+  pointer-events: none;
+}
+
+.aether-final-cta__eyebrow {
+  position: relative;
+  display: block;
+  color: var(--aether-gold);
+  letter-spacing: 0.3em;
+  font-size: 0.78rem;
+  margin-bottom: 22px;
+}
+
+.aether-final-cta h2 {
+  position: relative;
+  font-size: clamp(2rem, 4.4vw, 3.2rem);
+  max-width: 680px;
+  margin: 0 auto 22px;
+}
+
+.aether-final-cta p {
+  position: relative;
+  max-width: 480px;
+  margin: 0 auto 44px;
+  color: var(--aether-sky-blue);
+  font-style: italic;
+  font-size: 1.25rem;
+}
+
+/* ---------- 11. Shared chrome touch-ups ---------- */
+
+.site-footer {
+  border-top: 1px solid rgba(201, 168, 106, 0.2);
+}
+
+.footer-tagline {
+  font-style: italic;
+  color: var(--aether-lavender);
+}
+
+.hero-auth-view {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background: rgba(21, 19, 34, 0.82);
+  border: 1px solid rgba(201, 168, 106, 0.3);
+}
+
+/* ---------- 12. Responsive ---------- */
+
+@media (max-width: 960px) {
+  .aether-symbols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .aether-light-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aether-light-rule {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .aether-symbols {
+    grid-template-columns: 1fr;
+  }
+
+  .aether-section {
+    padding: 84px 20px;
+  }
+
+  .aether-realm {
+    padding: 96px 20px;
+  }
+
+  .aether-final-cta {
+    padding: 108px 20px;
+  }
+
+  .aether-temple-hero__title {
+    letter-spacing: 0.02em;
+  }
+
+  .aether-glass-card {
+    border-radius: 22px;
   }
 }
