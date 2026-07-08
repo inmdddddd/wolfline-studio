@@ -52,6 +52,27 @@ function renderAnalytics(analytics) {
     : "<li><span>Fara date inca</span></li>";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+function renderStatRows(list, rows, emptyLabel = "Fara date inca") {
+  if (!rows.length) {
+    list.innerHTML = `<li><span>${escapeHtml(emptyLabel)}</span></li>`;
+    return;
+  }
+
+  list.innerHTML = rows
+    .map(({ label, value }) => `<li title="${escapeHtml(label)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></li>`)
+    .join("");
+}
+
 function renderStats(revenue, topProducts, traffic) {
   const revenueEl = document.querySelector("[data-stats-revenue]");
   if (!revenueEl) return;
@@ -62,38 +83,44 @@ function renderStats(revenue, topProducts, traffic) {
   document.querySelector("[data-stats-conversion]").textContent = `${revenue.conversionRate}%`;
 
   const dayFormatter = new Intl.DateTimeFormat("ro-RO", { day: "2-digit", month: "2-digit" });
-  document.querySelector("[data-stats-revenue-days]").innerHTML = (revenue.last14Days || [])
-    .map((day) => `<li><span>${dayFormatter.format(new Date(`${day.date}T00:00:00`))}</span><strong>${day.revenue} (${day.orders})</strong></li>`)
-    .join("");
+  renderStatRows(
+    document.querySelector("[data-stats-revenue-days]"),
+    (revenue.last14Days || []).map((day) => ({
+      label: dayFormatter.format(new Date(`${day.date}T00:00:00`)),
+      value: `${day.revenue} · ${day.orders} com.`
+    }))
+  );
 
-  const topProductsList = document.querySelector("[data-stats-top-products]");
-  topProductsList.innerHTML = (topProducts.topProducts || []).length
-    ? topProducts.topProducts
-        .map((entry) => `<li><span>${entry.name}${entry.size ? ` (${entry.size})` : ""}</span><strong>${entry.qty} buc / ${entry.revenue}</strong></li>`)
-        .join("")
-    : "<li><span>Fara date inca</span></li>";
+  renderStatRows(
+    document.querySelector("[data-stats-top-products]"),
+    (topProducts.topProducts || []).map((entry) => ({
+      label: `${entry.name}${entry.size ? ` (${entry.size})` : ""}`,
+      value: `${entry.qty} buc · ${entry.revenue}`
+    }))
+  );
 
-  const referrersList = document.querySelector("[data-stats-referrers]");
-  referrersList.innerHTML = (traffic.topReferrers || []).length
-    ? traffic.topReferrers.map((entry) => `<li><span>${entry.source}</span><strong>${entry.count}</strong></li>`).join("")
-    : "<li><span>Fara date inca</span></li>";
+  renderStatRows(
+    document.querySelector("[data-stats-referrers]"),
+    (traffic.topReferrers || []).map((entry) => ({ label: entry.source, value: entry.count }))
+  );
 
-  const localesList = document.querySelector("[data-stats-locales]");
-  localesList.innerHTML = (traffic.topLocales || []).length
-    ? traffic.topLocales.map((entry) => `<li><span>${entry.locale}</span><strong>${entry.count}</strong></li>`).join("")
-    : "<li><span>Fara date inca</span></li>";
+  renderStatRows(
+    document.querySelector("[data-stats-locales]"),
+    (traffic.topLocales || []).map((entry) => ({ label: entry.locale, value: entry.count }))
+  );
 
-  const hoursList = document.querySelector("[data-stats-hours]");
-  hoursList.innerHTML = (traffic.hours || [])
-    .map((count, hour) => `<li><span>${String(hour).padStart(2, "0")}:00</span><strong>${count}</strong></li>`)
-    .join("");
+  renderStatRows(
+    document.querySelector("[data-stats-hours]"),
+    (traffic.hours || []).map((count, hour) => ({ label: `${String(hour).padStart(2, "0")}:00`, value: count }))
+  );
 
-  const visitsList = document.querySelector("[data-stats-visits]");
-  visitsList.innerHTML = (traffic.recentVisits || []).slice(0, 20).length
-    ? traffic.recentVisits.slice(0, 20)
-        .map((visit) => `<li><span>${visit.path} / ${visit.referrer} / ${visit.locale}</span><strong>${visit.ip}</strong></li>`)
-        .join("")
-    : "<li><span>Fara date inca</span></li>";
+  renderStatRows(
+    document.querySelector("[data-stats-visits]"),
+    (traffic.recentVisits || []).slice(0, 20).map((visit) => ({
+      label: `${visit.path} · ${visit.referrer} · ${visit.locale}`,
+      value: visit.ip
+    }))
+  );
 }
 
 function renderReviewsAdmin(reviews) {

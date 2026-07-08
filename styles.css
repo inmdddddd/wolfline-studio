@@ -4099,6 +4099,7 @@ body.beca-minimal {
 .auth-card,
 .admin-panel,
 .admin-metrics article,
+.admin-stats-grid article,
 .admin-hero {
   position: relative;
   overflow: hidden;
@@ -4118,6 +4119,7 @@ body.beca-minimal {
 .auth-card::before,
 .admin-panel::before,
 .admin-metrics article::before,
+.admin-stats-grid article::before,
 .admin-hero::before {
   position: absolute;
   inset: 0;
@@ -4132,6 +4134,7 @@ body.beca-minimal {
 .auth-card > *,
 .admin-panel > *,
 .admin-metrics article > *,
+.admin-stats-grid article > *,
 .admin-hero > * {
   position: relative;
   z-index: 1;
@@ -4795,6 +4798,35 @@ body.beca-minimal {
   background: rgba(255, 255, 255, 0.045);
 }
 
+.admin-note-grid-single {
+  grid-template-columns: 1fr;
+}
+
+.admin-note-warning {
+  display: flex;
+  gap: 14px;
+  border-color: rgba(255, 179, 92, 0.35) !important;
+  background: rgba(255, 179, 92, 0.06) !important;
+}
+
+.admin-note-warning::before {
+  content: "!";
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 179, 92, 0.18);
+  color: #ffb35c;
+  font-weight: 900;
+  font-size: 0.9rem;
+}
+
+.admin-note-warning strong {
+  color: #ffb35c;
+}
+
 .admin-note-grid strong,
 .admin-empty-state strong {
   display: block;
@@ -4837,6 +4869,25 @@ body.beca-minimal {
   list-style: none;
   max-height: 260px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 184, 75, 0.35) transparent;
+}
+
+.admin-analytics-card ul::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-analytics-card ul::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-analytics-card ul::-webkit-scrollbar-thumb {
+  background: rgba(232, 184, 75, 0.3);
+  border-radius: 999px;
+}
+
+.admin-analytics-card ul::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 184, 75, 0.5);
 }
 
 .admin-analytics-card li {
@@ -4844,7 +4895,7 @@ body.beca-minimal {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 0;
+  padding: 7px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(242, 242, 236, 0.72);
   font-size: 0.86rem;
@@ -4854,15 +4905,46 @@ body.beca-minimal {
   border-bottom: 0;
 }
 
+.admin-analytics-card li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .admin-analytics-card li strong {
   margin: 0;
+  flex-shrink: 0;
   color: var(--accent);
   font-weight: 800;
+}
+
+.admin-visits-list li strong {
+  font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.admin-hours-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 16px;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.admin-hours-grid li {
+  padding: 5px 0;
 }
 
 @media (max-width: 720px) {
   .admin-analytics-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-hours-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -5369,6 +5451,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
 .auth-card,
 .admin-panel,
 .admin-metrics article,
+.admin-stats-grid article,
 .admin-hero,
 .language-switch,
 .beca-actions a {
@@ -5395,6 +5478,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
 .auth-card::before,
 .admin-panel::before,
 .admin-metrics article::before,
+.admin-stats-grid article::before,
 .admin-hero::before {
   filter: none !important;
 }
@@ -5410,6 +5494,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
 .auth-card,
 .admin-panel,
 .admin-metrics article,
+.admin-stats-grid article,
 .admin-hero {
   backdrop-filter: blur(18px) saturate(1.28);
   -webkit-backdrop-filter: blur(18px) saturate(1.28);
@@ -7061,6 +7146,27 @@ body[data-hero-auth="login"] .beca-hero-copy {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
   margin-bottom: 22px;
+}
+
+.admin-stats-grid article {
+  padding: 22px;
+}
+
+.admin-stats-grid span {
+  display: block;
+  color: var(--accent);
+  font-size: clamp(1.8rem, 3.4vw, 2.8rem);
+  font-weight: 950;
+  line-height: 0.9;
+}
+
+.admin-stats-grid p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-weight: 850;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
 }
 
 .admin-export-actions {

@@ -6,7 +6,7 @@
   <title>Admin Dashboard / BeCa</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="../favicon.ico" sizes="any">
-  <link rel="stylesheet" href="../styles.css?v=order-workflow-1">
+  <link rel="stylesheet" href="../styles.css?v=stats-design-1">
   <script type="importmap">
     {
       "imports": {
@@ -297,15 +297,15 @@
         <div class="admin-analytics-grid">
           <article class="admin-analytics-card">
             <strong>Trafic pe ora din zi</strong>
-            <ul class="admin-analytics-days" data-stats-hours></ul>
+            <ul class="admin-analytics-days admin-hours-grid" data-stats-hours></ul>
           </article>
           <article class="admin-analytics-card">
             <strong>Vizite recente (IP, ora, referrer)</strong>
             <ul class="admin-analytics-pages admin-visits-list" data-stats-visits></ul>
           </article>
         </div>
-        <div class="admin-note-grid">
-          <article>
+        <div class="admin-note-grid admin-note-grid-single">
+          <article class="admin-note-warning">
             <strong>Nota despre locatie si IP</strong>
             <span>Nu folosim o baza de date GeoIP - "locatia" de mai sus e o aproximare pe baza limbii browserului (Accept-Language), nu tara/orasul real. IP-urile sunt stocate ca parte din log-ul de trafic; site-ul se prezinta ca fara cookie-uri, dar aceasta colectare de IP e o forma de date personale - ia in calcul GDPR daca o folosesti activ.</span>
           </article>
@@ -377,7 +377,7 @@
 
   <script src="../security.js?v=no-block-1"></script>
   <script src="../script.js?v=etapa1-1"></script>
-  <script src="../admin.js?v=order-workflow-1"></script>
+  <script src="../admin.js?v=stats-design-1"></script>
   <script type="module" src="../studio.js?v=photo-studio-poses-1"></script>
 </body>
 </html>
