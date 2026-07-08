@@ -2778,15 +2778,73 @@ function serveFile(request, response, pathname) {
     return;
   }
 
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
+  const contentType = types[path.extname(filePath)] || "application/octet-stream";
+  const cacheControl = path.extname(filePath) === ".html" ? "no-store" : "public, max-age=3600";
+
+  // HTTP Range support. Without this, every request for a file (whatever
+  // Range header it sends) always got the whole file back with a plain 200
+  // - which browsers generally tolerate for images/scripts, but not for
+  // <video>: seeking (exactly what the Aether hero's loop does every few
+  // seconds) normally works by requesting a specific byte range, and a
+  // browser that asks for a range and gets an unexpected full-file 200
+  // back can respond by restarting playback from the beginning instead of
+  // resuming at the seeked position - which looked like "the loop doesn't
+  // work, it just restarts from 0".
+  fs.stat(filePath, (statError, stats) => {
+    if (statError) {
       send(response, 404, "Not found");
       return;
     }
 
-    send(response, 200, data, {
-      "Content-Type": types[path.extname(filePath)] || "application/octet-stream",
-      "Cache-Control": path.extname(filePath) === ".html" ? "no-store" : "public, max-age=3600"
+    const rangeHeader = request.headers.range;
+    const rangeMatch = rangeHeader && /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+
+    if (rangeMatch) {
+      const [, startText, endText] = rangeMatch;
+      let start = startText ? parseInt(startText, 10) : Math.max(0, stats.size - parseInt(endText || "0", 10));
+      let end = startText ? (endText ? parseInt(endText, 10) : stats.size - 1) : stats.size - 1;
+
+      if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= stats.size) {
+        response.writeHead(416, {
+          "Content-Range": `bytes */${stats.size}`,
+          "X-Content-Type-Options": "nosniff"
+        });
+        response.end();
+        return;
+      }
+
+      end = Math.min(end, stats.size - 1);
+
+      response.writeHead(206, {
+        "Content-Type": contentType,
+        "Content-Length": end - start + 1,
+        "Content-Range": `bytes ${start}-${end}/${stats.size}`,
+        "Accept-Ranges": "bytes",
+        "Cache-Control": cacheControl,
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "no-referrer",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Content-Security-Policy": CONTENT_SECURITY_POLICY
+      });
+
+      const stream = fs.createReadStream(filePath, { start, end });
+      stream.on("error", () => response.end());
+      stream.pipe(response);
+      return;
+    }
+
+    fs.readFile(filePath, (error, data) => {
+      if (error) {
+        send(response, 404, "Not found");
+        return;
+      }
+
+      send(response, 200, data, {
+        "Content-Type": contentType,
+        "Cache-Control": cacheControl,
+        "Accept-Ranges": "bytes"
+      });
     });
   });
 }
