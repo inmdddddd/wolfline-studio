@@ -7,6 +7,7 @@
   var stateTarget = document.body;
   var revealTargets = document.querySelectorAll(".aether-intro-reveal");
 
+  var UI_REVEAL_AT = 4;
   var LOOP_START = 6;
   var LOOP_END = 10;
   var hasPlayedIntro = false;
@@ -38,11 +39,22 @@
     });
   }
 
+  // Brief opacity/blur dip timed to the exact moment the loop jumps back
+  // from 10s to 6s, so the hard cut in the footage reads as a soft blink
+  // instead of a jarring jump. Restarts the CSS animation on every call by
+  // forcing a reflow between removing and re-adding the class (otherwise a
+  // class that's already present wouldn't retrigger it on the next loop).
+  function triggerLoopBlink() {
+    video.classList.remove("is-loop-cut");
+    void video.offsetWidth;
+    video.classList.add("is-loop-cut");
+  }
+
   if (prefersReducedMotion) {
     // Respect reduced motion: no autoplay, no looping, and don't make
-    // critical navigation (nav, login, cart) sit invisible for 6 seconds -
-    // show the UI immediately. Land the video on a single representative
-    // frame instead of an all-black first frame.
+    // critical navigation (nav, login, cart) sit invisible for several
+    // seconds - show the UI immediately. Land the video on a single
+    // representative frame instead of an all-black first frame.
     var settleOnFrame = function () {
       video.currentTime = Math.min(2, video.duration ? video.duration / 2 : 2);
       video.pause();
@@ -62,22 +74,25 @@
   // requestAnimationFrame-driven loop watcher (steadier than relying only on
   // the browser's "timeupdate" event, which fires irregularly and can show
   // a visible jump/stutter right at the loop point). First pass plays the
-  // full 0-10s intro untouched, revealing the UI the moment it crosses the
-  // 6s mark; once it reaches the end, hasPlayedIntro flips and every
-  // subsequent pass is clamped to the 6-10s window (which never dips back
-  // below 6s, so the UI - already shown - simply stays visible).
+  // full 0-10s intro untouched, revealing the UI once it crosses
+  // UI_REVEAL_AT; once it reaches the end, hasPlayedIntro flips and every
+  // subsequent pass is clamped to the LOOP_START-LOOP_END window (which
+  // never dips back below UI_REVEAL_AT, so the UI - already shown - simply
+  // stays visible).
   function controlLoop() {
     if (!video.paused && !video.ended) {
-      if (!showUI && video.currentTime >= LOOP_START) {
+      if (!showUI && video.currentTime >= UI_REVEAL_AT) {
         revealUI();
       }
 
       if (!hasPlayedIntro) {
         if (video.currentTime >= LOOP_END) {
           hasPlayedIntro = true;
+          triggerLoopBlink();
           video.currentTime = LOOP_START;
         }
       } else if (video.currentTime >= LOOP_END) {
+        triggerLoopBlink();
         video.currentTime = LOOP_START;
       }
     }
@@ -144,7 +159,7 @@
   // Absolute safety net: whatever else happens (a stalled network, a video
   // element that silently never fires an event this script expected), the
   // UI must not stay hidden forever. Comfortably past the full 10s intro
-  // (plus loading time) so it never fires before the real 6s cue on a
+  // (plus loading time) so it never fires before the real reveal cue on a
   // healthy connection - this is a last resort, not a normal-path trigger.
   window.setTimeout(revealUI, 16000);
 })();

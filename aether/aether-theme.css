@@ -312,6 +312,28 @@ body::after {
   transition: opacity 900ms ease;
 }
 
+/* Brief dip in opacity + a touch of blur, timed to the exact moment the
+   loop jumps from 10s back to 6s (triggered from aether-hero-video.js).
+   The footage itself has a hard cut there (no cross-fade baked into the
+   file), so this softens it into a quick blink instead of a jarring jump.
+   Runs as an `animation` (not `transition`) so it can be retriggered every
+   ~4 seconds by removing/re-adding the class, independent of the
+   fade-to-visible transition above. */
+@keyframes aetherLoopBlink {
+  0%, 100% { opacity: 1; filter: blur(0); }
+  50% { opacity: 0.35; filter: blur(5px); }
+}
+
+body.is-video-ready .aether-bg-video.is-loop-cut {
+  animation: aetherLoopBlink 420ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.is-video-ready .aether-bg-video.is-loop-cut {
+    animation: none;
+  }
+}
+
 /* Autoplay was blocked or the video failed: keep it fully hidden so the
    fallback gradient above is what's shown, never a stuck/black frame.
    Declared BEFORE the is-video-ready rule below (equal specificity, so
