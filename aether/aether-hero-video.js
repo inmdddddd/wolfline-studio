@@ -7,8 +7,9 @@
   var stateTarget = document.body;
 
   var LOOP_START = 6;
-  var END_THRESHOLD = 9.95;
+  var LOOP_END = 10;
   var hasPlayedIntro = false;
+  var rafId = null;
 
   var prefersReducedMotion = window.matchMedia
     ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -42,45 +43,66 @@
     return;
   }
 
-  function handleTimeUpdate() {
-    if (!isFinite(video.currentTime)) return;
-
-    if (video.currentTime >= END_THRESHOLD) {
-      hasPlayedIntro = true;
-      video.currentTime = LOOP_START;
+  // requestAnimationFrame-driven loop watcher (steadier than relying only on
+  // the browser's "timeupdate" event, which fires irregularly and can show
+  // a visible jump/stutter right at the loop point). First pass plays the
+  // full 0-10s intro untouched; once it reaches the end, hasPlayedIntro
+  // flips and every subsequent pass is clamped to the 6-10s window.
+  function controlLoop() {
+    if (!video.paused && !video.ended) {
+      if (!hasPlayedIntro) {
+        if (video.currentTime >= LOOP_END) {
+          hasPlayedIntro = true;
+          video.currentTime = LOOP_START;
+        }
+      } else if (video.currentTime >= LOOP_END) {
+        video.currentTime = LOOP_START;
+      }
     }
+
+    rafId = requestAnimationFrame(controlLoop);
   }
 
-  video.addEventListener("timeupdate", handleTimeUpdate);
-
-  video.addEventListener("playing", markReady, { once: true });
+  function startLoopWatcher() {
+    if (rafId === null) {
+      rafId = requestAnimationFrame(controlLoop);
+    }
+  }
 
   function attemptPlay() {
+    video.currentTime = 0;
     var playPromise = video.play();
     if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(function () {
-        // Autoplay blocked by the browser: hide the video entirely (CSS
-        // falls back to the cinematic gradient, never a stuck black frame)
-        // and offer a single elegant retry on the first user interaction
-        // anywhere on the page.
-        markBlocked();
+      playPromise
+        .then(startLoopWatcher)
+        .catch(function () {
+          // Autoplay blocked by the browser: hide the video entirely (CSS
+          // falls back to the cinematic gradient, never a stuck black
+          // frame) and offer a single elegant retry on the first user
+          // interaction anywhere on the page.
+          markBlocked();
 
-        var retry = function () {
-          video.play().then(function () {
-            stateTarget.classList.remove("is-video-blocked");
-            markReady();
-          }).catch(function () {
-            /* still blocked - keep the gradient fallback, no further retry */
-          });
-          document.removeEventListener("click", retry);
-          document.removeEventListener("touchstart", retry);
-        };
+          var retry = function () {
+            video.currentTime = 0;
+            video.play().then(function () {
+              markReady();
+              startLoopWatcher();
+            }).catch(function () {
+              /* still blocked - keep the gradient fallback, no further retry */
+            });
+            document.removeEventListener("click", retry);
+            document.removeEventListener("touchstart", retry);
+          };
 
-        document.addEventListener("click", retry, { once: true, passive: true });
-        document.addEventListener("touchstart", retry, { once: true, passive: true });
-      });
+          document.addEventListener("click", retry, { once: true, passive: true });
+          document.addEventListener("touchstart", retry, { once: true, passive: true });
+        });
+    } else {
+      startLoopWatcher();
     }
   }
+
+  video.addEventListener("playing", markReady, { once: true });
 
   if (video.readyState >= 1) {
     attemptPlay();
