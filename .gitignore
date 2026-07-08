@@ -11,6 +11,11 @@ data/users.json
 data/notifications.json
 data/analytics.json
 data/email-outbox.json
+data/password-resets.json
+data/email-verifications.json
+data/wishlists.json
+data/reviews.json
+data/coupons.json
 assets/models/tshirt-fbx/
 assets/models/tshirt-obj/
 assets/models/tshirt-texture/

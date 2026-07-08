@@ -28,6 +28,12 @@
   </header>
 
   <main class="account-shell" data-account>
+    <div class="account-verify-banner" data-verify-banner hidden>
+      <span data-i18n="account.verifyBanner">Contul tau nu este verificat inca. Verifica emailul pentru linkul de confirmare.</span>
+      <button type="button" data-resend-verification data-i18n="account.resendVerification">Retrimite emailul</button>
+      <span class="form-message" data-resend-message></span>
+    </div>
+
     <section class="account-hero-card">
       <div>
         <p data-i18n="account.kicker">Customer area</p>
@@ -110,6 +116,14 @@
         </ul>
       </article>
 
+      <article class="account-panel account-wishlist">
+        <p data-i18n="account.wishlist">Wishlist</p>
+        <h2 data-i18n="account.wishlistTitle">Saved pieces</h2>
+        <ul class="account-wishlist-list" data-wishlist-list>
+          <li class="account-wishlist-empty" data-i18n="account.wishlistEmpty">No saved pieces yet.</li>
+        </ul>
+      </article>
+
       <article class="account-panel account-timeline">
         <p data-i18n="account.activity">Activity</p>
         <div>
@@ -128,5 +142,6 @@
   <script src="locale.js?v=etapa1-1"></script>
   <script src="script.js?v=etapa1-1"></script>
   <script src="auth.js?v=admin-panel-link-1"></script>
+  <script src="wishlist.js"></script>
 </body>
 </html>

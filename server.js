@@ -83,7 +83,8 @@ function ensureDataFiles() {
       email: adminEmail,
       name: "BeCa Admin",
       password: adminPassword,
-      role: "admin"
+      role: "admin",
+      emailVerified: true
     });
     writeJson("users.json", [admin]);
   }
@@ -135,6 +136,26 @@ function ensureDataFiles() {
     writeJson("email-outbox.json", []);
   }
 
+  if (!fs.existsSync(path.join(dataDir, "password-resets.json"))) {
+    writeJson("password-resets.json", []);
+  }
+
+  if (!fs.existsSync(path.join(dataDir, "email-verifications.json"))) {
+    writeJson("email-verifications.json", []);
+  }
+
+  if (!fs.existsSync(path.join(dataDir, "wishlists.json"))) {
+    writeJson("wishlists.json", {});
+  }
+
+  if (!fs.existsSync(path.join(dataDir, "reviews.json"))) {
+    writeJson("reviews.json", []);
+  }
+
+  if (!fs.existsSync(path.join(dataDir, "coupons.json"))) {
+    writeJson("coupons.json", []);
+  }
+
   const products = readJson("products.json", []);
   let migrated = false;
   const migratedProducts = products.map((product) => {
@@ -152,6 +173,15 @@ function ensureDataFiles() {
     return { ...order, status: "delivered" };
   });
   if (migratedOrders) writeJson("orders.json", migratedOrdersList);
+
+  const users = readJson("users.json", []);
+  let migratedUsers = false;
+  const migratedUsersList = users.map((user) => {
+    if (typeof user.emailVerified === "boolean") return user;
+    migratedUsers = true;
+    return { ...user, emailVerified: true };
+  });
+  if (migratedUsers) writeJson("users.json", migratedUsersList);
 }
 
 function readJson(fileName, fallback) {
@@ -175,14 +205,50 @@ function isTrackablePageRequest(pathname) {
   return extension === "" || extension === ".html";
 }
 
-function trackPageview(pathname) {
+function trackPageview(pathname, request) {
   try {
-    const day = new Date().toISOString().slice(0, 10);
-    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
+    const now = new Date();
+    const day = now.toISOString().slice(0, 10);
+    const hour = now.getHours();
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {}, recentVisits: [] });
     analytics.totalPageviews = (analytics.totalPageviews || 0) + 1;
-    if (!analytics.byDay[day]) analytics.byDay[day] = { pageviews: 0, paths: {} };
-    analytics.byDay[day].pageviews += 1;
-    analytics.byDay[day].paths[pathname] = (analytics.byDay[day].paths[pathname] || 0) + 1;
+
+    if (!analytics.byDay[day]) {
+      analytics.byDay[day] = { pageviews: 0, paths: {}, referrers: {}, hours: new Array(24).fill(0), locales: {} };
+    }
+    const dayEntry = analytics.byDay[day];
+    dayEntry.pageviews += 1;
+    dayEntry.paths[pathname] = (dayEntry.paths[pathname] || 0) + 1;
+    dayEntry.hours = dayEntry.hours || new Array(24).fill(0);
+    dayEntry.hours[hour] = (dayEntry.hours[hour] || 0) + 1;
+
+    const referrerHeader = String(request?.headers?.referer || request?.headers?.referrer || "").trim();
+    let referrerSource = "direct";
+    if (referrerHeader) {
+      try {
+        referrerSource = new URL(referrerHeader).hostname || "direct";
+      } catch {
+        referrerSource = "direct";
+      }
+    }
+    dayEntry.referrers = dayEntry.referrers || {};
+    dayEntry.referrers[referrerSource] = (dayEntry.referrers[referrerSource] || 0) + 1;
+
+    const localeHint = String(request?.headers?.["accept-language"] || "").split(",")[0].trim() || "necunoscut";
+    dayEntry.locales = dayEntry.locales || {};
+    dayEntry.locales[localeHint] = (dayEntry.locales[localeHint] || 0) + 1;
+
+    analytics.recentVisits = analytics.recentVisits || [];
+    analytics.recentVisits.unshift({
+      path: pathname,
+      ip: request ? clientIp(request) : "unknown",
+      referrer: referrerSource,
+      locale: localeHint,
+      hour,
+      at: now.toISOString()
+    });
+    analytics.recentVisits = analytics.recentVisits.slice(0, 300);
+
     writeJson("analytics.json", analytics);
   } catch (error) {
     console.error(error);
@@ -232,13 +298,14 @@ function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
-function createUserRecord({ email, name, password, role }) {
+function createUserRecord({ email, name, password, role, emailVerified = false }) {
   return {
     id: crypto.randomUUID(),
     email: normalizeEmail(email),
     name: String(name || "").trim().slice(0, 80),
     role: role === "admin" ? "admin" : "client",
     passwordHash: hashPassword(password),
+    emailVerified: Boolean(emailVerified),
     createdAt: new Date().toISOString()
   };
 }
@@ -494,10 +561,14 @@ function getCartId(request, response) {
   return cartId;
 }
 
-function getCart(request, response) {
+function getCart(request, response, session = null) {
   const carts = readJson("carts.json", {});
   const cartId = getCartId(request, response);
   const cart = carts[cartId] || { items: {}, updatedAt: new Date().toISOString() };
+  if (session && session.user && !cart.userId) {
+    cart.userId = session.user.id;
+    cart.email = session.user.email;
+  }
   carts[cartId] = cart;
   writeJson("carts.json", carts);
   return { cartId, cart, carts };
@@ -560,6 +631,7 @@ function safePublicUser(user) {
     email: user.email,
     name: user.name,
     role: user.role,
+    emailVerified: Boolean(user.emailVerified),
     createdAt: user.createdAt
   };
 }
@@ -609,6 +681,8 @@ function publicOrder(order) {
     status: order.status,
     currency: order.currency,
     total: order.total,
+    discount: order.discount || 0,
+    couponCode: order.couponCode || null,
     items: (order.items || []).map((item) => ({
       name: item.name,
       size: item.size || "",
@@ -898,6 +972,150 @@ async function handleAuth(request, response, pathname) {
     return true;
   }
 
+  if (request.method === "POST" && pathname === "/auth/forgot-password") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+    if (isRateLimited(`forgot:${clientIp(request)}`, 5, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const targetEmail = normalizeEmail(body.email);
+    const users = readJson("users.json", []);
+    const user = users.find((item) => item.email === targetEmail);
+
+    if (user) {
+      const resets = readJson("password-resets.json", []);
+      const token = crypto.randomBytes(32).toString("hex");
+      resets.unshift({
+        token,
+        userId: user.id,
+        expiresAt: Date.now() + 1000 * 60 * 60,
+        usedAt: null,
+        createdAt: new Date().toISOString()
+      });
+      writeJson("password-resets.json", resets.slice(0, 500));
+      const resetUrl = `${SITE_ORIGIN}/reset-password.html?token=${token}`;
+      email.sendMail(email.buildPasswordResetEmail(user, resetUrl)).catch(() => {});
+    }
+
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  if (request.method === "POST" && pathname === "/auth/reset-password") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+    if (isRateLimited(`reset:${clientIp(request)}`, 8, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const token = String(body.token || "");
+    const nextPassword = String(body.password || "");
+
+    if (nextPassword.length < 8) {
+      json(response, 400, { error: "Parola trebuie sa aiba minimum 8 caractere." });
+      return true;
+    }
+
+    const resets = readJson("password-resets.json", []);
+    const entry = resets.find((item) => item.token === token);
+
+    if (!entry || entry.usedAt || Date.now() > entry.expiresAt) {
+      json(response, 400, { error: "Linkul de resetare este invalid sau a expirat." });
+      return true;
+    }
+
+    const users = readJson("users.json", []);
+    const userIndex = users.findIndex((item) => item.id === entry.userId);
+    if (userIndex === -1) {
+      json(response, 404, { error: "Contul nu mai exista." });
+      return true;
+    }
+
+    users[userIndex] = {
+      ...users[userIndex],
+      passwordHash: hashPassword(nextPassword),
+      updatedAt: new Date().toISOString()
+    };
+    writeJson("users.json", users);
+
+    entry.usedAt = new Date().toISOString();
+    writeJson("password-resets.json", resets);
+
+    const sessions = readJson("sessions.json", {});
+    for (const [sessionId, sessionEntry] of Object.entries(sessions)) {
+      if (sessionEntry.userId === users[userIndex].id) delete sessions[sessionId];
+    }
+    writeJson("sessions.json", sessions);
+
+    json(response, 200, { ok: true, redirect: "/login.html" });
+    return true;
+  }
+
+  if (request.method === "POST" && pathname === "/auth/verify-email") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const token = String(body.token || "");
+    const verifications = readJson("email-verifications.json", []);
+    const entry = verifications.find((item) => item.token === token);
+
+    if (!entry || Date.now() > entry.expiresAt) {
+      json(response, 400, { error: "Linkul de verificare este invalid sau a expirat." });
+      return true;
+    }
+
+    const users = readJson("users.json", []);
+    const userIndex = users.findIndex((item) => item.id === entry.userId);
+    if (userIndex === -1) {
+      json(response, 404, { error: "Contul nu mai exista." });
+      return true;
+    }
+
+    users[userIndex] = { ...users[userIndex], emailVerified: true, updatedAt: new Date().toISOString() };
+    writeJson("users.json", users);
+    writeJson("email-verifications.json", verifications.filter((item) => item.token !== token));
+
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  if (request.method === "POST" && pathname === "/auth/resend-verification") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+
+    const session = getSession(request);
+    if (!session) {
+      json(response, 401, { error: "Login required." });
+      return true;
+    }
+    if (session.user.emailVerified) {
+      json(response, 200, { ok: true, alreadyVerified: true });
+      return true;
+    }
+    if (isRateLimited(`resend-verify:${session.user.id}`, 3, 300000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
+    sendVerificationEmail(session.user);
+    json(response, 200, { ok: true });
+    return true;
+  }
+
   if (request.method !== "POST") return false;
   if (!sameOriginPost(request)) {
     json(response, 403, { error: "Request blocked." });
@@ -930,6 +1148,7 @@ async function handleAuth(request, response, pathname) {
     users.push(user);
     writeJson("users.json", users);
     createSession(response, user);
+    sendVerificationEmail(user);
     json(response, 200, { ok: true, user: safePublicUser(user), redirect: "/" });
     return true;
   }
@@ -1045,8 +1264,148 @@ async function handleShopApi(request, response, pathname) {
     return true;
   }
 
+  if (pathname === "/api/wishlist" && request.method === "GET") {
+    const session = getSession(request);
+    if (!session) {
+      json(response, 401, { error: "Login required." });
+      return true;
+    }
+    const wishlists = readJson("wishlists.json", {});
+    const productIds = wishlists[session.user.id] || [];
+    const products = readJson("products.json", [])
+      .filter((product) => productIds.includes(product.id))
+      .map(publicProduct);
+    json(response, 200, { products });
+    return true;
+  }
+
+  if (pathname === "/api/wishlist" && request.method === "POST") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+    const session = getSession(request);
+    if (!session) {
+      json(response, 401, { error: "Login required." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const productId = String(body.productId || "");
+    const product = readJson("products.json", []).find((item) => item.id === productId);
+    if (!product) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+
+    const wishlists = readJson("wishlists.json", {});
+    const current = wishlists[session.user.id] || [];
+    if (!current.includes(productId)) {
+      wishlists[session.user.id] = [...current, productId];
+      writeJson("wishlists.json", wishlists);
+    }
+
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  const wishlistItemMatch = pathname.match(/^\/api\/wishlist\/([^/]+)$/);
+  if (wishlistItemMatch && request.method === "DELETE") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+    const session = getSession(request);
+    if (!session) {
+      json(response, 401, { error: "Login required." });
+      return true;
+    }
+
+    const productId = decodeURIComponent(wishlistItemMatch[1]);
+    const wishlists = readJson("wishlists.json", {});
+    wishlists[session.user.id] = (wishlists[session.user.id] || []).filter((id) => id !== productId);
+    writeJson("wishlists.json", wishlists);
+
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  const reviewsMatch = pathname.match(/^\/api\/products\/([^/]+)\/reviews$/);
+  if (reviewsMatch && request.method === "GET") {
+    const key = decodeURIComponent(reviewsMatch[1]);
+    const product = readJson("products.json", []).find((item) => item.id === key || (item.slug || toSlug(item.name)) === key);
+    if (!product) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+
+    const reviews = readJson("reviews.json", [])
+      .filter((review) => review.productId === product.id && review.approved)
+      .map((review) => ({ id: review.id, name: review.name, rating: review.rating, text: review.text, createdAt: review.createdAt }));
+
+    const average = reviews.length
+      ? Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length) * 10) / 10
+      : 0;
+
+    json(response, 200, { reviews, average, count: reviews.length });
+    return true;
+  }
+
+  if (reviewsMatch && request.method === "POST") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+    const session = getSession(request);
+    if (!session) {
+      json(response, 401, { error: "Login required." });
+      return true;
+    }
+
+    const key = decodeURIComponent(reviewsMatch[1]);
+    const product = readJson("products.json", []).find((item) => item.id === key || (item.slug || toSlug(item.name)) === key);
+    if (!product) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const rating = Math.max(1, Math.min(5, Math.floor(Number(body.rating) || 0)));
+    const text = String(body.text || "").trim().slice(0, 600);
+
+    if (!rating || text.length < 3) {
+      json(response, 400, { error: "Adauga o nota si un text de minimum 3 caractere." });
+      return true;
+    }
+
+    const reviews = readJson("reviews.json", []);
+    const existingIndex = reviews.findIndex((review) => review.productId === product.id && review.userId === session.user.id);
+    const record = {
+      id: existingIndex !== -1 ? reviews[existingIndex].id : crypto.randomUUID(),
+      productId: product.id,
+      userId: session.user.id,
+      name: session.user.name,
+      rating,
+      text,
+      approved: false,
+      createdAt: existingIndex !== -1 ? reviews[existingIndex].createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (existingIndex !== -1) {
+      reviews[existingIndex] = record;
+    } else {
+      reviews.unshift(record);
+    }
+    writeJson("reviews.json", reviews);
+
+    json(response, 200, { ok: true, pendingApproval: true });
+    return true;
+  }
+
   if (pathname === "/api/cart" && request.method === "GET") {
-    const { cart } = getCart(request, response);
+    const cartSession = getSession(request);
+    const { cart } = getCart(request, response, cartSession);
     json(response, 200, { cart: buildCartPayload(cart) });
     return true;
   }
@@ -1057,6 +1416,7 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
+    const cartSession = getSession(request);
     const body = await readBody(request);
     const productId = String(body.productId || "");
     const size = String(body.size || "").trim();
@@ -1079,12 +1439,13 @@ async function handleShopApi(request, response, pathname) {
     }
 
     const resultCart = await withStockLock(() => {
-      const { cartId, cart, carts } = getCart(request, response);
+      const { cartId, cart, carts } = getCart(request, response, cartSession);
       const key = makeCartKey(productId, size);
       const currentQty = Number(cart.items[key] || 0);
       const freshProduct = readJson("products.json", []).find((item) => item.id === productId);
       const cap = freshProduct ? availableStock(freshProduct, size) : availableStock(product, size);
       cart.items[key] = Math.min(cap, currentQty + qty);
+      cart.reminderSentAt = null;
       saveCart(cartId, cart, carts);
       return cart;
     });
@@ -1100,12 +1461,13 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
+    const cartSession = getSession(request);
     const key = decodeURIComponent(cartItemMatch[1]);
     const { productId, size } = parseCartKey(key);
     const body = request.method === "PUT" ? await readBody(request) : {};
 
     const resultCart = await withStockLock(() => {
-      const { cartId, cart, carts } = getCart(request, response);
+      const { cartId, cart, carts } = getCart(request, response, cartSession);
 
       if (request.method === "DELETE") {
         delete cart.items[key];
@@ -1117,6 +1479,7 @@ async function handleShopApi(request, response, pathname) {
           const product = readJson("products.json", []).find((item) => item.id === productId);
           const cap = product ? availableStock(product, size) : qty;
           cart.items[key] = Math.min(cap, Math.max(1, qty));
+          cart.reminderSentAt = null;
         }
       }
 
@@ -1144,12 +1507,25 @@ async function handleShopApi(request, response, pathname) {
     }
 
     const outcome = await withStockLock(() => {
-      const { cartId, cart, carts } = getCart(request, response);
+      const { cartId, cart, carts } = getCart(request, response, session);
       const payload = buildCartPayload(cart);
 
       if (!payload.items.length) {
         return { error: "Cartul este gol." };
       }
+
+      let discount = 0;
+      let appliedCoupon = null;
+      if (body.couponCode) {
+        const couponResult = resolveCoupon(body.couponCode, payload.total);
+        if (couponResult.error) {
+          return { error: couponResult.error };
+        }
+        discount = couponResult.discount;
+        appliedCoupon = couponResult.coupon;
+      }
+
+      const finalTotal = Math.max(0, Math.round((payload.total - discount) * 100) / 100);
 
       const products = readJson("products.json", []);
       const productUpdates = [...products];
@@ -1183,7 +1559,9 @@ async function handleShopApi(request, response, pathname) {
         ...customer,
         status: "confirmed",
         currency: payload.currency,
-        total: payload.total,
+        total: finalTotal,
+        discount,
+        couponCode: appliedCoupon ? appliedCoupon.code : null,
         items: payload.items.map((item) => ({
           productId: item.product.id,
           name: item.product.name,
@@ -1199,20 +1577,32 @@ async function handleShopApi(request, response, pathname) {
       orders.unshift(order);
       writeJson("products.json", productUpdates);
       writeJson("orders.json", orders);
+
+      if (appliedCoupon) {
+        const coupons = readJson("coupons.json", []);
+        const couponIndex = coupons.findIndex((coupon) => coupon.id === appliedCoupon.id);
+        if (couponIndex !== -1) {
+          coupons[couponIndex] = { ...coupons[couponIndex], usedCount: (coupons[couponIndex].usedCount || 0) + 1 };
+          writeJson("coupons.json", coupons);
+        }
+      }
+
       cart.items = {};
+      cart.reminderSentAt = null;
       saveCart(cartId, cart, carts);
       return { order };
     });
 
     if (outcome.error) {
-      json(response, outcome.error.includes("gol") ? 400 : 409, { error: outcome.error });
+      const isBadRequest = /gol|cupon|reducere/i.test(outcome.error);
+      json(response, isBadRequest ? 400 : 409, { error: outcome.error });
       return true;
     }
 
     const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${outcome.order.id}`;
     email.sendMail(email.buildOrderConfirmationEmail(outcome.order, orderUrl)).catch(() => {});
 
-    const { cart } = getCart(request, response);
+    const { cart } = getCart(request, response, session);
     json(response, 200, { ok: true, order: outcome.order, cart: buildCartPayload(cart) });
     return true;
   }
@@ -1246,6 +1636,118 @@ function paginate(request, list) {
   const page = Math.max(1, Math.floor(Number(url.searchParams.get("page"))) || 1);
   const start = (page - 1) * pageSize;
   return { items: list.slice(start, start + pageSize), page, pageSize, total: list.length };
+}
+
+function sendVerificationEmail(user) {
+  try {
+    const verifications = readJson("email-verifications.json", []);
+    const filtered = verifications.filter((item) => item.userId !== user.id);
+    const token = crypto.randomBytes(32).toString("hex");
+    filtered.unshift({
+      token,
+      userId: user.id,
+      expiresAt: Date.now() + 1000 * 60 * 60 * 48,
+      createdAt: new Date().toISOString()
+    });
+    writeJson("email-verifications.json", filtered.slice(0, 500));
+    const verifyUrl = `${SITE_ORIGIN}/verify-email.html?token=${token}`;
+    email.sendMail(email.buildVerificationEmail(user, verifyUrl)).catch(() => {});
+  } catch (error) {
+    console.error("[verify-email]", error);
+  }
+}
+
+function notifyDropLive(product) {
+  try {
+    const notifications = readJson("notifications.json", []);
+    const matches = notifications.filter((item) => item.productId === product.id);
+    if (!matches.length) return;
+
+    const productUrl = `${SITE_ORIGIN}/product.html?slug=${encodeURIComponent(product.slug || toSlug(product.name))}`;
+    matches.forEach((entry) => {
+      email.sendMail(email.buildDropLiveEmail(entry, product, productUrl)).catch(() => {});
+    });
+
+    const remaining = notifications.filter((item) => item.productId !== product.id);
+    writeJson("notifications.json", remaining);
+  } catch (error) {
+    console.error("[drop-live]", error);
+  }
+}
+
+const ABANDONED_CART_DELAY_MS = 1000 * 60 * 60 * 2;
+
+function checkAbandonedCarts() {
+  try {
+    const carts = readJson("carts.json", {});
+    const now = Date.now();
+    let changed = false;
+
+    for (const [cartId, cart] of Object.entries(carts)) {
+      if (!cart.userId || !cart.email || cart.reminderSentAt) continue;
+      if (!cart.items || !Object.keys(cart.items).length) continue;
+
+      const updatedAt = new Date(cart.updatedAt || 0).getTime();
+      if (!updatedAt || now - updatedAt < ABANDONED_CART_DELAY_MS) continue;
+
+      const payload = buildCartPayload(cart);
+      if (!payload.items.length) continue;
+
+      const cartUrl = `${SITE_ORIGIN}/#drop`;
+      email.sendMail(email.buildAbandonedCartEmail(cart, payload, cartUrl)).catch(() => {});
+      carts[cartId] = { ...cart, reminderSentAt: new Date().toISOString() };
+      changed = true;
+    }
+
+    if (changed) writeJson("carts.json", carts);
+  } catch (error) {
+    console.error("[abandoned-cart]", error);
+  }
+}
+
+setInterval(checkAbandonedCarts, 1000 * 60 * 30).unref();
+
+function resolveCoupon(rawCode, total) {
+  const code = String(rawCode || "").trim().toUpperCase();
+  if (!code) return { coupon: null, discount: 0 };
+
+  const coupons = readJson("coupons.json", []);
+  const index = coupons.findIndex((coupon) => coupon.code === code);
+  if (index === -1) return { error: "Cod de reducere invalid." };
+
+  const coupon = coupons[index];
+  if (!coupon.active) return { error: "Codul de reducere nu mai este activ." };
+  if (coupon.expiresAt && Date.now() > new Date(coupon.expiresAt).getTime()) {
+    return { error: "Codul de reducere a expirat." };
+  }
+  if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+    return { error: "Codul de reducere a fost folosit de maximum de ori." };
+  }
+
+  const discount = coupon.type === "fixed"
+    ? Math.min(total, coupon.value)
+    : Math.round(total * (coupon.value / 100) * 100) / 100;
+
+  return { coupon, discount };
+}
+
+function toCsvValue(value) {
+  const str = String(value ?? "");
+  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+  return str;
+}
+
+function toCsv(rows, columns) {
+  const header = columns.map((col) => toCsvValue(col.label)).join(",");
+  const lines = rows.map((row) => columns.map((col) => toCsvValue(col.value(row))).join(","));
+  return [header, ...lines].join("\r\n");
+}
+
+function sendCsv(response, filename, csv) {
+  send(response, 200, `﻿${csv}`, {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Content-Disposition": `attachment; filename="${filename}"`
+  });
 }
 
 async function handleAdminApi(request, response, pathname) {
@@ -1442,6 +1944,240 @@ async function handleAdminApi(request, response, pathname) {
     return true;
   }
 
+  if (pathname === "/api/admin/reviews" && request.method === "GET") {
+    const products = readJson("products.json", []);
+    const reviews = readJson("reviews.json", []).map((review) => ({
+      ...review,
+      productName: products.find((product) => product.id === review.productId)?.name || "Produs sters"
+    }));
+    const { items, page, pageSize, total } = paginate(request, reviews);
+    json(response, 200, { reviews: items, page, pageSize, total });
+    return true;
+  }
+
+  const reviewMatch = pathname.match(/^\/api\/admin\/reviews\/([a-f0-9-]+)$/);
+  if (reviewMatch && request.method === "PUT") {
+    const body = await readBody(request);
+    const reviews = readJson("reviews.json", []);
+    const index = reviews.findIndex((review) => review.id === reviewMatch[1]);
+    if (index === -1) {
+      json(response, 404, { error: "Recenzia nu exista." });
+      return true;
+    }
+    reviews[index] = { ...reviews[index], approved: Boolean(body.approved), updatedAt: new Date().toISOString() };
+    writeJson("reviews.json", reviews);
+    json(response, 200, { ok: true, review: reviews[index] });
+    return true;
+  }
+
+  if (reviewMatch && request.method === "DELETE") {
+    const reviews = readJson("reviews.json", []);
+    writeJson("reviews.json", reviews.filter((review) => review.id !== reviewMatch[1]));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  if (pathname === "/api/admin/coupons" && request.method === "GET") {
+    const coupons = readJson("coupons.json", []);
+    json(response, 200, { coupons });
+    return true;
+  }
+
+  if (pathname === "/api/admin/coupons" && request.method === "POST") {
+    const body = await readBody(request);
+    const code = String(body.code || "").trim().toUpperCase().slice(0, 24);
+    const type = body.type === "fixed" ? "fixed" : "percent";
+    const value = Math.max(0, Number(body.value) || 0);
+
+    if (!code || !value) {
+      json(response, 400, { error: "Cod si valoare sunt obligatorii." });
+      return true;
+    }
+
+    const coupons = readJson("coupons.json", []);
+    if (coupons.some((coupon) => coupon.code === code)) {
+      json(response, 409, { error: "Exista deja un cupon cu acest cod." });
+      return true;
+    }
+
+    const coupon = {
+      id: crypto.randomUUID(),
+      code,
+      type,
+      value,
+      maxUses: body.maxUses ? Math.max(1, Math.floor(Number(body.maxUses))) : null,
+      usedCount: 0,
+      expiresAt: body.expiresAt ? new Date(body.expiresAt).toISOString() : null,
+      active: true,
+      createdAt: new Date().toISOString()
+    };
+    coupons.unshift(coupon);
+    writeJson("coupons.json", coupons);
+    json(response, 200, { ok: true, coupon });
+    return true;
+  }
+
+  const couponMatch = pathname.match(/^\/api\/admin\/coupons\/([a-f0-9-]+)$/);
+  if (couponMatch && request.method === "PUT") {
+    const body = await readBody(request);
+    const coupons = readJson("coupons.json", []);
+    const index = coupons.findIndex((coupon) => coupon.id === couponMatch[1]);
+    if (index === -1) {
+      json(response, 404, { error: "Cuponul nu exista." });
+      return true;
+    }
+    coupons[index] = { ...coupons[index], active: Boolean(body.active) };
+    writeJson("coupons.json", coupons);
+    json(response, 200, { ok: true, coupon: coupons[index] });
+    return true;
+  }
+
+  if (couponMatch && request.method === "DELETE") {
+    const coupons = readJson("coupons.json", []);
+    writeJson("coupons.json", coupons.filter((coupon) => coupon.id !== couponMatch[1]));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  if (pathname === "/api/admin/stats/revenue" && request.method === "GET") {
+    const orders = readJson("orders.json", []);
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
+    const validOrders = orders.filter((order) => order.status !== "cancelled");
+    const totalRevenue = validOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const averageOrderValue = validOrders.length ? Math.round((totalRevenue / validOrders.length) * 100) / 100 : 0;
+
+    const byDay = {};
+    validOrders.forEach((order) => {
+      const day = String(order.createdAt || "").slice(0, 10);
+      if (!day) return;
+      byDay[day] = (byDay[day] || 0) + Number(order.total || 0);
+    });
+
+    const days = [];
+    const today = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().slice(0, 10);
+      days.push({
+        date: key,
+        revenue: Math.round((byDay[key] || 0) * 100) / 100,
+        orders: validOrders.filter((order) => String(order.createdAt || "").slice(0, 10) === key).length
+      });
+    }
+
+    const totalPageviews = analytics.totalPageviews || 0;
+    const conversionRate = totalPageviews ? Math.round((validOrders.length / totalPageviews) * 10000) / 100 : 0;
+
+    json(response, 200, {
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      averageOrderValue,
+      totalOrders: validOrders.length,
+      conversionRate,
+      last14Days: days
+    });
+    return true;
+  }
+
+  if (pathname === "/api/admin/stats/products" && request.method === "GET") {
+    const orders = readJson("orders.json", []).filter((order) => order.status !== "cancelled");
+    const totals = new Map();
+
+    orders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        const key = `${item.productId || item.name}::${item.size || ""}`;
+        const current = totals.get(key) || { productId: item.productId, name: item.name, size: item.size || "", qty: 0, revenue: 0 };
+        current.qty += Number(item.qty || 0);
+        current.revenue += Number(item.subtotal || 0);
+        totals.set(key, current);
+      });
+    });
+
+    const topProducts = [...totals.values()]
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 20)
+      .map((entry) => ({ ...entry, revenue: Math.round(entry.revenue * 100) / 100 }));
+
+    json(response, 200, { topProducts });
+    return true;
+  }
+
+  if (pathname === "/api/admin/stats/traffic" && request.method === "GET") {
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
+    const referrers = {};
+    const hours = new Array(24).fill(0);
+    const locales = {};
+
+    Object.values(analytics.byDay || {}).forEach((day) => {
+      Object.entries(day.referrers || {}).forEach(([ref, count]) => {
+        referrers[ref] = (referrers[ref] || 0) + count;
+      });
+      (day.hours || []).forEach((count, hour) => {
+        hours[hour] += count || 0;
+      });
+      Object.entries(day.locales || {}).forEach(([locale, count]) => {
+        locales[locale] = (locales[locale] || 0) + count;
+      });
+    });
+
+    const topReferrers = Object.entries(referrers).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([source, count]) => ({ source, count }));
+    const topLocales = Object.entries(locales).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([locale, count]) => ({ locale, count }));
+
+    json(response, 200, {
+      hours,
+      topReferrers,
+      topLocales,
+      recentVisits: (analytics.recentVisits || []).slice(0, 100)
+    });
+    return true;
+  }
+
+  if (pathname === "/api/admin/export/orders.csv" && request.method === "GET") {
+    const orders = readJson("orders.json", []);
+    const csv = toCsv(orders, [
+      { label: "Numar", value: (o) => o.number },
+      { label: "Status", value: (o) => o.status },
+      { label: "Client", value: (o) => o.customerName },
+      { label: "Email", value: (o) => o.customerEmail },
+      { label: "Telefon", value: (o) => o.customerPhone },
+      { label: "Adresa", value: (o) => o.customerAddress },
+      { label: "Total", value: (o) => o.total },
+      { label: "Moneda", value: (o) => o.currency },
+      { label: "Reducere", value: (o) => o.discount || 0 },
+      { label: "Cupon", value: (o) => o.couponCode || "" },
+      { label: "Produse", value: (o) => (o.items || []).map((item) => `${item.qty}x ${item.name}${item.size ? ` (${item.size})` : ""}`).join("; ") },
+      { label: "Creat la", value: (o) => o.createdAt }
+    ]);
+    sendCsv(response, "comenzi.csv", csv);
+    return true;
+  }
+
+  if (pathname === "/api/admin/export/users.csv" && request.method === "GET") {
+    const users = readJson("users.json", []);
+    const csv = toCsv(users, [
+      { label: "Nume", value: (u) => u.name },
+      { label: "Email", value: (u) => u.email },
+      { label: "Rol", value: (u) => u.role },
+      { label: "Email verificat", value: (u) => (u.emailVerified ? "da" : "nu") },
+      { label: "Creat la", value: (u) => u.createdAt }
+    ]);
+    sendCsv(response, "useri.csv", csv);
+    return true;
+  }
+
+  if (pathname === "/api/admin/export/notifications.csv" && request.method === "GET") {
+    const notifications = readJson("notifications.json", []);
+    const csv = toCsv(notifications, [
+      { label: "Produs", value: (n) => n.productName },
+      { label: "Nume", value: (n) => n.name },
+      { label: "Email", value: (n) => n.email },
+      { label: "Marime preferata", value: (n) => n.preferredSize || "" },
+      { label: "Creat la", value: (n) => n.createdAt }
+    ]);
+    sendCsv(response, "waitlist.csv", csv);
+    return true;
+  }
+
   if (pathname === "/api/admin/products" && request.method === "POST") {
     const body = await readProductPayload(request);
     const products = readJson("products.json", []);
@@ -1508,9 +2244,15 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
+    const previousStatus = products[index].status;
     const body = await readProductPayload(request, products[index]);
     products[index] = sanitizeProduct(body, products[index]);
     writeJson("products.json", products);
+
+    if (previousStatus !== "live" && products[index].status === "live") {
+      notifyDropLive(products[index]);
+    }
+
     json(response, 200, { ok: true, product: products[index] });
     return true;
   }
@@ -1700,7 +2442,7 @@ function start() {
     const pathname = decodeURIComponent(url.pathname);
 
     if (request.method === "GET" && isTrackablePageRequest(pathname)) {
-      trackPageview(pathname);
+      trackPageview(pathname, request);
     }
 
     try {

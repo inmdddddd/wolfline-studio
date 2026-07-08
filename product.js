@@ -111,6 +111,32 @@ function forceModelViewerRepaint(viewer) {
   viewer.requestUpdate?.();
 }
 
+async function loadProductReviews(productId) {
+  const list = document.querySelector("[data-reviews-list]");
+  const summary = document.querySelector("[data-reviews-summary]");
+  if (!list || !summary) return;
+
+  const { reviews, average, count } = await productRequest(`/api/products/${encodeURIComponent(productId)}/reviews`);
+  summary.textContent = count
+    ? `${average} / 5 (${count} ${count === 1 ? "review" : "reviews"})`
+    : productText("noReviewsYet", "No reviews yet.");
+
+  list.innerHTML = "";
+  reviews.forEach((review) => {
+    const item = document.createElement("li");
+    const rating = document.createElement("strong");
+    const text = document.createElement("p");
+    const author = document.createElement("span");
+
+    rating.textContent = "★".repeat(review.rating) + "☆".repeat(5 - review.rating);
+    text.textContent = review.text;
+    author.textContent = review.name || "";
+
+    item.append(rating, text, author);
+    list.appendChild(item);
+  });
+}
+
 async function initProductPage() {
   const params = new URLSearchParams(location.search);
   const slug = params.get("slug") || params.get("id");
@@ -167,6 +193,41 @@ async function initProductPage() {
     previewNote.hidden = !isPreviewProduct(product);
     previewNote.querySelector("span").textContent = productText("previewReason", "Join the list for access before the public drop. Limited stock.");
     updateProductCountdown();
+  }
+
+  if (typeof initProductWishlistButton === "function") {
+    initProductWishlistButton(product.id);
+  }
+  loadProductReviews(product.id).catch(() => {});
+  const reviewForm = document.querySelector("[data-review-form]");
+  if (reviewForm) {
+    reviewForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const reviewMessage = reviewForm.querySelector("[data-review-message]");
+      const submitButton = reviewForm.querySelector("button[type='submit']");
+      submitButton.disabled = true;
+      reviewMessage.dataset.type = "info";
+      reviewMessage.textContent = productText("sending", "Sending...");
+
+      try {
+        await productRequest(`/api/products/${encodeURIComponent(product.id)}/reviews`, {
+          method: "POST",
+          body: JSON.stringify(Object.fromEntries(new FormData(reviewForm).entries()))
+        });
+        reviewMessage.dataset.type = "success";
+        reviewMessage.textContent = productText("reviewSubmitted", "Thanks. Your review will show once approved.");
+        reviewForm.reset();
+      } catch (error) {
+        reviewMessage.dataset.type = "";
+        if (/login/i.test(error.message)) {
+          location.href = "/#register";
+          return;
+        }
+        reviewMessage.textContent = error.message;
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
   }
 
   if (product.studio?.model) {

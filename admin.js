@@ -52,6 +52,140 @@ function renderAnalytics(analytics) {
     : "<li><span>Fara date inca</span></li>";
 }
 
+function renderStats(revenue, topProducts, traffic) {
+  const revenueEl = document.querySelector("[data-stats-revenue]");
+  if (!revenueEl) return;
+
+  document.querySelector("[data-stats-revenue]").textContent = revenue.totalRevenue;
+  document.querySelector("[data-stats-aov]").textContent = revenue.averageOrderValue;
+  document.querySelector("[data-stats-orders]").textContent = revenue.totalOrders;
+  document.querySelector("[data-stats-conversion]").textContent = `${revenue.conversionRate}%`;
+
+  const dayFormatter = new Intl.DateTimeFormat("ro-RO", { day: "2-digit", month: "2-digit" });
+  document.querySelector("[data-stats-revenue-days]").innerHTML = (revenue.last14Days || [])
+    .map((day) => `<li><span>${dayFormatter.format(new Date(`${day.date}T00:00:00`))}</span><strong>${day.revenue} (${day.orders})</strong></li>`)
+    .join("");
+
+  const topProductsList = document.querySelector("[data-stats-top-products]");
+  topProductsList.innerHTML = (topProducts.topProducts || []).length
+    ? topProducts.topProducts
+        .map((entry) => `<li><span>${entry.name}${entry.size ? ` (${entry.size})` : ""}</span><strong>${entry.qty} buc / ${entry.revenue}</strong></li>`)
+        .join("")
+    : "<li><span>Fara date inca</span></li>";
+
+  const referrersList = document.querySelector("[data-stats-referrers]");
+  referrersList.innerHTML = (traffic.topReferrers || []).length
+    ? traffic.topReferrers.map((entry) => `<li><span>${entry.source}</span><strong>${entry.count}</strong></li>`).join("")
+    : "<li><span>Fara date inca</span></li>";
+
+  const localesList = document.querySelector("[data-stats-locales]");
+  localesList.innerHTML = (traffic.topLocales || []).length
+    ? traffic.topLocales.map((entry) => `<li><span>${entry.locale}</span><strong>${entry.count}</strong></li>`).join("")
+    : "<li><span>Fara date inca</span></li>";
+
+  const hoursList = document.querySelector("[data-stats-hours]");
+  hoursList.innerHTML = (traffic.hours || [])
+    .map((count, hour) => `<li><span>${String(hour).padStart(2, "0")}:00</span><strong>${count}</strong></li>`)
+    .join("");
+
+  const visitsList = document.querySelector("[data-stats-visits]");
+  visitsList.innerHTML = (traffic.recentVisits || []).slice(0, 20).length
+    ? traffic.recentVisits.slice(0, 20)
+        .map((visit) => `<li><span>${visit.path} / ${visit.referrer} / ${visit.locale}</span><strong>${visit.ip}</strong></li>`)
+        .join("")
+    : "<li><span>Fara date inca</span></li>";
+}
+
+function renderReviewsAdmin(reviews) {
+  const list = document.querySelector("[data-reviews-admin]");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (!reviews.length) {
+    const empty = document.createElement("div");
+    empty.className = "admin-empty-state";
+    empty.innerHTML = "<strong>No reviews yet</strong><span>Customer reviews will appear here for moderation.</span>";
+    list.appendChild(empty);
+    return;
+  }
+
+  reviews.forEach((review) => {
+    const item = document.createElement("article");
+    const info = document.createElement("div");
+    const meta = document.createElement("span");
+    const title = document.createElement("h3");
+    const text = document.createElement("p");
+    const controls = document.createElement("div");
+    const approveButton = document.createElement("button");
+    const deleteButton = document.createElement("button");
+
+    item.className = "admin-product admin-order";
+    meta.textContent = `${review.productName} / ${"*".repeat(review.rating)} / ${new Date(review.createdAt).toLocaleString()}`;
+    title.textContent = review.name || "Client";
+    text.textContent = review.text;
+
+    approveButton.type = "button";
+    approveButton.dataset.reviewApprove = review.id;
+    approveButton.dataset.approved = review.approved ? "false" : "true";
+    approveButton.textContent = review.approved ? "Ascunde" : "Aproba";
+
+    deleteButton.type = "button";
+    deleteButton.dataset.reviewDelete = review.id;
+    deleteButton.textContent = "Sterge";
+
+    info.append(meta, title, text);
+    controls.append(approveButton, deleteButton);
+    item.append(info, controls);
+    list.appendChild(item);
+  });
+}
+
+function renderCoupons(coupons) {
+  const list = document.querySelector("[data-coupons-list]");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (!coupons.length) {
+    const empty = document.createElement("div");
+    empty.className = "admin-empty-state";
+    empty.innerHTML = "<strong>No coupons yet</strong><span>Create a discount code above.</span>";
+    list.appendChild(empty);
+    return;
+  }
+
+  coupons.forEach((coupon) => {
+    const item = document.createElement("article");
+    const info = document.createElement("div");
+    const meta = document.createElement("span");
+    const title = document.createElement("h3");
+    const usage = document.createElement("p");
+    const controls = document.createElement("div");
+    const toggleButton = document.createElement("button");
+    const deleteButton = document.createElement("button");
+
+    item.className = "admin-product admin-order";
+    meta.textContent = coupon.type === "fixed" ? `${coupon.value} fix` : `${coupon.value}%`;
+    title.textContent = coupon.code;
+    usage.textContent = `Folosit ${coupon.usedCount || 0}${coupon.maxUses ? ` / ${coupon.maxUses}` : ""}${coupon.expiresAt ? ` / expira ${new Date(coupon.expiresAt).toLocaleDateString()}` : ""}`;
+
+    toggleButton.type = "button";
+    toggleButton.dataset.couponToggle = coupon.id;
+    toggleButton.dataset.active = coupon.active ? "false" : "true";
+    toggleButton.textContent = coupon.active ? "Dezactiveaza" : "Activeaza";
+
+    deleteButton.type = "button";
+    deleteButton.dataset.couponDelete = coupon.id;
+    deleteButton.textContent = "Sterge";
+
+    info.append(meta, title, usage);
+    controls.append(toggleButton, deleteButton);
+    item.append(info, controls);
+    list.appendChild(item);
+  });
+}
+
 function setAdminView(view) {
   const activeView = view || "overview";
 
@@ -650,14 +784,22 @@ async function uploadBrandingImage(file, key) {
 }
 
 async function loadDashboard() {
-  const [summary, { products }, usersPayload, { orders }, { notifications }, content, analytics] = await Promise.all([
+  const [
+    summary, { products }, usersPayload, { orders }, { notifications },
+    content, analytics, revenue, topProducts, traffic, { reviews }, { coupons }
+  ] = await Promise.all([
     requestJson("/api/admin/summary"),
     requestJson("/api/admin/products"),
     requestJson("/api/admin/users"),
     requestJson("/api/admin/orders"),
     requestJson("/api/admin/notifications"),
     requestJson("/api/admin/content"),
-    requestJson("/api/admin/analytics")
+    requestJson("/api/admin/analytics"),
+    requestJson("/api/admin/stats/revenue"),
+    requestJson("/api/admin/stats/products"),
+    requestJson("/api/admin/stats/traffic"),
+    requestJson("/api/admin/reviews"),
+    requestJson("/api/admin/coupons")
   ]);
 
   renderSummary(summary);
@@ -671,6 +813,9 @@ async function loadDashboard() {
   renderNotifications(notifications);
   renderContentEditor(content);
   renderAnalytics(analytics);
+  renderStats(revenue, topProducts, traffic);
+  renderReviewsAdmin(reviews);
+  renderCoupons(coupons);
 }
 
 const productForm = document.querySelector("[data-product-form]");
@@ -763,6 +908,68 @@ document.addEventListener("click", async (event) => {
 
   await requestJson(`/api/admin/products/${deleteButton.dataset.delete}`, { method: "DELETE" });
   await loadDashboard();
+});
+
+document.addEventListener("click", async (event) => {
+  const approveButton = event.target.closest("[data-review-approve]");
+  const deleteReviewButton = event.target.closest("[data-review-delete]");
+
+  if (approveButton) {
+    await requestJson(`/api/admin/reviews/${approveButton.dataset.reviewApprove}`, {
+      method: "PUT",
+      body: JSON.stringify({ approved: approveButton.dataset.approved === "true" })
+    });
+    await loadDashboard();
+  }
+
+  if (deleteReviewButton) {
+    await requestJson(`/api/admin/reviews/${deleteReviewButton.dataset.reviewDelete}`, { method: "DELETE" });
+    await loadDashboard();
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const toggleButton = event.target.closest("[data-coupon-toggle]");
+  const deleteCouponButton = event.target.closest("[data-coupon-delete]");
+
+  if (toggleButton) {
+    await requestJson(`/api/admin/coupons/${toggleButton.dataset.couponToggle}`, {
+      method: "PUT",
+      body: JSON.stringify({ active: toggleButton.dataset.active === "true" })
+    });
+    await loadDashboard();
+  }
+
+  if (deleteCouponButton) {
+    await requestJson(`/api/admin/coupons/${deleteCouponButton.dataset.couponDelete}`, { method: "DELETE" });
+    await loadDashboard();
+  }
+});
+
+document.querySelector("[data-coupon-form]")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = form.querySelector("[data-coupon-message]");
+  const submitButton = form.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  message.dataset.type = "info";
+  message.textContent = "Se salveaza...";
+
+  try {
+    await requestJson("/api/admin/coupons", {
+      method: "POST",
+      body: JSON.stringify(Object.fromEntries(new FormData(form).entries()))
+    });
+    form.reset();
+    message.dataset.type = "success";
+    message.textContent = "Cupon adaugat.";
+    await loadDashboard();
+  } catch (error) {
+    message.dataset.type = "";
+    message.textContent = error.message;
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 document.addEventListener("click", async (event) => {

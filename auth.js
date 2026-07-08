@@ -53,14 +53,35 @@ document.querySelectorAll("[data-auth-form]").forEach((form) => {
 
     try {
       const payload = await postJson(form.action, getFormData(form));
-      setMessage(message, "Gata, intri imediat.", "success");
-      window.location.href = payload.redirect || "/";
+      if (form.dataset.authForm === "no-redirect") {
+        setMessage(message, form.dataset.successMessage || "Gata.", "success");
+        form.reset();
+      } else {
+        setMessage(message, "Gata, intri imediat.", "success");
+        window.location.href = payload.redirect || "/";
+      }
     } catch (error) {
       setMessage(message, error.message);
     } finally {
       submit.disabled = false;
     }
   });
+});
+
+document.querySelector("[data-resend-verification]")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const message = document.querySelector("[data-resend-message]");
+  button.disabled = true;
+  setMessage(message, "Se trimite...", "info");
+
+  try {
+    const payload = await postJson("/auth/resend-verification", {});
+    setMessage(message, payload.alreadyVerified ? "Contul este deja verificat." : "Email retrimis. Verifica inbox-ul.", "success");
+  } catch (error) {
+    setMessage(message, error.message);
+  } finally {
+    button.disabled = false;
+  }
 });
 
 function hydrateHeader(user) {
@@ -131,6 +152,9 @@ async function hydrateAccount() {
   document.querySelectorAll("[data-admin-only]").forEach((element) => {
     element.hidden = user.role !== "admin";
   });
+
+  const verifyBanner = document.querySelector("[data-verify-banner]");
+  if (verifyBanner) verifyBanner.hidden = Boolean(user.emailVerified);
 
   slot.querySelectorAll("[data-profile-name]").forEach((element) => {
     element.value = user.name;

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Verify email / BeCa</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="stylesheet" href="styles.css?v=gold-5">
+</head>
+<body class="beca-minimal auth-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <div class="site-scene" aria-hidden="true">
+    <div class="scene-aurora"></div>
+    <div class="scene-particles"></div>
+    <div class="scene-beams"></div>
+  </div>
+
+  <main class="auth-shell">
+    <a class="auth-brand" href="/">
+      <img src="assets/beca-logo.png?v=2" alt="" data-content-img="logoUrl">
+    </a>
+
+    <section class="auth-card">
+      <div class="auth-combo-heading">
+        <p>Client access</p>
+        <h1 data-verify-title>Confirming your email...</h1>
+      </div>
+      <p data-verify-body>Un moment, verificam linkul.</p>
+      <a class="auth-forgot-link" href="/account.html" data-verify-link hidden>Go to my account</a>
+    </section>
+  </main>
+
+  <script src="script.js?v=etapa1-1"></script>
+  <script>
+    (function () {
+      var titleEl = document.querySelector("[data-verify-title]");
+      var bodyEl = document.querySelector("[data-verify-body]");
+      var linkEl = document.querySelector("[data-verify-link]");
+      var params = new URLSearchParams(location.search);
+      var token = params.get("token") || "";
+
+      function done(ok, message) {
+        titleEl.textContent = ok ? "Email confirmat." : "Linkul nu este valid.";
+        bodyEl.textContent = message;
+        linkEl.hidden = false;
+      }
+
+      if (!token) {
+        done(false, "Linkul de verificare este incomplet.");
+        return;
+      }
+
+      fetch("/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token })
+      })
+        .then(function (response) {
+          return response.json().then(function (payload) {
+            if (!response.ok) throw new Error(payload.error || "Request failed.");
+            return payload;
+          });
+        })
+        .then(function () {
+          done(true, "Contul tau este verificat. Poti continua in contul tau.");
+        })
+        .catch(function (error) {
+          done(false, error.message || "Linkul de verificare este invalid sau a expirat.");
+        });
+    })();
+  </script>
+</body>
+</html>

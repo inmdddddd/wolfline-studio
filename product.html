@@ -137,13 +137,43 @@
         </dl>
       </div>
       <div class="product-specs" data-product-sizes></div>
-      <button type="button" data-product-add>Add to cart</button>
+      <div class="product-add-row">
+        <button type="button" data-product-add>Add to cart</button>
+        <button type="button" class="product-wishlist-toggle" data-wishlist-toggle aria-label="Save to wishlist" title="Save to wishlist">&hearts;</button>
+      </div>
       <span class="form-message" data-product-message></span>
       <ul class="trust-strip" aria-label="Why shop with us">
         <li data-i18n="trust.shipping">Ships in 2–5 business days</li>
         <li data-i18n="trust.returns">Easy 14-day returns</li>
         <li data-i18n="trust.payment">100% secure payment</li>
       </ul>
+
+      <div class="product-reviews" data-product-reviews>
+        <div class="product-reviews-head">
+          <p data-i18n="product.reviews.title">Reviews</p>
+          <span data-reviews-summary>No reviews yet.</span>
+        </div>
+        <ul class="product-reviews-list" data-reviews-list></ul>
+
+        <form class="product-review-form" data-review-form>
+          <label>
+            <span data-i18n="product.reviews.rating">Rating</span>
+            <select name="rating">
+              <option value="5">5</option>
+              <option value="4">4</option>
+              <option value="3">3</option>
+              <option value="2">2</option>
+              <option value="1">1</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="product.reviews.text">Your review</span>
+            <textarea name="text" rows="3" minlength="3" required></textarea>
+          </label>
+          <button type="submit" data-i18n="product.reviews.submit">Submit review</button>
+          <span class="form-message" data-review-message></span>
+        </form>
+      </div>
     </section>
   </main>
 
@@ -186,5 +216,6 @@
   <script src="product.js?v=poll-fix-1"></script>
   <script src="security.js?v=no-block-1"></script>
   <script src="auth.js?v=mobile-drawer-1"></script>
+  <script src="wishlist.js"></script>
 </body>
 </html>

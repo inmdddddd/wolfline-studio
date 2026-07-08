@@ -39,6 +39,9 @@
         <button type="button" data-admin-tab="waitlist">Waitlist</button>
         <button type="button" data-admin-tab="customers">Customers</button>
         <button type="button" data-admin-tab="orders">Orders</button>
+        <button type="button" data-admin-tab="stats">Statistici</button>
+        <button type="button" data-admin-tab="reviews">Recenzii</button>
+        <button type="button" data-admin-tab="coupons">Cupoane</button>
         <button type="button" data-admin-tab="content">Continut</button>
       </nav>
     </aside>
@@ -87,6 +90,15 @@
             <span>Trimite un email de test catre contul tau admin, ca sa confirmi ca SMTP-ul e configurat corect.</span>
             <button type="button" data-email-test>Trimite email test</button>
             <span class="form-message" data-email-test-message></span>
+          </article>
+          <article>
+            <strong>Export date (CSV)</strong>
+            <span>Descarca datele pentru Excel sau alte unelte.</span>
+            <div class="admin-export-actions">
+              <a href="/api/admin/export/orders.csv" download>Comenzi</a>
+              <a href="/api/admin/export/users.csv" download>Useri</a>
+              <a href="/api/admin/export/notifications.csv" download>Waitlist</a>
+            </div>
           </article>
         </div>
       </div>
@@ -247,6 +259,91 @@
         <p>Orders</p>
         <h2>Incoming orders.</h2>
         <div class="admin-orders" data-orders></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="stats">
+        <div class="admin-view-head">
+          <div>
+            <p>Statistici</p>
+            <h2>Venituri, produse si trafic.</h2>
+          </div>
+        </div>
+        <div class="admin-stats-grid">
+          <article><span data-stats-revenue>0</span><p>Venit total</p></article>
+          <article><span data-stats-aov>0</span><p>Valoare medie comanda</p></article>
+          <article><span data-stats-orders>0</span><p>Comenzi</p></article>
+          <article><span data-stats-conversion>0%</span><p>Conversie (comenzi / pageviews)</p></article>
+        </div>
+        <div class="admin-analytics-grid">
+          <article class="admin-analytics-card">
+            <strong>Venituri, ultimele 14 zile</strong>
+            <ul class="admin-analytics-days" data-stats-revenue-days></ul>
+          </article>
+          <article class="admin-analytics-card">
+            <strong>Produse cele mai vandute</strong>
+            <ul class="admin-analytics-pages" data-stats-top-products></ul>
+          </article>
+        </div>
+        <div class="admin-analytics-grid">
+          <article class="admin-analytics-card">
+            <strong>Surse de trafic (referrer)</strong>
+            <ul class="admin-analytics-pages" data-stats-referrers></ul>
+          </article>
+          <article class="admin-analytics-card">
+            <strong>Limbi / locatie aproximativa (Accept-Language)</strong>
+            <ul class="admin-analytics-pages" data-stats-locales></ul>
+          </article>
+        </div>
+        <div class="admin-analytics-grid">
+          <article class="admin-analytics-card">
+            <strong>Trafic pe ora din zi</strong>
+            <ul class="admin-analytics-days" data-stats-hours></ul>
+          </article>
+          <article class="admin-analytics-card">
+            <strong>Vizite recente (IP, ora, referrer)</strong>
+            <ul class="admin-analytics-pages admin-visits-list" data-stats-visits></ul>
+          </article>
+        </div>
+        <div class="admin-note-grid">
+          <article>
+            <strong>Nota despre locatie si IP</strong>
+            <span>Nu folosim o baza de date GeoIP - "locatia" de mai sus e o aproximare pe baza limbii browserului (Accept-Language), nu tara/orasul real. IP-urile sunt stocate ca parte din log-ul de trafic; site-ul se prezinta ca fara cookie-uri, dar aceasta colectare de IP e o forma de date personale - ia in calcul GDPR daca o folosesti activ.</span>
+          </article>
+        </div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="reviews">
+        <div class="admin-view-head">
+          <div>
+            <p>Recenzii</p>
+            <h2>Modereaza recenziile clientilor.</h2>
+          </div>
+        </div>
+        <div class="admin-orders" data-reviews-admin></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="coupons">
+        <div class="admin-view-head">
+          <div>
+            <p>Cupoane</p>
+            <h2>Coduri de reducere.</h2>
+          </div>
+        </div>
+        <form class="admin-coupon-form" data-coupon-form>
+          <label>Cod<input name="code" placeholder="BECA10" required></label>
+          <label>Tip
+            <select name="type">
+              <option value="percent">Procent (%)</option>
+              <option value="fixed">Suma fixa</option>
+            </select>
+          </label>
+          <label>Valoare<input name="value" type="number" min="0" step="0.01" required></label>
+          <label>Utilizari maxime (optional)<input name="maxUses" type="number" min="1"></label>
+          <label>Expira la (optional)<input name="expiresAt" type="date"></label>
+          <button type="submit">Adauga cupon</button>
+          <span class="form-message" data-coupon-message></span>
+        </form>
+        <div class="admin-orders" data-coupons-list></div>
       </div>
 
       <div class="admin-panel admin-view" data-admin-view="content">

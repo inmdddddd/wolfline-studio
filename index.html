@@ -166,6 +166,7 @@
         <label><span data-i18n="cart.email">Email</span><input name="customerEmail" type="email" autocomplete="email" required></label>
         <label><span data-i18n="cart.phone">Phone</span><input name="customerPhone" autocomplete="tel" required></label>
         <label><span data-i18n="cart.address">Address</span><textarea name="customerAddress" rows="3" required></textarea></label>
+        <label><span data-i18n="cart.coupon">Discount code (optional)</span><input name="couponCode" autocomplete="off" data-checkout-coupon></label>
         <button type="submit" data-i18n="cart.placeOrder">Place order</button>
         <p class="checkout-trust-note" data-i18n="checkout.trustNote">Your details are encrypted and used only to process this order.</p>
         <ul class="trust-strip" aria-label="Why shop with us">
@@ -218,6 +219,7 @@
               <input name="password" type="password" autocomplete="current-password" required>
             </label>
             <button type="submit" data-i18n="auth.login.button">Login</button>
+            <a class="auth-forgot-link" href="/forgot-password.html" data-i18n="auth.forgotPassword">Forgot password?</a>
             <span class="form-message" data-form-message></span>
           </form>
 
