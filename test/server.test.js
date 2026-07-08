@@ -105,6 +105,7 @@ test("safePublicUser exposes only whitelisted fields and nulls falsy input", () 
     name: "A",
     role: "client",
     emailVerified: false,
+    isPrimaryAdmin: false,
     createdAt: "2024-01-01T00:00:00.000Z"
   });
   assert.equal(server.safePublicUser(null), null);

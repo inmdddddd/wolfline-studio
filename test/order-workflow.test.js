@@ -297,3 +297,70 @@ test("invalid status value is rejected", async () => {
   assert.equal(status, 400);
   assert.match(payload.error, /status/i);
 });
+
+test("concurrent status updates on different orders don't clobber each other (regression: production audit)", async () => {
+  // Before the withStockLock fix, PUT /api/admin/orders/:id read the whole
+  // orders.json array, awaited the (slow) email send, then wrote the whole
+  // array back. Two concurrent updates to two DIFFERENT orders could each
+  // read the array before either write landed, so whichever wrote last would
+  // silently overwrite the other's change with its own stale copy.
+  const orderA = seedOrder({ status: "confirmed" });
+  const orderB = seedOrder({ status: "confirmed" });
+
+  const [resultA, resultB] = await Promise.all([
+    putOrderStatus(orderA.id, { status: "processing" }),
+    putOrderStatus(orderB.id, { status: "cancelled", cancellationReason: "test" })
+  ]);
+
+  assert.equal(resultA.status, 200);
+  assert.equal(resultB.status, 200);
+
+  // Re-read from disk (not the in-memory response payloads) so this actually
+  // proves both writes landed, not just that both requests returned 200.
+  assert.equal(getOrder(orderA.id).status, "processing", "order A's change must not be lost");
+  assert.equal(getOrder(orderB.id).status, "cancelled", "order B's change must not be lost");
+});
+
+test("primary-admin role-management gate is not tied to a hardcoded email", async () => {
+  // Regression: canManageRoles used to be `session.user.email === "admin@beca.local"`.
+  // The bootstrap admin in this test suite is created with a different email
+  // (ADMIN_EMAIL above), which is exactly the real-world situation on the live
+  // site after the admin account's email was changed - so this only passes if
+  // the gate is backed by the persistent isPrimaryAdmin flag, not the email.
+  const response = await fetch(`${baseUrl}/api/admin/users`, {
+    headers: { Cookie: adminCookie }
+  });
+  const payload = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(payload.canManageRoles, true);
+
+  const bootstrapAdmin = payload.users.find((user) => user.email === ADMIN_EMAIL);
+  assert.ok(bootstrapAdmin, "bootstrap admin should be in the users list");
+  assert.equal(bootstrapAdmin.isPrimaryAdmin, true);
+});
+
+test("checkout is rate-limited per IP (regression: production audit - was unthrottled)", async () => {
+  // /api/checkout previously had no rate limit at all, unlike login/register/
+  // forgot-password. With no payment gate in front of it, that let anyone
+  // script repeated orders to drain real stock without paying. The empty-cart
+  // 400 still proves the point: the limiter runs before cart/body validation,
+  // so if it's wired up, request #11 in a burst comes back 429, not 400.
+  const attempts = [];
+  for (let i = 0; i < 11; i++) {
+    attempts.push(
+      fetch(`${baseUrl}/api/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: "Rate Limit Test",
+          customerEmail: "ratelimit@example.com",
+          customerPhone: "0700000000",
+          customerAddress: "Str. Test 1"
+        })
+      })
+    );
+  }
+  const responses = await Promise.all(attempts);
+  const statuses = responses.map((response) => response.status);
+  assert.ok(statuses.includes(429), `expected at least one 429 among ${JSON.stringify(statuses)}`);
+});

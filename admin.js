@@ -760,7 +760,6 @@ let canManageUserRoles = false;
 
 function renderUsers(users, options = {}) {
   canManageUserRoles = Boolean(options.canManageRoles);
-  const primaryAdminEmail = options.primaryAdminEmail || "admin@beca.local";
   const list = document.querySelector("[data-users]");
   list.innerHTML = "";
 
@@ -774,7 +773,7 @@ function renderUsers(users, options = {}) {
     name.textContent = user.name;
     email.textContent = user.email;
 
-    if (canManageUserRoles && user.email !== primaryAdminEmail) {
+    if (canManageUserRoles && !user.isPrimaryAdmin) {
       const select = document.createElement("select");
       const save = document.createElement("button");
 
@@ -985,8 +984,7 @@ async function loadDashboard() {
   renderProducts(products);
   renderPhotoProducts(products);
   renderUsers(usersPayload.users, {
-    canManageRoles: usersPayload.canManageRoles,
-    primaryAdminEmail: usersPayload.primaryAdminEmail
+    canManageRoles: usersPayload.canManageRoles
   });
   renderOrders(orders);
   renderNotifications(notifications);

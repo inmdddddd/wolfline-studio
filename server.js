@@ -84,7 +84,8 @@ function ensureDataFiles() {
       name: "BeCa Admin",
       password: adminPassword,
       role: "admin",
-      emailVerified: true
+      emailVerified: true,
+      isPrimaryAdmin: true
     });
     writeJson("users.json", [admin]);
   }
@@ -207,6 +208,25 @@ function ensureDataFiles() {
     return { ...user, emailVerified: true };
   });
   if (migratedUsers) writeJson("users.json", migratedUsersList);
+
+  // The "primary admin" gate used to compare user.email against a hardcoded
+  // "admin@beca.local" string. Once that account's email is changed (e.g. to
+  // receive real SMTP mail), the comparison silently stops matching anyone and
+  // role management becomes unusable. Back it with a persistent flag instead,
+  // assigned once here to whichever admin account is oldest if nothing already
+  // holds it - this covers accounts created before this flag existed.
+  const usersForPrimaryFlag = readJson("users.json", []);
+  if (usersForPrimaryFlag.length && !usersForPrimaryFlag.some((user) => user.isPrimaryAdmin)) {
+    const admins = usersForPrimaryFlag
+      .filter((user) => user.role === "admin")
+      .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    const primary = admins[0];
+    if (primary) {
+      writeJson("users.json", usersForPrimaryFlag.map((user) => (
+        user.id === primary.id ? { ...user, isPrimaryAdmin: true } : user
+      )));
+    }
+  }
 }
 
 function readJson(fileName, fallback) {
@@ -323,7 +343,7 @@ function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
-function createUserRecord({ email, name, password, role, emailVerified = false }) {
+function createUserRecord({ email, name, password, role, emailVerified = false, isPrimaryAdmin = false }) {
   return {
     id: crypto.randomUUID(),
     email: normalizeEmail(email),
@@ -331,6 +351,7 @@ function createUserRecord({ email, name, password, role, emailVerified = false }
     role: role === "admin" ? "admin" : "client",
     passwordHash: hashPassword(password),
     emailVerified: Boolean(emailVerified),
+    isPrimaryAdmin: Boolean(isPrimaryAdmin),
     createdAt: new Date().toISOString()
   };
 }
@@ -657,6 +678,7 @@ function safePublicUser(user) {
     name: user.name,
     role: user.role,
     emailVerified: Boolean(user.emailVerified),
+    isPrimaryAdmin: Boolean(user.isPrimaryAdmin),
     createdAt: user.createdAt
   };
 }
@@ -1524,6 +1546,16 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
+    // Unlike login/register, checkout had no rate limit at all. With no payment
+    // gate in front of it yet, an unthrottled checkout endpoint lets anyone script
+    // repeated orders to decrement real stock (and brute-force coupon codes)
+    // without ever paying. This doesn't fix the missing payment step, but it
+    // closes the easiest automated-abuse path against it.
+    if (isRateLimited(`checkout:${clientIp(request)}`, 10, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
     const session = getSession(request);
     const body = await readBody(request);
     const customer = sanitizeCheckout(body, session);
@@ -1767,6 +1799,42 @@ function checkAbandonedCarts() {
 
 setInterval(checkAbandonedCarts, 1000 * 60 * 30).unref();
 
+// There was previously no backup of data/*.json at all - a bad write, a bug, or
+// deleting the wrong folder on the VPS would have taken every order/user/review
+// with it, with no way back. This keeps rolling local snapshots so a bad state
+// can be rolled back to a recent one. It does NOT protect against losing the
+// whole disk/server - that still needs an off-server backup, which this can't
+// set up on its own since it has no access to external storage.
+// Sibling of dataDir (not root) so this follows DATA_DIR when it's overridden -
+// otherwise an isolated/test DATA_DIR would still write backups into the real
+// project checkout instead of next to the data it's actually backing up.
+const backupsDir = path.join(dataDir, "..", "backups");
+const MAX_BACKUPS = 14;
+
+function backupDataFiles() {
+  try {
+    fs.mkdirSync(backupsDir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const target = path.join(backupsDir, stamp);
+    fs.mkdirSync(target, { recursive: true });
+
+    for (const fileName of fs.readdirSync(dataDir)) {
+      if (!fileName.endsWith(".json")) continue;
+      fs.copyFileSync(path.join(dataDir, fileName), path.join(target, fileName));
+    }
+
+    const existing = fs.readdirSync(backupsDir)
+      .filter((name) => fs.statSync(path.join(backupsDir, name)).isDirectory())
+      .sort();
+    while (existing.length > MAX_BACKUPS) {
+      const oldest = existing.shift();
+      fs.rmSync(path.join(backupsDir, oldest), { recursive: true, force: true });
+    }
+  } catch (error) {
+    console.error("[backup]", error);
+  }
+}
+
 function resolveCoupon(rawCode, total) {
   const code = String(rawCode || "").trim().toUpperCase();
   if (!code) return { coupon: null, discount: 0 };
@@ -1939,16 +2007,15 @@ async function handleAdminApi(request, response, pathname) {
       page,
       pageSize,
       total,
-      canManageRoles: session.user.email === primaryAdminEmail,
-      primaryAdminEmail
+      canManageRoles: Boolean(session.user.isPrimaryAdmin)
     });
     return true;
   }
 
   const userRoleMatch = pathname.match(/^\/api\/admin\/users\/([a-f0-9-]+)\/role$/);
   if (userRoleMatch && request.method === "PUT") {
-    if (session.user.email !== primaryAdminEmail) {
-      json(response, 403, { error: "Doar BeCa Admin poate modifica roluri." });
+    if (!session.user.isPrimaryAdmin) {
+      json(response, 403, { error: "Doar admin-ul principal poate modifica roluri." });
       return true;
     }
 
@@ -1968,8 +2035,8 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    if (users[index].email === primaryAdminEmail && role !== "admin") {
-      json(response, 400, { error: "BeCa Admin trebuie sa ramana admin." });
+    if (users[index].isPrimaryAdmin && role !== "admin") {
+      json(response, 400, { error: "Admin-ul principal trebuie sa ramana admin." });
       return true;
     }
 
@@ -2240,7 +2307,6 @@ async function handleAdminApi(request, response, pathname) {
 
   if (pathname === "/api/admin/products" && request.method === "POST") {
     const body = await readProductPayload(request);
-    const products = readJson("products.json", []);
     const product = sanitizeProduct(body);
 
     if (!product.name) {
@@ -2248,15 +2314,17 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    products.unshift(product);
-    writeJson("products.json", products);
+    await withStockLock(() => {
+      const products = readJson("products.json", []);
+      products.unshift(product);
+      writeJson("products.json", products);
+    });
     json(response, 200, { ok: true, product });
     return true;
   }
 
   if (pathname === "/api/admin/studio-products" && request.method === "POST") {
     const body = await readBody(request);
-    const products = readJson("products.json", []);
     const imageUrl = saveDataUrlImage(body.previewImage || "", "studio-product");
     const textureUrl = saveDataUrlImage(body.textureImage || "", "studio-texture");
     const product = sanitizeProduct({
@@ -2287,8 +2355,11 @@ async function handleAdminApi(request, response, pathname) {
       shirtColor: String(body.shirtColor || "#ffffff").slice(0, 24)
     };
 
-    products.unshift(product);
-    writeJson("products.json", products);
+    await withStockLock(() => {
+      const products = readJson("products.json", []);
+      products.unshift(product);
+      writeJson("products.json", products);
+    });
     json(response, 200, { ok: true, product });
     return true;
   }
@@ -2296,38 +2367,45 @@ async function handleAdminApi(request, response, pathname) {
   const productMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)$/);
   if (productMatch && request.method === "PUT") {
     const productId = productMatch[1];
-    const products = readJson("products.json", []);
-    const index = products.findIndex((product) => product.id === productId);
+    const existingForBody = readJson("products.json", []).find((product) => product.id === productId);
 
-    if (index === -1) {
+    if (!existingForBody) {
       json(response, 404, { error: "Produsul nu exista." });
       return true;
     }
 
-    const previousStatus = products[index].status;
-    const body = await readProductPayload(request, products[index]);
-    products[index] = sanitizeProduct(body, products[index]);
-    writeJson("products.json", products);
+    // Body reading (readProductPayload can wait on a slow multipart image upload) stays
+    // outside the lock; only the read-modify-write of products.json is serialized, so a
+    // slow upload doesn't stall checkout/other admin writes touching the same file.
+    const body = await readProductPayload(request, existingForBody);
 
-    if (previousStatus !== "live" && products[index].status === "live") {
-      notifyDropLive(products[index]);
+    const result = await withStockLock(() => {
+      const products = readJson("products.json", []);
+      const index = products.findIndex((product) => product.id === productId);
+      if (index === -1) return null;
+
+      const previousStatus = products[index].status;
+      products[index] = sanitizeProduct(body, products[index]);
+      writeJson("products.json", products);
+      return { product: products[index], previousStatus };
+    });
+
+    if (!result) {
+      json(response, 404, { error: "Produsul nu mai exista." });
+      return true;
     }
 
-    json(response, 200, { ok: true, product: products[index] });
+    if (result.previousStatus !== "live" && result.product.status === "live") {
+      notifyDropLive(result.product);
+    }
+
+    json(response, 200, { ok: true, product: result.product });
     return true;
   }
 
   const productSceneMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)\/scene-image$/);
   if (productSceneMatch && request.method === "POST") {
     const productId = productSceneMatch[1];
-    const products = readJson("products.json", []);
-    const index = products.findIndex((product) => product.id === productId);
-
-    if (index === -1) {
-      json(response, 404, { error: "Produsul nu exista." });
-      return true;
-    }
-
     const body = await readBody(request);
     const imageUrl = saveDataUrlImage(body.image || "", "scene-product");
 
@@ -2336,21 +2414,36 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    products[index] = {
-      ...products[index],
-      imageUrl,
-      sceneImageUrl: imageUrl,
-      updatedAt: new Date().toISOString()
-    };
-    writeJson("products.json", products);
-    json(response, 200, { ok: true, product: products[index] });
+    const result = await withStockLock(() => {
+      const products = readJson("products.json", []);
+      const index = products.findIndex((product) => product.id === productId);
+      if (index === -1) return null;
+
+      products[index] = {
+        ...products[index],
+        imageUrl,
+        sceneImageUrl: imageUrl,
+        updatedAt: new Date().toISOString()
+      };
+      writeJson("products.json", products);
+      return products[index];
+    });
+
+    if (!result) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+
+    json(response, 200, { ok: true, product: result });
     return true;
   }
 
   if (productMatch && request.method === "DELETE") {
     const productId = productMatch[1];
-    const products = readJson("products.json", []);
-    writeJson("products.json", products.filter((product) => product.id !== productId));
+    await withStockLock(() => {
+      const products = readJson("products.json", []);
+      writeJson("products.json", products.filter((product) => product.id !== productId));
+    });
     json(response, 200, { ok: true });
     return true;
   }
@@ -2366,54 +2459,67 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    const orders = readJson("orders.json", []);
-    const index = orders.findIndex((order) => order.id === orderMatch[1]);
+    // Phase 1 runs under the data lock so a second concurrent order update (another
+    // admin, another tab, a double-click) can't read the same pre-update array and
+    // overwrite this one's write. It only does synchronous JSON read/write - the slow
+    // part (sending the email, up to SMTP_TIMEOUT_MS) happens after the lock is
+    // released, so a slow/down SMTP server doesn't stall every other order update.
+    const phase1 = await withStockLock(() => {
+      const orders = readJson("orders.json", []);
+      const index = orders.findIndex((order) => order.id === orderMatch[1]);
 
-    if (index === -1) {
-      json(response, 404, { error: "Comanda nu exista." });
+      if (index === -1) {
+        return { error: "Comanda nu exista.", status: 404 };
+      }
+
+      const existing = orders[index];
+      const previousStatus = existing.status;
+      const existingFulfillment = existing.fulfillment || {};
+
+      const nextFulfillment = {
+        courierName: body.courierName !== undefined ? String(body.courierName).trim().slice(0, 120) : (existingFulfillment.courierName || ""),
+        trackingNumber: body.trackingNumber !== undefined ? String(body.trackingNumber).trim().slice(0, 120) : (existingFulfillment.trackingNumber || ""),
+        trackingUrl: body.trackingUrl !== undefined ? String(body.trackingUrl).trim().slice(0, 400) : (existingFulfillment.trackingUrl || ""),
+        estimatedDeliveryDate: body.estimatedDeliveryDate !== undefined ? String(body.estimatedDeliveryDate).trim().slice(0, 40) : (existingFulfillment.estimatedDeliveryDate || ""),
+        customerNote: body.customerNote !== undefined ? String(body.customerNote).trim().slice(0, 400) : (existingFulfillment.customerNote || ""),
+        internalNote: body.internalNote !== undefined ? String(body.internalNote).trim().slice(0, 400) : (existingFulfillment.internalNote || "")
+      };
+
+      if (status === "shipped" && !(nextFulfillment.courierName && (nextFulfillment.trackingNumber || nextFulfillment.trackingUrl))) {
+        return { error: "Adauga curier si tracking (AWB sau link) inainte de a marca comanda drept expediata.", status: 400 };
+      }
+
+      const cancellationReason = body.cancellationReason !== undefined
+        ? String(body.cancellationReason).trim().slice(0, 500)
+        : (existing.cancellationReason || "");
+
+      const isTransition = previousStatus !== status;
+      const now = new Date().toISOString();
+
+      const updatedOrder = {
+        ...existing,
+        status,
+        fulfillment: nextFulfillment,
+        cancellationReason,
+        updatedAt: now,
+        processedAt: isTransition && status === "processing" ? now : existing.processedAt || null,
+        shippedAt: isTransition && status === "shipped" ? now : existing.shippedAt || null,
+        deliveredAt: isTransition && status === "delivered" ? now : existing.deliveredAt || null,
+        cancelledAt: isTransition && status === "cancelled" ? now : existing.cancelledAt || null
+      };
+
+      orders[index] = updatedOrder;
+      writeJson("orders.json", orders);
+
+      return { updatedOrder, isTransition, previousStatus, now };
+    });
+
+    if (phase1.error) {
+      json(response, phase1.status, { error: phase1.error });
       return true;
     }
 
-    const existing = orders[index];
-    const previousStatus = existing.status;
-    const existingFulfillment = existing.fulfillment || {};
-
-    const nextFulfillment = {
-      courierName: body.courierName !== undefined ? String(body.courierName).trim().slice(0, 120) : (existingFulfillment.courierName || ""),
-      trackingNumber: body.trackingNumber !== undefined ? String(body.trackingNumber).trim().slice(0, 120) : (existingFulfillment.trackingNumber || ""),
-      trackingUrl: body.trackingUrl !== undefined ? String(body.trackingUrl).trim().slice(0, 400) : (existingFulfillment.trackingUrl || ""),
-      estimatedDeliveryDate: body.estimatedDeliveryDate !== undefined ? String(body.estimatedDeliveryDate).trim().slice(0, 40) : (existingFulfillment.estimatedDeliveryDate || ""),
-      customerNote: body.customerNote !== undefined ? String(body.customerNote).trim().slice(0, 400) : (existingFulfillment.customerNote || ""),
-      internalNote: body.internalNote !== undefined ? String(body.internalNote).trim().slice(0, 400) : (existingFulfillment.internalNote || "")
-    };
-
-    if (status === "shipped" && !(nextFulfillment.courierName && (nextFulfillment.trackingNumber || nextFulfillment.trackingUrl))) {
-      json(response, 400, { error: "Adauga curier si tracking (AWB sau link) inainte de a marca comanda drept expediata." });
-      return true;
-    }
-
-    const cancellationReason = body.cancellationReason !== undefined
-      ? String(body.cancellationReason).trim().slice(0, 500)
-      : (existing.cancellationReason || "");
-
-    const isTransition = previousStatus !== status;
-    const now = new Date().toISOString();
-
-    const updatedOrder = {
-      ...existing,
-      status,
-      fulfillment: nextFulfillment,
-      cancellationReason,
-      updatedAt: now,
-      processedAt: isTransition && status === "processing" ? now : existing.processedAt || null,
-      shippedAt: isTransition && status === "shipped" ? now : existing.shippedAt || null,
-      deliveredAt: isTransition && status === "delivered" ? now : existing.deliveredAt || null,
-      cancelledAt: isTransition && status === "cancelled" ? now : existing.cancelledAt || null
-    };
-
-    orders[index] = updatedOrder;
-    writeJson("orders.json", orders);
-
+    const { updatedOrder, isTransition, previousStatus, now } = phase1;
     const sendEmailRequested = body.sendEmail !== false;
     let attemptedEmail = false;
     let emailResult = { ok: false };
@@ -2438,7 +2544,15 @@ async function handleAdminApi(request, response, pathname) {
       }
     }
 
-    if (isTransition) {
+    if (!isTransition) {
+      json(response, 200, { ok: true, order: updatedOrder, emailSent: false });
+      return true;
+    }
+
+    // Phase 2 re-reads under the lock again (rather than reusing the phase-1 array)
+    // so it only ever appends onto whatever the freshest state is, even if another
+    // request wrote in between while we were waiting on the email above.
+    const finalOrder = await withStockLock(() => {
       const historyEntry = {
         from: previousStatus,
         to: status,
@@ -2447,34 +2561,36 @@ async function handleAdminApi(request, response, pathname) {
         emailSent: attemptedEmail ? Boolean(emailResult.ok) : false
       };
 
-      const ordersAfterEmail = readJson("orders.json", []);
-      const indexAfterEmail = ordersAfterEmail.findIndex((order) => order.id === orderMatch[1]);
-      if (indexAfterEmail !== -1) {
-        ordersAfterEmail[indexAfterEmail] = {
-          ...ordersAfterEmail[indexAfterEmail],
-          statusHistory: [...(ordersAfterEmail[indexAfterEmail].statusHistory || []), historyEntry]
-        };
-        writeJson("orders.json", ordersAfterEmail);
-        json(response, 200, { ok: true, order: ordersAfterEmail[indexAfterEmail], emailSent: historyEntry.emailSent });
-        return true;
-      }
+      const orders = readJson("orders.json", []);
+      const index = orders.findIndex((order) => order.id === orderMatch[1]);
+      if (index === -1) return null;
+
+      orders[index] = {
+        ...orders[index],
+        statusHistory: [...(orders[index].statusHistory || []), historyEntry]
+      };
+      writeJson("orders.json", orders);
+      return orders[index];
+    });
+
+    if (!finalOrder) {
+      json(response, 404, { error: "Comanda nu mai exista." });
+      return true;
     }
 
-    json(response, 200, { ok: true, order: updatedOrder, emailSent: false });
+    json(response, 200, { ok: true, order: finalOrder, emailSent: attemptedEmail ? Boolean(emailResult.ok) : false });
     return true;
   }
 
   const orderResendMatch = pathname.match(/^\/api\/admin\/orders\/([a-f0-9-]+)\/resend-email$/);
   if (orderResendMatch && request.method === "POST") {
-    const orders = readJson("orders.json", []);
-    const index = orders.findIndex((order) => order.id === orderResendMatch[1]);
+    const order = readJson("orders.json", []).find((item) => item.id === orderResendMatch[1]);
 
-    if (index === -1) {
+    if (!order) {
       json(response, 404, { error: "Comanda nu exista." });
       return true;
     }
 
-    const order = orders[index];
     const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${order.id}`;
     const invoiceUrl = `${SITE_ORIGIN}/invoice.html?order=${order.id}`;
     let emailResult;
@@ -2502,13 +2618,28 @@ async function handleAdminApi(request, response, pathname) {
       resend: true
     };
 
-    orders[index] = {
-      ...order,
-      statusHistory: [...(order.statusHistory || []), historyEntry]
-    };
-    writeJson("orders.json", orders);
+    // Re-read fresh under the lock instead of reusing the `order` read before the
+    // (potentially slow) email send above, so this only ever appends onto the
+    // latest state instead of silently reverting a concurrent status change.
+    const finalOrder = await withStockLock(() => {
+      const orders = readJson("orders.json", []);
+      const index = orders.findIndex((item) => item.id === orderResendMatch[1]);
+      if (index === -1) return null;
 
-    json(response, 200, { ok: emailResult.ok, order: orders[index], reason: emailResult.reason || null });
+      orders[index] = {
+        ...orders[index],
+        statusHistory: [...(orders[index].statusHistory || []), historyEntry]
+      };
+      writeJson("orders.json", orders);
+      return orders[index];
+    });
+
+    if (!finalOrder) {
+      json(response, 404, { error: "Comanda nu mai exista." });
+      return true;
+    }
+
+    json(response, 200, { ok: emailResult.ok, order: finalOrder, reason: emailResult.reason || null });
     return true;
   }
 
@@ -2617,6 +2748,8 @@ function serveUploadedProductFile(response, pathname) {
 
 function start() {
   ensureDataFiles();
+  backupDataFiles();
+  setInterval(backupDataFiles, 1000 * 60 * 60 * 6).unref();
 
   return http.createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || `127.0.0.1:${port}`}`);

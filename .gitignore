@@ -4,6 +4,7 @@ npm-debug.log*
 .env.*
 !.env.example
 tmp/
+backups/
 data/sessions.json
 data/carts.json
 data/orders.json
