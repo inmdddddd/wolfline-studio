@@ -15,6 +15,7 @@
     : false;
 
   function markReady() {
+    stateTarget.classList.remove("is-video-blocked");
     stateTarget.classList.add("is-video-ready");
   }
 
