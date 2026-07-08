@@ -683,6 +683,8 @@ function publicOrder(order) {
     total: order.total,
     discount: order.discount || 0,
     couponCode: order.couponCode || null,
+    customerEmail: order.customerEmail,
+    customerPhone: order.customerPhone,
     items: (order.items || []).map((item) => ({
       name: item.name,
       size: item.size || "",
@@ -866,7 +868,7 @@ function canAccessFile(requestedPath, session) {
     return false;
   }
 
-  if (requestedPath === "account.html") {
+  if (requestedPath === "account.html" || requestedPath === "orders.html") {
     return Boolean(session);
   }
 
@@ -1600,10 +1602,26 @@ async function handleShopApi(request, response, pathname) {
     }
 
     const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${outcome.order.id}`;
-    email.sendMail(email.buildOrderConfirmationEmail(outcome.order, orderUrl)).catch(() => {});
+    const invoiceUrl = `${SITE_ORIGIN}/invoice.html?order=${outcome.order.id}`;
+    email.sendMail(email.buildOrderConfirmationEmail(outcome.order, orderUrl, invoiceUrl)).catch(() => {});
 
     const { cart } = getCart(request, response, session);
     json(response, 200, { ok: true, order: outcome.order, cart: buildCartPayload(cart) });
+    return true;
+  }
+
+  if (pathname === "/api/orders" && request.method === "GET") {
+    const session = getSession(request);
+    if (!session) {
+      json(response, 401, { error: "Login required." });
+      return true;
+    }
+
+    const orders = readJson("orders.json", [])
+      .filter((order) => order.userId === session.user.id)
+      .map(publicOrder);
+
+    json(response, 200, { orders });
     return true;
   }
 
@@ -2324,7 +2342,8 @@ async function handleAdminApi(request, response, pathname) {
 
     if (previousStatus !== status) {
       const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${orders[index].id}`;
-      email.sendMail(email.buildOrderStatusEmail(orders[index], orderUrl)).catch(() => {});
+      const invoiceUrl = `${SITE_ORIGIN}/invoice.html?order=${orders[index].id}`;
+      email.sendMail(email.buildOrderStatusEmail(orders[index], orderUrl, invoiceUrl)).catch(() => {});
     }
 
     json(response, 200, { ok: true, order: orders[index] });
@@ -2342,7 +2361,7 @@ function serveFile(request, response, pathname) {
   const filePath = path.resolve(root, safePath);
 
   if (!filePath.startsWith(rootResolved) || !canAccessFile(publicPath, session)) {
-    if (publicPath === "account.html") {
+    if (publicPath === "account.html" || publicPath === "orders.html") {
       redirect(response, "/login.html");
       return;
     }

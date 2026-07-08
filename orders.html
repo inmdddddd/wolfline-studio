@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Comanda confirmata / BeCa</title>
-  <meta name="description" content="Confirmarea comenzii tale BeCa: numar comanda, status si sumar.">
+  <title>Comenzile mele / BeCa</title>
+  <meta name="description" content="Istoricul comenzilor tale BeCa: status, tracking si facturi.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="stylesheet" href="styles.css?v=gold-5">
@@ -40,7 +40,7 @@
           </div>
           <div class="profile-dropdown-list">
             <a href="/account.html"><span class="profile-row-icon"><img src="assets/icon-user.png" alt=""></span>My Profile</a>
-            <a href="/orders.html"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>My Orders</a>
+            <a href="/orders.html"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Comenzile mele</a>
             <a href="/admin/dashboard.html" data-admin-only hidden><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Admin Panel</a>
             <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Settings</a>
           </div>
@@ -75,8 +75,16 @@
     </aside>
   </div>
 
-  <main class="info-page-shell" data-thank-you-root>
-    <p class="thank-you-loading">Se incarca comanda...</p>
+  <main class="info-page-shell">
+    <section class="info-hero">
+      <p class="beca-kicker">Cont</p>
+      <h1>Comenzile mele.</h1>
+      <p class="info-lede">Statusul si istoricul comenzilor tale BeCa, cu link direct catre factura fiecareia.</p>
+    </section>
+
+    <section class="info-section" data-orders-root>
+      <p class="orders-loading">Se incarca comenzile...</p>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -115,7 +123,7 @@
 
   <script src="locale.js?v=etapa1-1"></script>
   <script src="script.js?v=etapa1-1"></script>
-  <script src="thank-you.js?v=1"></script>
+  <script src="orders.js"></script>
   <script src="security.js?v=no-block-1"></script>
   <script src="auth.js?v=mobile-drawer-1"></script>
 </body>

@@ -78,6 +78,7 @@
         <h2>${escapeHtml(text("thankYou.viewShop", "Keep exploring"))}</h2>
         <div class="info-cta-actions">
           <a href="/">${escapeHtml(text("thankYou.backHome", "Back to home"))}</a>
+          <a href="/invoice.html?order=${encodeURIComponent(order.id)}">${escapeHtml(text("thankYou.invoice", "View invoice"))}</a>
           <a href="/support.html">${escapeHtml(text("thankYou.support", "Need help? Contact support"))}</a>
         </div>
       </section>
