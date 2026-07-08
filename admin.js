@@ -529,6 +529,143 @@ function renderNotifications(notifications) {
   });
 }
 
+const ORDER_STATUSES = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
+const ORDER_STATUS_FLOW = ["confirmed", "processing", "shipped", "delivered"];
+const orderExpandedState = new Set();
+
+function orderFieldsVisibleFor(status) {
+  return {
+    shipped: status === "shipped",
+    cancelled: status === "cancelled"
+  };
+}
+
+function computeSkipWarning(currentStatus, nextStatus) {
+  if (nextStatus === "cancelled") {
+    if (currentStatus === "shipped" || currentStatus === "delivered") {
+      return `Comanda e deja "${currentStatus}" - anularea dupa acest pas iese din fluxul obisnuit, dar poti continua.`;
+    }
+    return "";
+  }
+
+  const currentIndex = ORDER_STATUS_FLOW.indexOf(currentStatus);
+  const nextIndex = ORDER_STATUS_FLOW.indexOf(nextStatus);
+  if (currentIndex === -1 || nextIndex === -1) return "";
+  if (nextIndex - currentIndex > 1) {
+    const skipped = ORDER_STATUS_FLOW.slice(currentIndex + 1, nextIndex).join(", ");
+    return `Sari peste pasul/pasii: ${skipped}. Poti continua, dar clientul nu va primi emailul pentru ${skipped}.`;
+  }
+  if (nextIndex !== -1 && currentIndex !== -1 && nextIndex < currentIndex) {
+    return "Muti comanda inapoi in flux fata de statusul curent.";
+  }
+  return "";
+}
+
+function renderOrderTimeline(order) {
+  const entries = order.statusHistory || [];
+  if (!entries.length) return "<p class=\"order-timeline-empty\">Fara istoric inca.</p>";
+
+  return `<ul class="order-timeline-list">${entries.slice().reverse().map((entry) => `
+    <li>
+      <span>${entry.from ? `${entry.from} &rarr; ${entry.to}` : `creata (${entry.to})`}${entry.resend ? " &middot; retrimis manual" : ""}</span>
+      <small>${new Date(entry.changedAt).toLocaleString()}${entry.changedBy ? ` &middot; ${entry.changedBy}` : ""} &middot; email: ${entry.emailSent ? "trimis" : "netrimis"}</small>
+    </li>
+  `).join("")}</ul>`;
+}
+
+function createOrderDetailPanel(order) {
+  const panel = document.createElement("div");
+  panel.className = "order-detail-panel";
+  panel.hidden = !orderExpandedState.has(order.id);
+
+  const form = document.createElement("form");
+  form.className = "order-status-form";
+  form.dataset.orderStatusForm = order.id;
+
+  const statusLabel = document.createElement("label");
+  const statusSelect = document.createElement("select");
+  statusSelect.name = "status";
+  statusSelect.dataset.orderStatusSelect = order.id;
+  ORDER_STATUSES.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    option.selected = order.status === value;
+    statusSelect.appendChild(option);
+  });
+  statusLabel.textContent = "New status";
+  statusLabel.appendChild(statusSelect);
+
+  const noteLabel = document.createElement("label");
+  const noteInput = document.createElement("textarea");
+  noteInput.name = "customerNote";
+  noteInput.rows = 2;
+  noteInput.placeholder = "Vizibila clientului in email (optional)";
+  noteInput.value = order.fulfillment?.customerNote || "";
+  noteLabel.textContent = "Note pentru client (optional)";
+  noteLabel.appendChild(noteInput);
+
+  const shippedFields = document.createElement("div");
+  shippedFields.className = "order-fields-shipped";
+  shippedFields.dataset.fieldsFor = "shipped";
+  shippedFields.append(
+    createField("Courier", "courierName", order.fulfillment?.courierName || ""),
+    createField("AWB / Tracking number", "trackingNumber", order.fulfillment?.trackingNumber || ""),
+    createField("Tracking URL", "trackingUrl", order.fulfillment?.trackingUrl || ""),
+    createField("Estimated delivery date", "estimatedDeliveryDate", order.fulfillment?.estimatedDeliveryDate || "", false, "date"),
+    createTextarea("Internal note (nu apare in email)", "internalNote", order.fulfillment?.internalNote || "")
+  );
+
+  const cancelledFields = document.createElement("div");
+  cancelledFields.className = "order-fields-cancelled";
+  cancelledFields.dataset.fieldsFor = "cancelled";
+  cancelledFields.appendChild(createTextarea("Motiv anulare", "cancellationReason", order.cancellationReason || ""));
+
+  const warning = document.createElement("span");
+  warning.className = "order-skip-warning";
+  warning.dataset.orderSkipWarning = order.id;
+  warning.hidden = true;
+
+  const sendEmailLabel = document.createElement("label");
+  sendEmailLabel.className = "order-send-email-check";
+  const sendEmailCheckbox = document.createElement("input");
+  sendEmailCheckbox.type = "checkbox";
+  sendEmailCheckbox.name = "sendEmail";
+  sendEmailCheckbox.checked = true;
+  sendEmailLabel.append(sendEmailCheckbox, document.createTextNode(" Send customer email"));
+
+  const actions = document.createElement("div");
+  actions.className = "order-detail-actions";
+  const saveButton = document.createElement("button");
+  saveButton.type = "submit";
+  saveButton.textContent = "Save status";
+  const resendButton = document.createElement("button");
+  resendButton.type = "button";
+  resendButton.dataset.orderResend = order.id;
+  resendButton.textContent = "Resend last email";
+  actions.append(saveButton, resendButton);
+
+  const message = document.createElement("span");
+  message.className = "form-message";
+  message.dataset.orderFormMessage = order.id;
+
+  form.append(statusLabel, noteLabel, shippedFields, cancelledFields, warning, sendEmailLabel, actions, message);
+
+  const timeline = document.createElement("div");
+  timeline.className = "order-timeline";
+  timeline.innerHTML = `<strong>Istoric</strong>${renderOrderTimeline(order)}`;
+
+  panel.append(form, timeline);
+  syncOrderFieldVisibility(panel, order.status);
+  return panel;
+}
+
+function syncOrderFieldVisibility(panel, status) {
+  const visibility = orderFieldsVisibleFor(status);
+  panel.querySelector("[data-fields-for='shipped']").hidden = !visibility.shipped;
+  panel.querySelector("[data-fields-for='cancelled']").hidden = !visibility.cancelled;
+}
+
 function renderOrders(orders) {
   const list = document.querySelector("[data-orders]");
   if (!list) return;
@@ -545,34 +682,49 @@ function renderOrders(orders) {
 
   orders.forEach((order) => {
     const item = document.createElement("article");
+    const summary = document.createElement("div");
     const info = document.createElement("div");
     const meta = document.createElement("span");
     const title = document.createElement("h3");
     const customer = document.createElement("p");
     const products = document.createElement("small");
+    const tracking = document.createElement("small");
     const controls = document.createElement("div");
     const total = document.createElement("strong");
-    const status = document.createElement("select");
+    const statusBadge = document.createElement("span");
+    const expandButton = document.createElement("button");
 
     item.className = "admin-product admin-order";
+    item.dataset.orderCard = order.id;
+    summary.className = "order-summary-row";
+
     meta.textContent = `${order.number || order.id} / ${new Date(order.createdAt).toLocaleString()}`;
     title.textContent = order.customerName;
     customer.textContent = `${order.customerEmail} / ${order.customerPhone} / ${order.customerAddress}`;
     products.textContent = (order.items || []).map((entry) => `${entry.qty}x ${entry.name}${entry.size ? ` (${entry.size})` : ""}`).join(", ");
+
+    if (order.fulfillment?.courierName || order.fulfillment?.trackingNumber) {
+      tracking.textContent = `${order.fulfillment.courierName || ""} ${order.fulfillment.trackingNumber || ""}`.trim();
+    } else {
+      tracking.hidden = true;
+    }
+
     total.textContent = money(order);
+    statusBadge.className = "order-status-badge";
+    statusBadge.dataset.status = order.status;
+    statusBadge.textContent = order.status;
 
-    ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"].forEach((value) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = value;
-      option.selected = order.status === value;
-      status.appendChild(option);
-    });
-    status.dataset.orderStatus = order.id;
+    expandButton.type = "button";
+    expandButton.dataset.orderExpandToggle = order.id;
+    expandButton.textContent = orderExpandedState.has(order.id) ? "Ascunde detalii" : "Detalii";
 
-    info.append(meta, title, customer, products);
-    controls.append(total, status);
-    item.append(info, controls);
+    info.append(meta, title, customer, products, tracking);
+    controls.append(total, statusBadge, expandButton);
+    summary.append(info, controls);
+
+    const detailPanel = createOrderDetailPanel(order);
+
+    item.append(summary, detailPanel);
     list.appendChild(item);
   });
 }
@@ -1021,15 +1173,124 @@ document.addEventListener("submit", async (event) => {
   }
 });
 
-document.addEventListener("change", async (event) => {
-  const status = event.target.closest("[data-order-status]");
-  if (!status) return;
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-order-expand-toggle]");
+  if (!toggle) return;
 
-  await requestJson(`/api/admin/orders/${status.dataset.orderStatus}`, {
-    method: "PUT",
-    body: JSON.stringify({ status: status.value })
-  });
-  await loadDashboard();
+  const orderId = toggle.dataset.orderExpandToggle;
+  const card = toggle.closest("[data-order-card]");
+  const panel = card?.querySelector(".order-detail-panel");
+  if (!panel) return;
+
+  const isOpen = orderExpandedState.has(orderId);
+  if (isOpen) {
+    orderExpandedState.delete(orderId);
+    panel.hidden = true;
+    toggle.textContent = "Detalii";
+  } else {
+    orderExpandedState.add(orderId);
+    panel.hidden = false;
+    toggle.textContent = "Ascunde detalii";
+  }
+});
+
+document.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-order-status-select]");
+  if (!select) return;
+
+  const orderId = select.dataset.orderStatusSelect;
+  const panel = select.closest(".order-detail-panel");
+  if (!panel) return;
+
+  syncOrderFieldVisibility(panel, select.value);
+
+  const card = document.querySelector(`[data-order-card="${orderId}"]`);
+  const currentStatus = card?.querySelector(".order-status-badge")?.dataset.status;
+  const warning = panel.querySelector(`[data-order-skip-warning="${orderId}"]`);
+  if (warning && currentStatus) {
+    const message = computeSkipWarning(currentStatus, select.value);
+    warning.textContent = message;
+    warning.hidden = !message;
+  }
+});
+
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest("[data-order-status-form]");
+  if (!form) return;
+
+  event.preventDefault();
+  const orderId = form.dataset.orderStatusForm;
+  const message = form.querySelector(`[data-order-form-message="${orderId}"]`);
+  const saveButton = form.querySelector("button[type='submit']");
+  saveButton.disabled = true;
+  if (message) {
+    message.dataset.type = "info";
+    message.textContent = "Se salveaza...";
+  }
+
+  const formData = new FormData(form);
+  const payload = {
+    status: formData.get("status"),
+    customerNote: formData.get("customerNote") || "",
+    sendEmail: formData.get("sendEmail") === "on"
+  };
+  if (formData.has("courierName")) payload.courierName = formData.get("courierName");
+  if (formData.has("trackingNumber")) payload.trackingNumber = formData.get("trackingNumber");
+  if (formData.has("trackingUrl")) payload.trackingUrl = formData.get("trackingUrl");
+  if (formData.has("estimatedDeliveryDate")) payload.estimatedDeliveryDate = formData.get("estimatedDeliveryDate");
+  if (formData.has("internalNote")) payload.internalNote = formData.get("internalNote");
+  if (formData.has("cancellationReason")) payload.cancellationReason = formData.get("cancellationReason");
+
+  try {
+    const result = await requestJson(`/api/admin/orders/${orderId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+    orderExpandedState.add(orderId);
+    if (message) {
+      message.dataset.type = "success";
+      message.textContent = result.emailSent ? "Salvat. Email trimis." : "Salvat.";
+    }
+    await loadDashboard();
+  } catch (error) {
+    if (message) {
+      message.dataset.type = "";
+      message.textContent = error.message;
+    }
+  } finally {
+    saveButton.disabled = false;
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const resendButton = event.target.closest("[data-order-resend]");
+  if (!resendButton) return;
+
+  const orderId = resendButton.dataset.orderResend;
+  const form = resendButton.closest("form");
+  const message = form?.querySelector(`[data-order-form-message="${orderId}"]`);
+  resendButton.disabled = true;
+  if (message) {
+    message.dataset.type = "info";
+    message.textContent = "Se retrimite emailul...";
+  }
+
+  try {
+    const result = await requestJson(`/api/admin/orders/${orderId}/resend-email`, { method: "POST" });
+    orderExpandedState.add(orderId);
+    if (message) {
+      message.dataset.type = result.ok ? "success" : "";
+      message.textContent = result.ok ? "Email retrimis." : `Retrimiterea a esuat (${result.reason || "eroare"}).`;
+    }
+    await loadDashboard();
+  } catch (error) {
+    if (message) {
+      message.dataset.type = "";
+      message.textContent = error.message;
+    }
+  } finally {
+    resendButton.disabled = false;
+  }
 });
 
 document.querySelector("[data-content-form]")?.addEventListener("submit", async (event) => {

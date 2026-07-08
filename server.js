@@ -168,9 +168,34 @@ function ensureDataFiles() {
   const orders = readJson("orders.json", []);
   let migratedOrders = false;
   const migratedOrdersList = orders.map((order) => {
-    if (order.status !== "completed") return order;
-    migratedOrders = true;
-    return { ...order, status: "delivered" };
+    let next = order;
+    if (next.status === "completed") {
+      migratedOrders = true;
+      next = { ...next, status: "delivered" };
+    }
+    if (!next.fulfillment || !Array.isArray(next.statusHistory)) {
+      migratedOrders = true;
+      next = {
+        ...next,
+        processedAt: next.processedAt || null,
+        shippedAt: next.shippedAt || null,
+        deliveredAt: next.deliveredAt || null,
+        cancelledAt: next.cancelledAt || null,
+        fulfillment: next.fulfillment || {
+          courierName: "",
+          trackingNumber: "",
+          trackingUrl: "",
+          estimatedDeliveryDate: "",
+          customerNote: "",
+          internalNote: ""
+        },
+        cancellationReason: next.cancellationReason || "",
+        statusHistory: Array.isArray(next.statusHistory) ? next.statusHistory : [
+          { from: null, to: next.status, changedAt: next.createdAt || new Date().toISOString(), changedBy: null, emailSent: true }
+        ]
+      };
+    }
+    return next;
   });
   if (migratedOrders) writeJson("orders.json", migratedOrdersList);
 
@@ -1554,6 +1579,7 @@ async function handleShopApi(request, response, pathname) {
       }
 
       const orders = readJson("orders.json", []);
+      const createdAt = new Date().toISOString();
       const order = {
         id: crypto.randomUUID(),
         number: `BC-${String(orders.length + 1).padStart(4, "0")}`,
@@ -1573,7 +1599,23 @@ async function handleShopApi(request, response, pathname) {
           qty: item.qty,
           subtotal: item.subtotal
         })),
-        createdAt: new Date().toISOString()
+        processedAt: null,
+        shippedAt: null,
+        deliveredAt: null,
+        cancelledAt: null,
+        fulfillment: {
+          courierName: "",
+          trackingNumber: "",
+          trackingUrl: "",
+          estimatedDeliveryDate: "",
+          customerNote: "",
+          internalNote: ""
+        },
+        cancellationReason: "",
+        statusHistory: [
+          { from: null, to: "confirmed", changedAt: createdAt, changedBy: null, emailSent: true }
+        ],
+        createdAt
       };
 
       orders.unshift(order);
@@ -2332,21 +2374,141 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    const previousStatus = orders[index].status;
-    orders[index] = {
-      ...orders[index],
+    const existing = orders[index];
+    const previousStatus = existing.status;
+    const existingFulfillment = existing.fulfillment || {};
+
+    const nextFulfillment = {
+      courierName: body.courierName !== undefined ? String(body.courierName).trim().slice(0, 120) : (existingFulfillment.courierName || ""),
+      trackingNumber: body.trackingNumber !== undefined ? String(body.trackingNumber).trim().slice(0, 120) : (existingFulfillment.trackingNumber || ""),
+      trackingUrl: body.trackingUrl !== undefined ? String(body.trackingUrl).trim().slice(0, 400) : (existingFulfillment.trackingUrl || ""),
+      estimatedDeliveryDate: body.estimatedDeliveryDate !== undefined ? String(body.estimatedDeliveryDate).trim().slice(0, 40) : (existingFulfillment.estimatedDeliveryDate || ""),
+      customerNote: body.customerNote !== undefined ? String(body.customerNote).trim().slice(0, 400) : (existingFulfillment.customerNote || ""),
+      internalNote: body.internalNote !== undefined ? String(body.internalNote).trim().slice(0, 400) : (existingFulfillment.internalNote || "")
+    };
+
+    if (status === "shipped" && !(nextFulfillment.courierName && (nextFulfillment.trackingNumber || nextFulfillment.trackingUrl))) {
+      json(response, 400, { error: "Adauga curier si tracking (AWB sau link) inainte de a marca comanda drept expediata." });
+      return true;
+    }
+
+    const cancellationReason = body.cancellationReason !== undefined
+      ? String(body.cancellationReason).trim().slice(0, 500)
+      : (existing.cancellationReason || "");
+
+    const isTransition = previousStatus !== status;
+    const now = new Date().toISOString();
+
+    const updatedOrder = {
+      ...existing,
       status,
-      updatedAt: new Date().toISOString()
+      fulfillment: nextFulfillment,
+      cancellationReason,
+      updatedAt: now,
+      processedAt: isTransition && status === "processing" ? now : existing.processedAt || null,
+      shippedAt: isTransition && status === "shipped" ? now : existing.shippedAt || null,
+      deliveredAt: isTransition && status === "delivered" ? now : existing.deliveredAt || null,
+      cancelledAt: isTransition && status === "cancelled" ? now : existing.cancelledAt || null
+    };
+
+    orders[index] = updatedOrder;
+    writeJson("orders.json", orders);
+
+    const sendEmailRequested = body.sendEmail !== false;
+    let attemptedEmail = false;
+    let emailResult = { ok: false };
+
+    if (isTransition && sendEmailRequested) {
+      const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${updatedOrder.id}`;
+
+      if (status === "processing") {
+        attemptedEmail = true;
+        emailResult = await email.sendOrderProcessingEmail(updatedOrder, orderUrl);
+      } else if (status === "shipped") {
+        attemptedEmail = true;
+        emailResult = await email.sendOrderShippedEmail(updatedOrder, orderUrl);
+      } else if (status === "delivered") {
+        attemptedEmail = true;
+        const singleProductId = updatedOrder.items.length === 1 ? updatedOrder.items[0].productId : null;
+        const reviewUrl = singleProductId ? `${SITE_ORIGIN}/product.html?id=${singleProductId}` : null;
+        emailResult = await email.sendOrderDeliveredEmail(updatedOrder, orderUrl, reviewUrl);
+      } else if (status === "cancelled") {
+        attemptedEmail = true;
+        emailResult = await email.sendOrderCancelledEmail(updatedOrder, orderUrl);
+      }
+    }
+
+    if (isTransition) {
+      const historyEntry = {
+        from: previousStatus,
+        to: status,
+        changedAt: now,
+        changedBy: session.user.email,
+        emailSent: attemptedEmail ? Boolean(emailResult.ok) : false
+      };
+
+      const ordersAfterEmail = readJson("orders.json", []);
+      const indexAfterEmail = ordersAfterEmail.findIndex((order) => order.id === orderMatch[1]);
+      if (indexAfterEmail !== -1) {
+        ordersAfterEmail[indexAfterEmail] = {
+          ...ordersAfterEmail[indexAfterEmail],
+          statusHistory: [...(ordersAfterEmail[indexAfterEmail].statusHistory || []), historyEntry]
+        };
+        writeJson("orders.json", ordersAfterEmail);
+        json(response, 200, { ok: true, order: ordersAfterEmail[indexAfterEmail], emailSent: historyEntry.emailSent });
+        return true;
+      }
+    }
+
+    json(response, 200, { ok: true, order: updatedOrder, emailSent: false });
+    return true;
+  }
+
+  const orderResendMatch = pathname.match(/^\/api\/admin\/orders\/([a-f0-9-]+)\/resend-email$/);
+  if (orderResendMatch && request.method === "POST") {
+    const orders = readJson("orders.json", []);
+    const index = orders.findIndex((order) => order.id === orderResendMatch[1]);
+
+    if (index === -1) {
+      json(response, 404, { error: "Comanda nu exista." });
+      return true;
+    }
+
+    const order = orders[index];
+    const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${order.id}`;
+    const invoiceUrl = `${SITE_ORIGIN}/invoice.html?order=${order.id}`;
+    let emailResult;
+
+    if (order.status === "processing") {
+      emailResult = await email.sendOrderProcessingEmail(order, orderUrl);
+    } else if (order.status === "shipped") {
+      emailResult = await email.sendOrderShippedEmail(order, orderUrl);
+    } else if (order.status === "delivered") {
+      const singleProductId = order.items.length === 1 ? order.items[0].productId : null;
+      const reviewUrl = singleProductId ? `${SITE_ORIGIN}/product.html?id=${singleProductId}` : null;
+      emailResult = await email.sendOrderDeliveredEmail(order, orderUrl, reviewUrl);
+    } else if (order.status === "cancelled") {
+      emailResult = await email.sendOrderCancelledEmail(order, orderUrl);
+    } else {
+      emailResult = await email.sendMail(email.buildOrderConfirmationEmail(order, orderUrl, invoiceUrl));
+    }
+
+    const historyEntry = {
+      from: order.status,
+      to: order.status,
+      changedAt: new Date().toISOString(),
+      changedBy: session.user.email,
+      emailSent: Boolean(emailResult.ok),
+      resend: true
+    };
+
+    orders[index] = {
+      ...order,
+      statusHistory: [...(order.statusHistory || []), historyEntry]
     };
     writeJson("orders.json", orders);
 
-    if (previousStatus !== status) {
-      const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${orders[index].id}`;
-      const invoiceUrl = `${SITE_ORIGIN}/invoice.html?order=${orders[index].id}`;
-      email.sendMail(email.buildOrderStatusEmail(orders[index], orderUrl, invoiceUrl)).catch(() => {});
-    }
-
-    json(response, 200, { ok: true, order: orders[index] });
+    json(response, 200, { ok: emailResult.ok, order: orders[index], reason: emailResult.reason || null });
     return true;
   }
 
