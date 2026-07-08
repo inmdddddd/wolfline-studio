@@ -2797,7 +2797,14 @@ function start() {
     }
   }).listen(port, host, () => {
     console.log(`BeCa platform running at http://127.0.0.1:${port}`);
-    if (generatedAdminPassword) {
+
+    // Never print admin credentials in production - pm2/hosting logs are
+    // captured, retained and often shared (including by pasting them into
+    // chat), so anything logged here should be treated as effectively public.
+    // This is dev-only convenience for a fresh local install; a production
+    // deploy must set ADMIN_PASSWORD explicitly via the environment instead
+    // of relying on the auto-generated one ever being recoverable.
+    if (generatedAdminPassword && process.env.NODE_ENV !== "production") {
       console.log(`Generated admin account: ${generatedAdminEmail} / ${generatedAdminPassword}`);
       console.log("Log in and change this password immediately (Account > Security).");
     }
