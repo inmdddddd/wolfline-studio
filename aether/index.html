@@ -22,8 +22,8 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=aether-11">
-  <link rel="stylesheet" href="aether-theme.css?v=aether-11">
+  <link rel="stylesheet" href="styles.css?v=aether-12">
+  <link rel="stylesheet" href="aether-theme.css?v=aether-12">
   <script>
     if (location.protocol === "file:") {
       location.replace("http://127.0.0.1:4189/");
@@ -216,8 +216,12 @@
       <div class="aether-temple-hero__copy" id="heroAccess">
         <div class="hero-copy-view is-active" data-hero-view="intro">
           <div class="aether-glass-card aether-intro-reveal">
+            <!-- The background video already renders "AETHER" as a large
+                 3D title, so this heading is kept for SEO/accessibility
+                 (screen readers, search engines) without visually
+                 duplicating it - see .sr-only in aether-theme.css. -->
+            <h1 class="sr-only">AETHER</h1>
             <p class="aether-temple-hero__eyebrow">Primordial Deity of the Upper Sky</p>
-            <h1 class="aether-temple-hero__title">AETHER</h1>
             <p class="aether-temple-hero__subtitle">Aether is not the sky we see, but the divine air above it — the pure light breathed by the gods.</p>
             <div class="aether-temple-hero__actions">
               <a class="aether-btn aether-btn--glass" href="#relic">Enter the Sanctuary</a>
@@ -425,12 +429,12 @@
     </div>
   </footer>
 
-  <script src="locale.js?v=aether-11"></script>
-  <script src="script.js?v=aether-11"></script>
-  <script src="shop.js?v=aether-11"></script>
-  <script src="auth.js?v=aether-11"></script>
-  <script src="security.js?v=aether-11"></script>
-  <script src="aether-effects.js?v=aether-11"></script>
-  <script src="aether-hero-video.js?v=aether-11"></script>
+  <script src="locale.js?v=aether-12"></script>
+  <script src="script.js?v=aether-12"></script>
+  <script src="shop.js?v=aether-12"></script>
+  <script src="auth.js?v=aether-12"></script>
+  <script src="security.js?v=aether-12"></script>
+  <script src="aether-effects.js?v=aether-12"></script>
+  <script src="aether-hero-video.js?v=aether-12"></script>
 </body>
 </html>
