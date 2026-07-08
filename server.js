@@ -70,7 +70,6 @@ const cartCookie = "beca_cart";
 const primaryAdminEmail = BRAND.primaryAdminEmailDefault;
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
 const cartTtlMs = 1000 * 60 * 60 * 24 * 30;
-const isProduction = process.env.NODE_ENV === "production";
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -593,8 +592,8 @@ function redirect(response, location) {
   response.end();
 }
 
-function setSessionCookie(response, sessionId) {
-  const secure = isProduction ? "; Secure" : "";
+function setSessionCookie(request, response, sessionId) {
+  const secure = isSecureRequest(request) ? "; Secure" : "";
   response.setHeader("Set-Cookie", `${sessionCookie}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(sessionTtlMs / 1000)}${secure}`);
 }
 
@@ -612,8 +611,8 @@ function appendCookie(response, cookieValue) {
   response.setHeader("Set-Cookie", Array.isArray(current) ? [...current, cookieValue] : [current, cookieValue]);
 }
 
-function setCartCookie(response, cartId) {
-  const secure = isProduction ? "; Secure" : "";
+function setCartCookie(request, response, cartId) {
+  const secure = isSecureRequest(request) ? "; Secure" : "";
   appendCookie(response, `${cartCookie}=${encodeURIComponent(cartId)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(cartTtlMs / 1000)}${secure}`);
 }
 
@@ -623,7 +622,7 @@ function getCartId(request, response) {
   if (existing && /^[a-f0-9]{64}$/.test(existing)) return existing;
 
   const cartId = crypto.randomBytes(32).toString("hex");
-  setCartCookie(response, cartId);
+  setCartCookie(request, response, cartId);
   return cartId;
 }
 
@@ -668,7 +667,7 @@ function getSession(request) {
   return { id: sessionId, user };
 }
 
-function createSession(response, user) {
+function createSession(request, response, user) {
   const sessions = readJson("sessions.json", {});
   const sessionId = crypto.randomBytes(32).toString("hex");
 
@@ -679,7 +678,7 @@ function createSession(response, user) {
   };
 
   writeJson("sessions.json", sessions);
-  setSessionCookie(response, sessionId);
+  setSessionCookie(request, response, sessionId);
 }
 
 function destroySession(request, response) {
@@ -798,6 +797,28 @@ function clientIp(request) {
   }
 
   return remote || "unknown";
+}
+
+// Whether this request is actually arriving over HTTPS - either terminated
+// directly on this Node process, or by a reverse proxy on the same machine
+// that says so via X-Forwarded-Proto (same trust boundary as clientIp
+// above: only trusted when the proxy hop itself is localhost, so a public
+// client can't just claim "https" and get a Secure cookie set over plain
+// HTTP). Cookies must only get the "Secure" attribute when this is true -
+// NODE_ENV alone doesn't tell you that, and a "production" deploy that
+// hasn't had TLS set up in front of it yet (or is being smoke-tested via
+// http://ip:port) would otherwise have the browser silently discard the
+// session/cart cookies, breaking login and cart persistence with no
+// visible error.
+function isSecureRequest(request) {
+  if (request.socket?.encrypted) return true;
+
+  const remote = request.socket?.remoteAddress || "";
+  if (TRUSTED_PROXY_ADDRESSES.has(remote)) {
+    return String(request.headers["x-forwarded-proto"] || "").toLowerCase() === "https";
+  }
+
+  return false;
 }
 
 function isRateLimited(key, limit = 8, windowMs = 60000) {
@@ -1231,7 +1252,7 @@ async function handleAuth(request, response, pathname) {
     const user = createUserRecord({ email, name, password, role: "client" });
     users.push(user);
     writeJson("users.json", users);
-    createSession(response, user);
+    createSession(request, response, user);
     sendVerificationEmail(user);
     json(response, 200, { ok: true, user: safePublicUser(user), redirect: "/" });
     return true;
@@ -1259,7 +1280,7 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
-    createSession(response, user);
+    createSession(request, response, user);
     json(response, 200, {
       ok: true,
       user: safePublicUser(user),

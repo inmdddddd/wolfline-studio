@@ -377,11 +377,33 @@ body.is-video-ready .aether-bg-video {
   filter: blur(0);
 }
 
+/* The header needs its own `transform: translateX(-50%)` at all times to
+   stay horizontally centered (it's a fixed-position element positioned via
+   left: 50%, from the shared engine's styles.css) - the generic
+   `transform: none` above would silently strip that centering and leave
+   it starting at the horizontal middle of the viewport instead, hanging
+   off the right edge. Reproduce the reveal's translateY as a *second*
+   function alongside the required translateX here instead of replacing
+   the whole transform. Higher specificity (3 classes) than the generic
+   rules above, so this wins. */
+.has-hero-video .header.aether-intro-reveal {
+  transform: translateX(-50%) translateY(18px);
+}
+
+.has-hero-video .header.aether-intro-reveal.is-visible {
+  transform: translateX(-50%) translateY(0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .aether-intro-reveal {
     transition: opacity 300ms ease;
     transform: none;
     filter: none;
+  }
+
+  .has-hero-video .header.aether-intro-reveal,
+  .has-hero-video .header.aether-intro-reveal.is-visible {
+    transform: translateX(-50%);
   }
 }
 
