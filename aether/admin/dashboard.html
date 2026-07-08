@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Admin Dashboard / AETHER STUDIO</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <link rel="stylesheet" href="../styles.css?v=aether-1">
+  <link rel="stylesheet" href="../aether-theme.css?v=aether-1">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.172.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body class="beca-minimal admin-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <header class="admin-topbar">
+    <a class="auth-brand" href="/">
+      <span class="aether-wordmark">AETHER<small>STUDIO</small></span>
+    </a>
+    <button type="button" data-logout>Logout</button>
+  </header>
+
+  <main class="admin-shell admin-app-shell">
+    <aside class="admin-sidebar" aria-label="Admin sections">
+      <p>Admin</p>
+      <h1>Drop control.</h1>
+      <nav class="admin-side-nav">
+        <button type="button" class="is-active" data-admin-tab="overview">Overview</button>
+        <button type="button" data-admin-tab="studio">3D Studio</button>
+        <button type="button" data-admin-tab="photo-studio">Photo Studio</button>
+        <button type="button" data-admin-tab="products">Products</button>
+        <button type="button" data-admin-tab="add-product">Add product</button>
+        <button type="button" data-admin-tab="waitlist">Waitlist</button>
+        <button type="button" data-admin-tab="customers">Customers</button>
+        <button type="button" data-admin-tab="orders">Orders</button>
+        <button type="button" data-admin-tab="stats">Statistici</button>
+        <button type="button" data-admin-tab="reviews">Recenzii</button>
+        <button type="button" data-admin-tab="coupons">Cupoane</button>
+        <button type="button" data-admin-tab="content">Continut</button>
+      </nav>
+    </aside>
+
+    <section class="admin-workspace">
+      <div class="admin-panel admin-view is-active" data-admin-view="overview">
+        <p>Overview</p>
+        <div class="admin-metrics">
+          <article><span data-summary-users>0</span><p>Users</p></article>
+          <article><span data-summary-products>0</span><p>Products</p></article>
+          <article><span data-summary-live>0</span><p>Live</p></article>
+          <article><span data-summary-preview>0</span><p>Preview</p></article>
+          <article><span data-summary-notifications>0</span><p>Notify</p></article>
+          <article><span data-summary-orders>0</span><p>Orders</p></article>
+          <article><span data-summary-pageviews>0</span><p>Pageviews azi</p></article>
+        </div>
+        <div class="admin-note-grid">
+          <article>
+            <strong>Next focus</strong>
+            <span>Build the first product drop and connect it to homepage previews.</span>
+          </article>
+          <article>
+            <strong>Store state</strong>
+            <span>Products, customers and orders are stored locally for this prototype.</span>
+          </article>
+        </div>
+        <div class="admin-view-head">
+          <div>
+            <p>Trafic</p>
+            <h2>Pageviews, fara cookie-uri.</h2>
+          </div>
+        </div>
+        <div class="admin-analytics-grid">
+          <article class="admin-analytics-card">
+            <strong>Ultimele 14 zile</strong>
+            <ul class="admin-analytics-days" data-analytics-days></ul>
+          </article>
+          <article class="admin-analytics-card">
+            <strong>Pagini populare</strong>
+            <ul class="admin-analytics-pages" data-analytics-top-pages></ul>
+          </article>
+        </div>
+        <div class="admin-note-grid">
+          <article>
+            <strong>Email SMTP</strong>
+            <span>Trimite un email de test catre contul tau admin, ca sa confirmi ca SMTP-ul e configurat corect.</span>
+            <button type="button" data-email-test>Trimite email test</button>
+            <span class="form-message" data-email-test-message></span>
+          </article>
+          <article>
+            <strong>Export date (CSV)</strong>
+            <span>Descarca datele pentru Excel sau alte unelte.</span>
+            <div class="admin-export-actions">
+              <a href="/api/admin/export/orders.csv" download>Comenzi</a>
+              <a href="/api/admin/export/users.csv" download>Useri</a>
+              <a href="/api/admin/export/notifications.csv" download>Waitlist</a>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="products">
+        <div class="admin-view-head">
+          <div>
+            <p>Products</p>
+            <h2>Manage the drop.</h2>
+          </div>
+          <button type="button" data-admin-tab-target="add-product">Add product</button>
+        </div>
+        <div class="admin-products" data-products></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="studio">
+        <div class="admin-view-head">
+          <div>
+            <p>3D Studio</p>
+            <h2>Build a tee from a print.</h2>
+          </div>
+        </div>
+        <div class="studio-shell">
+          <div class="studio-viewer-card">
+            <div class="studio-viewer" id="studioViewer" data-model="../assets/models/tshirt-web.glb">
+              <span class="studio-loader">Loading 3D tee...</span>
+            </div>
+          </div>
+          <form class="studio-controls" data-studio-form>
+            <div class="admin-form-grid">
+              <label>Product name<input name="name" value="Studio tee" required></label>
+              <label>Product name RO<input name="nameRo" placeholder="Optional"></label>
+              <label>Category<input name="category" value="Tee"></label>
+              <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
+              <label>Currency<input name="currency" value="GBP"></label>
+              <label>Stock<input name="stock" type="number" min="0" value="25"></label>
+              <label>Status
+                <select name="status">
+                  <option value="draft">Draft</option>
+                  <option value="preview">Preview only</option>
+                  <option value="live">Live</option>
+                </select>
+              </label>
+              <label>Sizes (e.g. S:5, M:8, L:6, XL:2)<input name="sizes" value="S, M, L, XL"></label>
+              <label>Print mode
+                <select name="studioMode" data-studio-mode>
+                  <option value="texture">Photoshop texture</option>
+                </select>
+              </label>
+              <label>Shirt color<input name="shirtColor" type="color" value="#ffffff" data-studio-color></label>
+              <label>Upload texture / print<input name="print" type="file" accept="image/png,image/jpeg,image/webp" data-studio-print></label>
+            </div>
+            <a class="studio-template-link" href="../assets/models/tshirt-photoshop-template.png" download>
+              Download Photoshop texture template
+            </a>
+            <div class="studio-sliders">
+              <label>Horizontal<input type="range" min="-360" max="360" value="0" data-studio-x></label>
+              <label>Vertical<input type="range" min="-360" max="360" value="0" data-studio-y></label>
+              <label>Size<input type="range" min="120" max="720" value="360" data-studio-scale></label>
+              <label>Rotation<input type="range" min="-45" max="45" value="0" data-studio-rotation></label>
+              <label>Opacity<input type="range" min="20" max="100" value="100" data-studio-opacity></label>
+            </div>
+            <label>Description EN<textarea name="description" rows="3">Fresh tee created in the 3D studio.</textarea></label>
+            <label>Description RO<textarea name="descriptionRo" rows="3" placeholder="Descriere pentru Romania"></textarea></label>
+            <div class="studio-actions">
+              <button type="button" data-studio-reset>Reset print</button>
+              <button type="submit">Save as product</button>
+            </div>
+            <span class="form-message" data-studio-message></span>
+          </form>
+        </div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="photo-studio">
+        <div class="admin-view-head">
+          <div>
+            <p>Photo Studio</p>
+            <h2>Create mobile-safe product shots.</h2>
+          </div>
+        </div>
+        <div class="photo-studio-shell">
+          <aside class="photo-product-list">
+            <p>Products</p>
+            <div data-photo-products></div>
+          </aside>
+          <section class="photo-stage-card">
+            <div class="photo-stage" data-photo-stage>
+              <div class="photo-stage-viewer" data-photo-viewer data-model="../assets/models/tshirt-web.glb">
+                <span>Loading 3D tee...</span>
+              </div>
+            </div>
+            <div class="photo-stage-controls">
+              <label>Horizontal<input type="range" min="-320" max="320" value="0" data-photo-x></label>
+              <label>Vertical<input type="range" min="-220" max="220" value="0" data-photo-y></label>
+              <label>Size<input type="range" min="32" max="96" value="58" data-photo-size></label>
+              <label>Glow<input type="range" min="0" max="100" value="42" data-photo-glow></label>
+            </div>
+            <div class="photo-pose-controls" aria-label="Photo poses">
+              <button type="button" data-photo-pose="front" data-angle="180">Front</button>
+              <button type="button" data-photo-pose="back" data-angle="0" class="is-active">Back</button>
+              <button type="button" data-photo-pose="left" data-angle="90">Left</button>
+              <button type="button" data-photo-pose="right" data-angle="-90">Right</button>
+              <button type="button" data-photo-pose="three-quarter" data-angle="-35">3/4</button>
+            </div>
+            <div class="photo-stage-actions">
+              <button type="button" data-photo-download>Download shot</button>
+              <button type="button" data-photo-save>Save as product image</button>
+            </div>
+            <span class="form-message" data-photo-message></span>
+          </section>
+        </div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="add-product">
+        <p>Add product</p>
+        <h2>Create a new piece.</h2>
+        <form data-product-form>
+          <div class="admin-form-grid">
+            <label>Name<input name="name" required></label>
+            <label>Name RO<input name="nameRo" placeholder="Optional"></label>
+            <label>Category<input name="category" placeholder="Tee, accessory, hoodie"></label>
+            <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
+            <label>Currency<input name="currency" value="GBP"></label>
+            <label>Stock<input name="stock" type="number" min="0" value="25"></label>
+            <label>Image URL<input name="imageUrl" placeholder="assets/product.png"></label>
+            <label>Upload image<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+            <label>Sizes<input name="sizes" placeholder="S:5, M:8, L:6, XL:2"></label>
+            <label>Color<input name="color" placeholder="White"></label>
+            <label>Status
+              <select name="status">
+                <option value="draft">Draft</option>
+                <option value="preview">Preview only</option>
+                <option value="live">Live</option>
+                <option value="sold-out">Sold out</option>
+              </select>
+            </label>
+          </div>
+          <label>Description EN<textarea name="description" rows="4"></textarea></label>
+          <label>Description RO<textarea name="descriptionRo" rows="4"></textarea></label>
+          <button type="submit">Save product</button>
+          <span class="form-message" data-product-message></span>
+        </form>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="customers">
+        <p>Customers</p>
+        <h2>People with access.</h2>
+        <ul class="admin-users" data-users></ul>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="waitlist">
+        <p>Waitlist</p>
+        <h2>People waiting for preview pieces.</h2>
+        <div class="admin-orders" data-notifications></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="orders">
+        <p>Orders</p>
+        <h2>Incoming orders.</h2>
+        <div class="admin-orders" data-orders></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="stats">
+        <div class="admin-view-head">
+          <div>
+            <p>Statistici</p>
+            <h2>Venituri, produse si trafic.</h2>
+          </div>
+        </div>
+        <div class="admin-stats-grid">
+          <article><span data-stats-revenue>0</span><p>Venit total</p></article>
+          <article><span data-stats-aov>0</span><p>Valoare medie comanda</p></article>
+          <article><span data-stats-orders>0</span><p>Comenzi</p></article>
+          <article><span data-stats-conversion>0%</span><p>Conversie (comenzi / pageviews)</p></article>
+        </div>
+        <div class="admin-analytics-grid">
+          <article class="admin-analytics-card">
+            <strong>Venituri, ultimele 14 zile</strong>
+            <ul class="admin-analytics-days" data-stats-revenue-days></ul>
+          </article>
+          <article class="admin-analytics-card">
+            <strong>Produse cele mai vandute</strong>
+            <ul class="admin-analytics-pages" data-stats-top-products></ul>
+          </article>
+        </div>
+        <div class="admin-analytics-grid">
+          <article class="admin-analytics-card">
+            <strong>Surse de trafic (referrer)</strong>
+            <ul class="admin-analytics-pages" data-stats-referrers></ul>
+          </article>
+          <article class="admin-analytics-card">
+            <strong>Limbi / locatie aproximativa (Accept-Language)</strong>
+            <ul class="admin-analytics-pages" data-stats-locales></ul>
+          </article>
+        </div>
+        <div class="admin-analytics-grid">
+          <article class="admin-analytics-card">
+            <strong>Trafic pe ora din zi</strong>
+            <ul class="admin-analytics-days admin-hours-grid" data-stats-hours></ul>
+          </article>
+          <article class="admin-analytics-card">
+            <strong>Vizite recente (IP, ora, referrer)</strong>
+            <ul class="admin-analytics-pages admin-visits-list" data-stats-visits></ul>
+          </article>
+        </div>
+        <div class="admin-note-grid admin-note-grid-single">
+          <article class="admin-note-warning">
+            <strong>Nota despre locatie si IP</strong>
+            <span>Nu folosim o baza de date GeoIP - "locatia" de mai sus e o aproximare pe baza limbii browserului (Accept-Language), nu tara/orasul real. IP-urile sunt stocate ca parte din log-ul de trafic; site-ul se prezinta ca fara cookie-uri, dar aceasta colectare de IP e o forma de date personale - ia in calcul GDPR daca o folosesti activ.</span>
+          </article>
+        </div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="reviews">
+        <div class="admin-view-head">
+          <div>
+            <p>Recenzii</p>
+            <h2>Modereaza recenziile clientilor.</h2>
+          </div>
+        </div>
+        <div class="admin-orders" data-reviews-admin></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="coupons">
+        <div class="admin-view-head">
+          <div>
+            <p>Cupoane</p>
+            <h2>Coduri de reducere.</h2>
+          </div>
+        </div>
+        <form class="admin-coupon-form" data-coupon-form>
+          <label>Cod<input name="code" placeholder="AETHER10" required></label>
+          <label>Tip
+            <select name="type">
+              <option value="percent">Procent (%)</option>
+              <option value="fixed">Suma fixa</option>
+            </select>
+          </label>
+          <label>Valoare<input name="value" type="number" min="0" step="0.01" required></label>
+          <label>Utilizari maxime (optional)<input name="maxUses" type="number" min="1"></label>
+          <label>Expira la (optional)<input name="expiresAt" type="date"></label>
+          <button type="submit">Adauga cupon</button>
+          <span class="form-message" data-coupon-message></span>
+        </form>
+        <div class="admin-orders" data-coupons-list></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="content">
+        <div class="admin-view-head">
+          <div>
+            <p>Continut</p>
+            <h2>Editeaza textele si logo-urile site-ului.</h2>
+          </div>
+        </div>
+        <form data-content-form>
+          <fieldset class="admin-branding-fieldset">
+            <legend>Branding</legend>
+            <div class="admin-form-grid">
+              <label>Logo AETHER STUDIO
+                <img class="admin-branding-preview" data-branding-preview="logoUrl" src="" alt="">
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-branding-upload="logoUrl">
+              </label>
+              <label>Logo secundar
+                <img class="admin-branding-preview" data-branding-preview="wolflineLogoUrl" src="" alt="">
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-branding-upload="wolflineLogoUrl">
+              </label>
+            </div>
+          </fieldset>
+          <div data-content-editor></div>
+          <button type="submit">Salveaza continutul</button>
+          <span class="form-message" data-content-message></span>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="../security.js?v=no-block-1"></script>
+  <script src="../script.js?v=etapa1-1"></script>
+  <script src="../admin.js?v=stats-design-1"></script>
+  <script type="module" src="../studio.js?v=photo-studio-poses-1"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{
+  "id": "aether",
+  "brandName": "AETHER STUDIO",
+  "brandShortName": "AETHER",
+  "tagline": "Born from light. Made with weight.",
+  "domain": "[COMPLETE DOMAIN]",
+  "siteOrigin": "https://aether-studio.example",
+  "supportEmail": "[COMPLETE SUPPORT EMAIL]",
+  "legalCompanyName": "[COMPLETE LEGAL COMPANY NAME]",
+  "companyNumber": "[COMPLETE COMPANY NUMBER]",
+  "companyAddress": "[COMPLETE COMPANY ADDRESS]",
+  "primaryAdminEmailDefault": "admin@aether.local",
+  "adminDisplayName": "AETHER Admin",
+  "mailFromName": "AETHER STUDIO",
+  "publicDir": "aether",
+  "themeColors": {
+    "bg": "#0b0b0c",
+    "panel": "#242426",
+    "text": "#e8e1d2",
+    "muted": "#6f6f6a",
+    "accent": "#bfa46a",
+    "accent2": "#c8b89b"
+  },
+  "seedProduct": {
+    "name": "THE FIRST FORM — 001/001",
+    "category": "Archive Tee",
+    "status": "live",
+    "price": 220,
+    "currency": "GBP",
+    "stock": 1,
+    "imageUrl": "",
+    "sizes": ["L"],
+    "color": "Washed Black",
+    "description": "A private archive sample built from heavyweight cotton, designed to define the first visual language of AETHER STUDIO. Minimal at the front, powerful at the back, cut with weight and made for permanence."
+  }
+}

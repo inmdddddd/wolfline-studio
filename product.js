@@ -27,6 +27,14 @@ function productImageSrc(product) {
   return product.imageUrl || "";
 }
 
+function productBrandName() {
+  return document.querySelector('meta[name="brand-name"]')?.content || "BeCa";
+}
+
+function productSiteOrigin() {
+  return document.querySelector('meta[name="brand-origin"]')?.content || "https://beca-wlf.com";
+}
+
 const isSafariProduct = Boolean(window.__BECA_IS_SAFARI__) || /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
 const isMobileProduct = window.matchMedia?.("(max-width: 760px), (pointer: coarse)")?.matches || /iphone|ipad|android|mobile/i.test(navigator.userAgent);
 const PRODUCT_DROP_UNLOCK_AT = new Date("2026-07-16T20:00:00+03:00").getTime();
@@ -147,15 +155,17 @@ async function initProductPage() {
 
   const { product } = await productRequest(`/api/products/${encodeURIComponent(slug)}`);
   const display = productDisplay(product);
-  document.title = `${display.displayName} / BeCa`;
+  const brandName = productBrandName();
+  const siteOrigin = productSiteOrigin();
+  document.title = `${display.displayName} / ${brandName}`;
   const metaDescription = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
   document.querySelector("[data-product-meta-description]")?.setAttribute("content", metaDescription);
-  document.querySelector("[data-product-og-title]")?.setAttribute("content", `${display.displayName} / BeCa`);
+  document.querySelector("[data-product-og-title]")?.setAttribute("content", `${display.displayName} / ${brandName}`);
   document.querySelector("[data-product-og-description]")?.setAttribute("content", metaDescription);
-  document.querySelector("[data-product-og-url]")?.setAttribute("content", `https://beca-wlf.com/product.html?slug=${encodeURIComponent(slug)}`);
+  document.querySelector("[data-product-og-url]")?.setAttribute("content", `${siteOrigin}/product.html?slug=${encodeURIComponent(slug)}`);
   const ogImage = productImageSrc(product);
   if (ogImage && !ogImage.startsWith("data:")) {
-    document.querySelector("[data-product-og-image]")?.setAttribute("content", new URL(ogImage, "https://beca-wlf.com/").href);
+    document.querySelector("[data-product-og-image]")?.setAttribute("content", new URL(ogImage, `${siteOrigin}/`).href);
   }
   document.querySelector("[data-product-category]").textContent = isPreviewProduct(product)
     ? `${display.displayCategory || productText("piece", "Piece")} / ${productText("previewOnly", "preview")}`

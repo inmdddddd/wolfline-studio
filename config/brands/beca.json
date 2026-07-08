@@ -1,0 +1,36 @@
+{
+  "id": "beca",
+  "brandName": "BeCa",
+  "brandShortName": "BeCa",
+  "tagline": "Strictly Limited Streetwear",
+  "domain": "beca-wlf.com",
+  "siteOrigin": "https://beca-wlf.com",
+  "supportEmail": "contact@beca-wlf.com",
+  "legalCompanyName": "[COMPLETEAZA]",
+  "companyNumber": "[COMPLETEAZA]",
+  "companyAddress": "[COMPLETEAZA adresa]",
+  "primaryAdminEmailDefault": "admin@beca.local",
+  "adminDisplayName": "BeCa Admin",
+  "mailFromName": "WOLFLINE Studio",
+  "publicDir": ".",
+  "themeColors": {
+    "bg": "#050706",
+    "panel": "#0d1110",
+    "text": "#f2f2ec",
+    "muted": "#a5aaa4",
+    "accent": "#e8b84b",
+    "accent2": "#e0c88c"
+  },
+  "seedProduct": {
+    "name": "Oversized statement tee",
+    "category": "Tee",
+    "status": "live",
+    "price": 59,
+    "currency": "GBP",
+    "stock": 25,
+    "imageUrl": "assets/beca-logo.png",
+    "sizes": ["S", "M", "L", "XL"],
+    "color": "White",
+    "description": "Fresh graphic tee prepared for the next limited drop."
+  }
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Admin Login / AETHER STUDIO</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="../favicon.ico" sizes="any">
+  <link rel="stylesheet" href="../styles.css?v=aether-1">
+  <link rel="stylesheet" href="../aether-theme.css?v=aether-1">
+</head>
+<body class="beca-minimal auth-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <main class="auth-shell">
+    <a class="auth-brand" href="/">
+      <span class="aether-wordmark">AETHER<small>STUDIO</small></span>
+    </a>
+
+    <section class="auth-card">
+      <p>Admin access</p>
+      <h1>Manage drops and clients.</h1>
+      <form action="/admin/login" method="post" data-auth-form>
+        <label>
+          Email
+          <input name="email" type="email" autocomplete="email" required>
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">Open dashboard</button>
+        <span class="form-message" data-form-message></span>
+      </form>
+    </section>
+  </main>
+
+  <script src="../security.js?v=no-block-1"></script>
+  <script src="../script.js?v=etapa1-1"></script>
+  <script src="../auth.js"></script>
+</body>
+</html>

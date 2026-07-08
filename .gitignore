@@ -5,6 +5,7 @@ npm-debug.log*
 !.env.example
 tmp/
 backups/
+backups-*/
 data/sessions.json
 data/carts.json
 data/orders.json
@@ -17,6 +18,11 @@ data/email-verifications.json
 data/wishlists.json
 data/reviews.json
 data/coupons.json
+
+# Other brand instances (e.g. AETHER STUDIO) keep their own data directory,
+# named data-<brandId>/ per config/brands/<brandId>.json - none of it belongs
+# in git, same as data/ above.
+data-*/
 assets/models/tshirt-fbx/
 assets/models/tshirt-obj/
 assets/models/tshirt-texture/

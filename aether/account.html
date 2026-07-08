@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Account / AETHER STUDIO</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230b0b0c'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='34' fill='%23bfa46a' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css?v=aether-1">
+  <link rel="stylesheet" href="aether-theme.css?v=aether-1">
+</head>
+<body class="beca-minimal account-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <div class="site-scene" aria-hidden="true">
+    <div class="scene-aurora"></div>
+    <div class="scene-particles"></div>
+    <div class="scene-beams"></div>
+  </div>
+
+  <header class="account-topbar">
+    <a class="auth-brand" href="/">
+      <span class="aether-wordmark">AETHER<small>STUDIO</small></span>
+    </a>
+    <div class="account-topbar-actions">
+      <a class="account-home-link" href="/" data-i18n="account.home">Home</a>
+      <a class="account-home-link" href="/orders.html" data-i18n="account.orders">My orders</a>
+      <a class="account-home-link" href="/admin/dashboard.html" data-admin-only hidden data-i18n="account.admin">Admin Panel</a>
+      <button type="button" data-logout data-i18n="account.logout">Logout</button>
+    </div>
+  </header>
+
+  <main class="account-shell" data-account>
+    <div class="account-verify-banner" data-verify-banner hidden>
+      <span data-i18n="account.verifyBanner">Contul tau nu este verificat inca. Verifica emailul pentru linkul de confirmare.</span>
+      <button type="button" data-resend-verification data-i18n="account.resendVerification">Retrimite emailul</button>
+      <span class="form-message" data-resend-message></span>
+    </div>
+
+    <section class="account-hero-card">
+      <div>
+        <p data-i18n="account.kicker">Customer area</p>
+        <h1><span data-i18n="account.welcome">Welcome back,</span> <span data-account-name>Loading...</span>.</h1>
+        <p class="account-lead" data-i18n="account.lead">Your place for early access, private drop notes and reserved pieces before they go public.</p>
+      </div>
+      <div class="member-chip">
+        <span data-i18n="account.memberStatus">Member status</span>
+        <strong><span data-account-role>customer</span><img class="member-diamond" src="assets/diamond.png" alt=""></strong>
+      </div>
+    </section>
+
+    <section class="account-grid">
+      <article class="account-panel account-profile">
+        <p data-i18n="account.profile">Profile</p>
+        <dl>
+          <div>
+            <dt>Email</dt>
+            <dd data-account-email></dd>
+          </div>
+          <div>
+            <dt data-i18n="account.access">Access</dt>
+            <dd data-i18n="account.accessValue">Early drop list</dd>
+          </div>
+          <div>
+            <dt data-i18n="account.preference">Preference</dt>
+            <dd data-i18n="account.preferenceValue">Graphic tees / accessories</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="account-panel account-settings" id="settings">
+        <p data-i18n="account.settings">Settings</p>
+        <h2 data-i18n="account.profileDetails">Profile details</h2>
+        <form action="/api/profile" data-settings-form>
+          <label>
+            <span data-i18n="account.name">Name</span>
+            <input name="name" data-profile-name autocomplete="name" required>
+          </label>
+          <label>
+            Email
+            <input name="email" type="email" data-profile-email autocomplete="email" required>
+          </label>
+          <button type="submit" data-i18n="account.saveProfile">Save profile</button>
+          <span class="form-message" data-form-message></span>
+        </form>
+      </article>
+
+      <article class="account-panel account-settings">
+        <p data-i18n="account.security">Security</p>
+        <h2 data-i18n="account.password">Password</h2>
+        <form action="/api/profile/password" data-settings-form>
+          <label>
+            <span data-i18n="account.currentPassword">Current password</span>
+            <input name="currentPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <label>
+            <span data-i18n="account.newPassword">New password</span>
+            <input name="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+          </label>
+          <button type="submit" data-i18n="account.updatePassword">Update password</button>
+          <span class="form-message" data-form-message></span>
+        </form>
+      </article>
+
+      <article class="account-panel account-drop-card">
+        <p data-i18n="account.nextDrop">Current drop</p>
+        <h2 data-i18n="account.nextTitle">THE FIRST FORM — 001/001</h2>
+        <span class="drop-status" data-i18n="account.previewUnlocked">Preview unlocked</span>
+        <p data-i18n="account.nextBody">A private archive sample, single quantity, first access before the piece is retired.</p>
+        <a href="/#drop" data-i18n="account.viewDrop">View drop preview</a>
+      </article>
+
+      <article class="account-panel account-perks">
+        <p data-i18n="account.perks">Member perks</p>
+        <ul>
+          <li><strong>01</strong><span data-i18n="account.perk1">Early access before public release.</span></li>
+          <li><strong>02</strong><span data-i18n="account.perk2">Private notes about fit, fabric and print direction.</span></li>
+          <li><strong>03</strong><span data-i18n="account.perk3">Priority for limited pieces when stock is low.</span></li>
+        </ul>
+      </article>
+
+      <article class="account-panel account-wishlist">
+        <p data-i18n="account.wishlist">Wishlist</p>
+        <h2 data-i18n="account.wishlistTitle">Saved pieces</h2>
+        <ul class="account-wishlist-list" data-wishlist-list>
+          <li class="account-wishlist-empty" data-i18n="account.wishlistEmpty">No saved pieces yet.</li>
+        </ul>
+      </article>
+
+      <article class="account-panel account-timeline">
+        <p data-i18n="account.activity">Activity</p>
+        <div>
+          <span data-i18n="account.created">Account created</span>
+          <strong data-i18n="account.activeProfile">Active customer profile</strong>
+        </div>
+        <div>
+          <span data-i18n="account.nextStep">Next step</span>
+          <strong data-i18n="account.watchDrop">Watch the upcoming drop</strong>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="security.js?v=no-block-1"></script>
+  <script src="locale.js?v=order-tracking-1"></script>
+  <script src="script.js?v=etapa1-1"></script>
+  <script src="auth.js?v=admin-panel-link-1"></script>
+  <script src="wishlist.js"></script>
+</body>
+</html>

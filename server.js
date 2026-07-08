@@ -29,10 +29,37 @@ const path = require("path");
 
 const email = require("./lib/email");
 
+// White-label support: this whole codebase (engine, data model, admin, email
+// logic) is shared across brands. What differs per brand is: which JSON config
+// it loads (name, taglines, legal placeholders, theme colors), which folder it
+// serves static files from, and where its data lives. Each brand runs as its
+// own process (own BRAND/DATA_DIR/PORT), never two brands in one process, so
+// there is no per-request brand switching to get wrong - it's picked once at
+// boot from process.env.BRAND and everything below derives from it.
 const root = __dirname;
 const rootResolved = path.resolve(root);
-const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(root, "data");
-const uploadDir = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.join(root, "assets", "products");
+const BRAND_ID = String(process.env.BRAND || "beca").trim().toLowerCase();
+
+function loadBrandConfig(brandId) {
+  const configPath = path.join(root, "config", "brands", `${brandId}.json`);
+  try {
+    return JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch (error) {
+    throw new Error(`Nu pot incarca configul de brand pentru "${brandId}" (${configPath}): ${error.message}`);
+  }
+}
+
+const BRAND = loadBrandConfig(BRAND_ID);
+
+// A brand's own public/ directory (BeCa's is "." - the project root itself,
+// so this is a no-op and BeCa's file resolution is byte-for-byte unchanged).
+const publicRoot = path.resolve(root, BRAND.publicDir || ".");
+const publicRootResolved = path.resolve(publicRoot);
+
+const dataDir = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(root, BRAND_ID === "beca" ? "data" : `data-${BRAND_ID}`);
+const uploadDir = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.join(publicRoot, "assets", "products");
 const uploadDirResolved = path.resolve(uploadDir);
 const uploadPublicBase = (process.env.UPLOAD_PUBLIC_BASE || "assets/products").replace(/^\/+|\/+$/g, "");
 const uploadRoutePrefix = `/${uploadPublicBase}/`;
@@ -40,7 +67,7 @@ const port = Number(process.env.PORT || 4188);
 const host = process.env.HOST || "0.0.0.0";
 const sessionCookie = "beca_session";
 const cartCookie = "beca_cart";
-const primaryAdminEmail = "admin@beca.local";
+const primaryAdminEmail = BRAND.primaryAdminEmailDefault;
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
 const cartTtlMs = 1000 * 60 * 60 * 24 * 30;
 const isProduction = process.env.NODE_ENV === "production";
@@ -81,7 +108,7 @@ function ensureDataFiles() {
 
     const admin = createUserRecord({
       email: adminEmail,
-      name: "BeCa Admin",
+      name: BRAND.adminDisplayName,
       password: adminPassword,
       role: "admin",
       emailVerified: true,
@@ -94,16 +121,7 @@ function ensureDataFiles() {
     writeJson("products.json", [
       {
         id: crypto.randomUUID(),
-        name: "Oversized statement tee",
-        category: "Tee",
-        status: "live",
-        price: 59,
-        currency: "GBP",
-        stock: 25,
-        imageUrl: "assets/beca-logo.png",
-        sizes: ["S", "M", "L", "XL"],
-        color: "White",
-        description: "Fresh graphic tee prepared for the next limited drop.",
+        ...BRAND.seedProduct,
         createdAt: new Date().toISOString()
       }
     ]);
@@ -1823,7 +1841,11 @@ setInterval(checkAbandonedCarts, 1000 * 60 * 30).unref();
 // Sibling of dataDir (not root) so this follows DATA_DIR when it's overridden -
 // otherwise an isolated/test DATA_DIR would still write backups into the real
 // project checkout instead of next to the data it's actually backing up.
-const backupsDir = path.join(dataDir, "..", "backups");
+// Brand-suffixed for every brand except BeCa (kept as plain "backups" so an
+// already-configured external rsync/cron job pointed at that exact path keeps
+// working) - without this, a second brand using the default (non-overridden)
+// DATA_DIR would land its backups in BeCa's own "backups" folder.
+const backupsDir = path.join(dataDir, "..", BRAND_ID === "beca" ? "backups" : `backups-${BRAND_ID}`);
 const MAX_BACKUPS = 14;
 
 function backupDataFiles() {
@@ -2006,8 +2028,8 @@ async function handleAdminApi(request, response, pathname) {
 
     const result = await email.sendMail({
       to: session.user.email,
-      subject: "Test SMTP BeCa",
-      text: "Acesta este un email de test trimis din panoul admin BeCa pentru a confirma ca SMTP-ul functioneaza."
+      subject: `Test SMTP ${BRAND.brandShortName}`,
+      text: `Acesta este un email de test trimis din panoul admin ${BRAND.brandShortName} pentru a confirma ca SMTP-ul functioneaza.`
     });
 
     json(response, 200, { ...result, configured: true });
@@ -2661,14 +2683,41 @@ async function handleAdminApi(request, response, pathname) {
   return false;
 }
 
+// Looks in the current brand's own public folder first, falling back to the
+// shared project root for brand-neutral assets (UI chrome icons, 3D models,
+// favicon) that don't need a separate copy per brand. For BeCa, publicRoot IS
+// root, so this is a single lookup exactly as before.
+function resolveStaticFilePath(safePath) {
+  const brandPath = path.resolve(publicRoot, safePath);
+  if (brandPath.startsWith(publicRootResolved)) {
+    try {
+      if (fs.statSync(brandPath).isFile()) return brandPath;
+    } catch {
+      // fall through to the shared-root lookup below
+    }
+  }
+
+  if (publicRootResolved !== rootResolved) {
+    const sharedPath = path.resolve(root, safePath);
+    if (sharedPath.startsWith(rootResolved)) {
+      try {
+        if (fs.statSync(sharedPath).isFile()) return sharedPath;
+      } catch {
+        // neither location has it - caller treats this as a 404
+      }
+    }
+  }
+
+  return null;
+}
+
 function serveFile(request, response, pathname) {
   const session = getSession(request);
   const requestedPath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const safePath = path.normalize(requestedPath).replace(/^(\.\.[/\\])+/, "");
   const publicPath = safePath.replace(/\\/g, "/");
-  const filePath = path.resolve(root, safePath);
 
-  if (!filePath.startsWith(rootResolved) || !canAccessFile(publicPath, session)) {
+  if (!canAccessFile(publicPath, session)) {
     if (publicPath === "account.html" || publicPath === "orders.html") {
       redirect(response, "/login.html");
       return;
@@ -2683,19 +2732,31 @@ function serveFile(request, response, pathname) {
     return;
   }
 
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
-      const extension = path.extname(filePath);
-      if (extension === "" || extension === ".html") {
-        fs.readFile(path.resolve(root, "404.html"), (notFoundError, notFoundData) => {
-          if (notFoundError) {
-            send(response, 404, "Not found");
-            return;
-          }
-          send(response, 404, notFoundData, { "Content-Type": types[".html"], "Cache-Control": "no-store" });
-        });
+  const filePath = resolveStaticFilePath(safePath);
+
+  if (!filePath) {
+    const extension = path.extname(safePath);
+    if (extension === "" || extension === ".html") {
+      const notFoundPath = resolveStaticFilePath("404.html");
+      if (!notFoundPath) {
+        send(response, 404, "Not found");
         return;
       }
+      fs.readFile(notFoundPath, (notFoundError, notFoundData) => {
+        if (notFoundError) {
+          send(response, 404, "Not found");
+          return;
+        }
+        send(response, 404, notFoundData, { "Content-Type": types[".html"], "Cache-Control": "no-store" });
+      });
+      return;
+    }
+    send(response, 404, "Not found");
+    return;
+  }
+
+  fs.readFile(filePath, (error, data) => {
+    if (error) {
       send(response, 404, "Not found");
       return;
     }
@@ -2707,7 +2768,7 @@ function serveFile(request, response, pathname) {
   });
 }
 
-const SITE_ORIGIN = "https://beca-wlf.com";
+const SITE_ORIGIN = process.env.SITE_ORIGIN || BRAND.siteOrigin;
 
 function serveSitemap(response) {
   const products = readJson("products.json", []);
@@ -2796,7 +2857,7 @@ function start() {
       json(response, error.statusCode || 500, { error: error.statusCode ? error.message : "Server error." });
     }
   }).listen(port, host, () => {
-    console.log(`BeCa platform running at http://127.0.0.1:${port}`);
+    console.log(`${BRAND.brandName} platform running at http://127.0.0.1:${port}`);
 
     // Never print admin credentials in production - pm2/hosting logs are
     // captured, retained and often shared (including by pasting them into

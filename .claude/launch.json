@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wolfline-studio",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Users\\alexm\\Documents\\Wolfline studio\\brand-platform\\server.js"],
+      "port": 4188
+    },
+    {
+      "name": "aether-studio",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Users\\alexm\\Documents\\Wolfline studio\\brand-platform\\aether-start.js"],
+      "port": 4199
+    }
+  ]
+}

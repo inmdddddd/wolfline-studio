@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Verify email / AETHER STUDIO</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230b0b0c'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='34' fill='%23bfa46a' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css?v=aether-1">
+  <link rel="stylesheet" href="aether-theme.css?v=aether-1">
+</head>
+<body class="beca-minimal auth-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <div class="site-scene" aria-hidden="true">
+    <div class="scene-aurora"></div>
+    <div class="scene-particles"></div>
+    <div class="scene-beams"></div>
+  </div>
+
+  <main class="auth-shell">
+    <a class="auth-brand" href="/">
+      <span class="aether-wordmark">AETHER<small>STUDIO</small></span>
+    </a>
+
+    <section class="auth-card">
+      <div class="auth-combo-heading">
+        <p>Client access</p>
+        <h1 data-verify-title>Confirming your email...</h1>
+      </div>
+      <p data-verify-body>Un moment, verificam linkul.</p>
+      <a class="auth-forgot-link" href="/account.html" data-verify-link hidden>Go to my account</a>
+    </section>
+  </main>
+
+  <script src="script.js?v=etapa1-1"></script>
+  <script>
+    (function () {
+      var titleEl = document.querySelector("[data-verify-title]");
+      var bodyEl = document.querySelector("[data-verify-body]");
+      var linkEl = document.querySelector("[data-verify-link]");
+      var params = new URLSearchParams(location.search);
+      var token = params.get("token") || "";
+
+      function done(ok, message) {
+        titleEl.textContent = ok ? "Email confirmat." : "Linkul nu este valid.";
+        bodyEl.textContent = message;
+        linkEl.hidden = false;
+      }
+
+      if (!token) {
+        done(false, "Linkul de verificare este incomplet.");
+        return;
+      }
+
+      fetch("/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token })
+      })
+        .then(function (response) {
+          return response.json().then(function (payload) {
+            if (!response.ok) throw new Error(payload.error || "Request failed.");
+            return payload;
+          });
+        })
+        .then(function () {
+          done(true, "Contul tau este verificat. Poti continua in contul tau.");
+        })
+        .catch(function (error) {
+          done(false, error.message || "Linkul de verificare este invalid sau a expirat.");
+        });
+    })();
+  </script>
+</body>
+</html>

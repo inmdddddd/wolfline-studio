@@ -1,0 +1,109 @@
+/* AETHER STUDIO theme layer. Linked AFTER the shared engine stylesheet
+   (linked separately in <head> as styles.css, which resolves to the shared
+   root file via the brand static-file fallback in server.js). Almost every
+   colour in the engine stylesheet is driven by CSS custom properties, so
+   redefining the tokens below re-skins the entire site without duplicating
+   any layout rules. Only a handful of Aether-specific pieces (display type,
+   wordmark, archive badge) are added on top. */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap");
+
+:root {
+  --bg: #0b0b0c;
+  --panel: #141415;
+  --panel-2: #1a1a1b;
+  --text: #e8e1d2;
+  --muted: #9a978c;
+  --line: rgba(232, 225, 210, 0.14);
+  --accent: #bfa46a;
+  --accent-2: #c8b89b;
+}
+
+body {
+  font-family: "Inter Tight", "Segoe UI", Arial, sans-serif;
+}
+
+h1, h2,
+.beca-kicker + h1,
+.auth-brand,
+.aether-wordmark {
+  font-family: "Fraunces", "Inter Tight", serif;
+  font-optical-sizing: auto;
+}
+
+h1 {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Text wordmark used everywhere the engine expects a logo <img> - AETHER has
+   no image asset, so the brand mark is set in type, which also matches the
+   "clean typography" brand direction better than a placeholder graphic. */
+.aether-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  font-family: "Fraunces", serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.aether-wordmark small {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 0.55em;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: var(--accent);
+}
+
+.beca-logo-img,
+[data-content-img="logoUrl"] {
+  display: none;
+}
+
+/* Archive-piece badge (product page): "PRIVATE ARCHIVE / 001/001 / NOT FOR
+   MASS RELEASE" for extremely limited stock (stock <= 1 by convention). */
+.archive-badge {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  background: rgba(191, 164, 106, 0.06);
+}
+
+.archive-badge span {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.archive-badge span:first-child {
+  color: var(--text);
+}
+
+/* Editorial block: large negative space, quiet luxury pacing. */
+.aether-editorial {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 120px 24px;
+  text-align: center;
+}
+
+.aether-editorial p {
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+@media (max-width: 720px) {
+  .aether-editorial {
+    padding: 72px 20px;
+  }
+}

@@ -26,9 +26,17 @@
     `;
   }
 
+  function brandName() {
+    return document.querySelector('meta[name="brand-name"]')?.content || "BeCa";
+  }
+
+  function brandSupportEmail() {
+    return document.querySelector('meta[name="brand-support-email"]')?.content || "contact@beca-wlf.com";
+  }
+
   function renderInvoice(order, content) {
     const merchantBody = (content.ro && content.ro["support.merchant.body"]) || "";
-    const supportEmail = (content.ro && content.ro["support.email"]) || "contact@beca-wlf.com";
+    const supportEmail = (content.ro && content.ro["support.email"]) || brandSupportEmail();
     const subtotal = (order.items || []).reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
 
     const itemsRows = (order.items || []).map((item) => `
@@ -50,7 +58,7 @@
             <p>Status: ${escapeHtml(order.status)}</p>
           </div>
           <div class="invoice-doc-from">
-            <strong>BeCa</strong>
+            <strong>${escapeHtml(brandName())}</strong>
             <p>${escapeHtml(merchantBody)}</p>
             <p>${escapeHtml(supportEmail)}</p>
           </div>
