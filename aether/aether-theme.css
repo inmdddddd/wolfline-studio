@@ -28,7 +28,12 @@
     12. Responsive
    ============================================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap");
+/* Font loading moved to <link> tags in <head> (see every aether/*.html) -
+   a CSS @import here is render-blocking and, worse, can stall applying
+   every rule below it in this file until the network request resolves.
+   On a slow/blocked connection to fonts.googleapis.com that meant the
+   whole theme (header shape, purple palette, card styles, etc.) stayed
+   stuck showing raw un-overridden styles.css indefinitely. */
 
 /* Visually hidden but still reachable by screen readers / search engines -
    used for the hero's <h1> now that the background video itself renders
