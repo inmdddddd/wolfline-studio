@@ -1073,6 +1073,13 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 /* ---------- 11. Shared chrome touch-ups ---------- */
 
+/* The shared engine's mouse-follow glow is gold by default
+   (rgba(232,184,75,...)) - recolor to match the purple accent. */
+.beca-minimal .cursor-glow {
+  background:
+    radial-gradient(circle, rgba(139, 127, 192, 0.22), rgba(185, 174, 209, 0.08) 33%, transparent 68%);
+}
+
 .site-footer {
   border-top: 1px solid rgba(139, 127, 192, 0.2);
 }
