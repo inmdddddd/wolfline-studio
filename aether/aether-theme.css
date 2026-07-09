@@ -463,8 +463,8 @@ body.is-video-ready .aether-bg-video {
   box-shadow:
     0 24px 80px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(22px) saturate(1.4);
-  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
 }
 
 /* No backdrop-filter support: fall back to a solid-enough panel so text
@@ -706,6 +706,8 @@ body.is-auth-transitioning .hero-auth-view::before {
 .header {
   min-height: 78px;
   gap: 28px;
+  backdrop-filter: blur(12px) saturate(0.95);
+  -webkit-backdrop-filter: blur(12px) saturate(0.95);
 }
 
 .header nav {
