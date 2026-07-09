@@ -706,6 +706,11 @@ body.is-auth-transitioning .hero-auth-view::before {
 .header {
   min-height: 78px;
   gap: 28px;
+  /* The base header's dark near-black base layer (rgba(4,6,5,0.62)) read
+     as flat black/gray next to the card, which has no solid dark base -
+     just a translucent white gradient that lets the purple video/overlay
+     show through. Reuse that same formula here instead. */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
   backdrop-filter: blur(12px) saturate(0.95);
   -webkit-backdrop-filter: blur(12px) saturate(0.95);
 }
