@@ -1069,6 +1069,17 @@ body.is-video-ready .aether-bg-video {
   border: 1px solid rgba(201, 168, 106, 0.3);
 }
 
+/* The base .hero-auth-form h2 size (clamp up to 3.65rem) is tuned for
+   BeCa's full-width hero. Aether's hero card is narrow (min(86vw, 440px)),
+   so that size wraps the login/register heading onto 3 lines and dwarfs
+   the rest of the form - scale it down to match the card width. */
+.hero-auth-form h2 {
+  max-width: 100%;
+  font-size: clamp(1.5rem, 4.4vw, 2.05rem);
+  line-height: 1.15;
+  color: var(--aether-marble);
+}
+
 /* ---------- 12. Responsive ---------- */
 
 @media (max-width: 960px) {
