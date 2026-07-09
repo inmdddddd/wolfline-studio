@@ -699,10 +699,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   top: max(20px, env(safe-area-inset-top));
 }
 
-/* Navbar: bigger, airier, more legible nav items. Keeps the shared
-   engine's hover-glow mechanics (the ::before underline + ::after glow
-   pseudo-elements already defined in styles.css) - only sizing/spacing is
-   overridden here, not the effect itself. */
+/* Navbar: bigger, airier, more legible nav items. */
 .header {
   min-height: 78px;
   gap: 28px;
@@ -715,23 +712,33 @@ body.is-auth-transitioning .hero-auth-view::before {
   -webkit-backdrop-filter: blur(12px) saturate(0.95);
 }
 
+/* Drop the base header's animated liquid-glass sheen (a white diagonal
+   streak that drifts/rotates forever via @keyframes liquidDrift) - too
+   much on top of the video background. */
+.header::before,
+.header::after {
+  display: none;
+}
+
 .header nav {
   gap: 6px;
 }
 
+/* Flatten the nav links: no pill background/border/shape, just text with
+   the shared underline-on-hover cue. */
 .header nav a {
   min-height: 44px;
   padding: 0 20px;
   font-size: 1rem;
   letter-spacing: 0.08em;
-  border-radius: 22px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 
 .header nav a:hover {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.26),
-    inset 0 -1px 0 rgba(201, 168, 106, 0.16),
-    0 0 22px rgba(201, 168, 106, 0.28);
+  box-shadow: none;
 }
 
 /* ---------- 9. Scroll reveal ---------- */
