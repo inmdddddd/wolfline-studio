@@ -59,8 +59,8 @@
   --panel-2: #242239;
   --text: #f4efe7;
   --muted: #a9a1bf;
-  --line: rgba(201, 168, 106, 0.22);
-  --accent: #c9a86a;
+  --line: rgba(139, 127, 192, 0.22);
+  --accent: #8b7fc0;
   --accent-2: #b9aed1;
 
   /* Aether palette. */
@@ -68,8 +68,11 @@
   --aether-marble-shadow: #e3dbe9;
   --aether-ink: #2b2a3d;
   --aether-ink-soft: #524f6b;
-  --aether-gold: #c9a86a;
-  --aether-gold-bright: #eed4a0;
+  /* Named --aether-gold(-bright) for historical reasons, but the values
+     are purple now - matches the hero video's lavender/violet palette
+     instead of the old warm gold accent. */
+  --aether-gold: #8b7fc0;
+  --aether-gold-bright: #c3b3ea;
   --aether-lavender: #b9aed1;
   --aether-lavender-deep: #6f6690;
   --aether-sky-blue: #bcd4e6;
@@ -186,14 +189,14 @@ button,
 .site-scene {
   background:
     radial-gradient(ellipse at 50% -10%, rgba(185, 174, 209, 0.16), transparent 55%),
-    radial-gradient(circle at 15% 85%, rgba(201, 168, 106, 0.07), transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(139, 127, 192, 0.07), transparent 45%),
     radial-gradient(circle at 85% 75%, rgba(159, 184, 204, 0.1), transparent 50%),
     linear-gradient(180deg, #0c0b16 0%, #151322 45%, #191730 100%);
   filter: none;
 }
 
 .site-scene::before {
-  background: radial-gradient(ellipse at 50% 0%, rgba(201, 168, 106, 0.16), transparent 60%);
+  background: radial-gradient(ellipse at 50% 0%, rgba(139, 127, 192, 0.16), transparent 60%);
   mix-blend-mode: screen;
   opacity: 0.7;
 }
@@ -209,7 +212,7 @@ button,
   background:
     radial-gradient(ellipse 60% 40% at 20% 20%, rgba(185, 174, 209, 0.18), transparent 60%),
     radial-gradient(ellipse 50% 35% at 80% 15%, rgba(188, 212, 230, 0.12), transparent 60%),
-    radial-gradient(ellipse 55% 45% at 50% 90%, rgba(201, 168, 106, 0.1), transparent 65%);
+    radial-gradient(ellipse 55% 45% at 50% 90%, rgba(139, 127, 192, 0.1), transparent 65%);
   filter: blur(60px);
   opacity: 0.7;
   mix-blend-mode: screen;
@@ -351,7 +354,7 @@ body.is-video-ready .aether-bg-video {
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(ellipse 60% 45% at 50% 6%, rgba(201, 168, 106, 0.14), transparent 55%),
+    radial-gradient(ellipse 60% 45% at 50% 6%, rgba(139, 127, 192, 0.14), transparent 55%),
     linear-gradient(180deg, rgba(9, 8, 16, 0.74) 0%, rgba(13, 11, 22, 0.68) 30%, rgba(13, 11, 22, 0.74) 70%, rgba(9, 8, 16, 0.86) 100%);
   pointer-events: none;
 }
@@ -461,7 +464,7 @@ body.is-video-ready .aether-bg-video {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(158deg, rgba(255, 255, 255, 0.55), rgba(201, 168, 106, 0.15) 40%, rgba(255, 255, 255, 0.06));
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.55), rgba(139, 127, 192, 0.15) 40%, rgba(255, 255, 255, 0.06));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -511,7 +514,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   letter-spacing: 0.04em;
   margin: 0 0 18px;
   color: var(--aether-marble);
-  text-shadow: 0 4px 44px rgba(201, 168, 106, 0.35);
+  text-shadow: 0 4px 44px rgba(139, 127, 192, 0.35);
   overflow-wrap: break-word;
 }
 
@@ -578,7 +581,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 .aether-btn:hover {
   color: var(--aether-void);
   border-color: var(--aether-gold-bright);
-  box-shadow: 0 0 32px rgba(201, 168, 106, 0.5);
+  box-shadow: 0 0 32px rgba(139, 127, 192, 0.5);
 }
 
 .aether-btn:hover::before {
@@ -617,14 +620,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 /* ---------- 8. Greek key divider / column ornament ---------- */
 
 .aether-divider {
-  width: 100%;
-  height: 14px;
-  margin: 0 auto;
-  max-width: 220px;
-  opacity: 0.8;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='14' viewBox='0 0 56 14'%3E%3Cpath d='M0 13V1h6v6h6V1h6v10h6V5h6v8h6V1h6v6h6V1h6' fill='none' stroke='%23c9a86a' stroke-width='1.4'/%3E%3C/svg%3E");
-  background-repeat: repeat-x;
-  background-size: 56px 14px;
+  display: none;
 }
 
 .aether-btn--glass {
@@ -768,7 +764,8 @@ body.is-auth-transitioning .hero-auth-view::before {
 }
 
 .aether-section-head h2 {
-  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+  font-size: clamp(2.4rem, 5.2vw, 3.8rem);
+  line-height: 1.05;
   margin: 14px 0 18px;
 }
 
@@ -822,7 +819,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   inset: 0;
   background:
     radial-gradient(ellipse 60% 50% at 50% 30%, rgba(185, 174, 209, 0.18), transparent 65%),
-    radial-gradient(ellipse 70% 40% at 50% 100%, rgba(201, 168, 106, 0.1), transparent 60%);
+    radial-gradient(ellipse 70% 40% at 50% 100%, rgba(139, 127, 192, 0.1), transparent 60%);
   pointer-events: none;
 }
 
@@ -844,24 +841,32 @@ body.is-auth-transitioning .hero-auth-view::before {
 .aether-symbols {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 2px;
-  background: var(--line);
-  border: 1px solid var(--line);
+  gap: 20px;
 }
 
+/* Same shape/blur/border formula as the hero's .aether-glass-card, so
+   these read as the same family of card instead of a separate flat-tile
+   grid style. */
 .aether-symbol-card {
   position: relative;
   padding: 46px 24px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
-  backdrop-filter: blur(22px) saturate(1.4);
-  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
   text-align: center;
   transition: background 420ms ease, box-shadow 420ms ease;
 }
 
 .aether-symbol-card:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -886,7 +891,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 }
 
 .aether-symbol-card:hover .aether-symbol-glyph {
-  box-shadow: 0 0 28px rgba(201, 168, 106, 0.5);
+  box-shadow: 0 0 28px rgba(139, 127, 192, 0.5);
   transform: scale(1.08);
 }
 
@@ -921,7 +926,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 .aether-lineage-node {
   padding: 15px 24px;
-  border: 1px solid rgba(201, 168, 106, 0.35);
+  border: 1px solid rgba(139, 127, 192, 0.35);
   background: rgba(250, 248, 242, 0.03);
   font-family: "Cinzel", serif;
   font-size: 0.8rem;
@@ -933,7 +938,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 .aether-lineage-node.is-focus {
   border-color: var(--aether-gold);
   color: var(--aether-gold-bright);
-  box-shadow: 0 0 26px rgba(201, 168, 106, 0.28);
+  box-shadow: 0 0 26px rgba(139, 127, 192, 0.28);
 }
 
 .aether-lineage-connector {
@@ -1003,7 +1008,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   border-color: var(--aether-gold);
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.4),
-    0 0 40px rgba(201, 168, 106, 0.18),
+    0 0 40px rgba(139, 127, 192, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
@@ -1051,7 +1056,8 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 .aether-final-cta h2 {
   position: relative;
-  font-size: clamp(2rem, 4.4vw, 3.2rem);
+  font-size: clamp(2.4rem, 5.2vw, 3.8rem);
+  line-height: 1.05;
   max-width: 680px;
   margin: 0 auto 22px;
 }
@@ -1068,7 +1074,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 /* ---------- 11. Shared chrome touch-ups ---------- */
 
 .site-footer {
-  border-top: 1px solid rgba(201, 168, 106, 0.2);
+  border-top: 1px solid rgba(139, 127, 192, 0.2);
 }
 
 .footer-tagline {
