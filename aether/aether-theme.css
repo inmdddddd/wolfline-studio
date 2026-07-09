@@ -503,6 +503,18 @@ body.is-video-ready .aether-bg-video {
   background: linear-gradient(90deg, var(--aether-gold), transparent);
 }
 
+.aether-temple-hero__title {
+  font-family: "Cinzel", serif;
+  font-weight: 700;
+  font-size: clamp(2.4rem, 7vw, 4.2rem);
+  line-height: 0.98;
+  letter-spacing: 0.04em;
+  margin: 0 0 18px;
+  color: var(--aether-marble);
+  text-shadow: 0 4px 44px rgba(201, 168, 106, 0.35);
+  overflow-wrap: break-word;
+}
+
 .aether-temple-hero__subtitle {
   font-family: "Cormorant Garamond", serif;
   font-style: italic;
@@ -1088,6 +1100,10 @@ body.is-video-ready .aether-bg-video {
 
   .aether-final-cta {
     padding: 108px 20px;
+  }
+
+  .aether-temple-hero__title {
+    letter-spacing: 0.02em;
   }
 
   .aether-glass-card {
