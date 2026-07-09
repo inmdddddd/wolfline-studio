@@ -229,20 +229,20 @@ button,
 .scene-particles {
   display: block;
   background-image:
-    radial-gradient(2px 2px at 12% 22%, rgba(238, 212, 160, 0.85), transparent 60%),
+    radial-gradient(2px 2px at 12% 22%, rgba(195, 179, 234, 0.85), transparent 60%),
     radial-gradient(2px 2px at 28% 68%, rgba(244, 239, 231, 0.7), transparent 60%),
     radial-gradient(1.5px 1.5px at 44% 14%, rgba(185, 174, 209, 0.8), transparent 60%),
-    radial-gradient(2px 2px at 62% 52%, rgba(238, 212, 160, 0.65), transparent 60%),
+    radial-gradient(2px 2px at 62% 52%, rgba(195, 179, 234, 0.65), transparent 60%),
     radial-gradient(1.5px 1.5px at 76% 30%, rgba(244, 239, 231, 0.6), transparent 60%),
     radial-gradient(2px 2px at 88% 74%, rgba(188, 212, 230, 0.65), transparent 60%),
-    radial-gradient(1.5px 1.5px at 34% 88%, rgba(238, 212, 160, 0.55), transparent 60%);
+    radial-gradient(1.5px 1.5px at 34% 88%, rgba(195, 179, 234, 0.55), transparent 60%);
   opacity: 0.75;
   animation: aetherMotes 28s linear infinite;
 }
 
 .scene-beams {
   display: block;
-  background: repeating-conic-gradient(from 0deg at 50% 0%, rgba(238, 212, 160, 0.04) 0deg 1.2deg, transparent 1.2deg 6deg);
+  background: repeating-conic-gradient(from 0deg at 50% 0%, rgba(195, 179, 234, 0.04) 0deg 1.2deg, transparent 1.2deg 6deg);
   opacity: 0.3;
   mix-blend-mode: screen;
 }
@@ -650,7 +650,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 .aether-btn--glass:hover {
   color: var(--aether-void);
   border-color: var(--aether-gold-bright);
-  box-shadow: 0 0 32px rgba(238, 212, 160, 0.4);
+  box-shadow: 0 0 32px rgba(195, 179, 234, 0.4);
 }
 
 /* Secondary glass button (e.g. "Read the Myth" next to the primary "Enter
@@ -1047,7 +1047,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 20%, rgba(238, 212, 160, 0.16), transparent 65%);
+  background: radial-gradient(ellipse at 50% 20%, rgba(195, 179, 234, 0.16), transparent 65%);
   pointer-events: none;
 }
 
@@ -1066,6 +1066,14 @@ body.is-auth-transitioning .hero-auth-view::before {
   line-height: 1.05;
   max-width: 680px;
   margin: 0 auto 22px;
+}
+
+/* .aether-temple-hero__actions is reused here from the hero markup, but
+   the hero left-aligns its actions (justify-content: flex-start) - this
+   section is centered, so its one button was pinned to the left edge of
+   the full-width flex row instead of sitting under the centered copy. */
+.aether-final-cta .aether-temple-hero__actions {
+  justify-content: center;
 }
 
 .aether-final-cta p {
@@ -1125,12 +1133,70 @@ body.is-auth-transitioning .hero-auth-view::before {
   background: radial-gradient(closest-side, rgba(139, 127, 192, 0.16), transparent);
 }
 
-/* Review rating dropdown: show as stars (set on the <option> text in
-   product.html) instead of plain digits 1-5. */
-.product-review-rating {
-  font-size: 1.1rem;
-  letter-spacing: 0.12em;
+/* Review rating: five clickable stars (replaces a plain 1-5 <select>).
+   A hidden input[name=rating] carries the actual value for the existing
+   form submission code - clicking/hovering a star just repaints which
+   ones are "filled" up to that point. */
+.star-picker {
+  display: flex;
+  gap: 4px;
+}
+
+/* ".product-detail-info button" (base engine) also catches these -
+   same width:100%/pill-background trap as the wishlist toggle above.
+   Scope under .star-picker for enough specificity to actually win. */
+.star-picker .star-picker-star {
+  width: auto;
+  min-height: 0;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: rgba(244, 239, 231, 0.28);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.star-picker .star-picker-star:hover {
+  transform: scale(1.12);
+}
+
+.star-picker .star-picker-star.is-active {
   color: var(--aether-gold-bright);
+}
+
+/* The review textarea/label had no brand styling at all - a bare
+   browser-default white box next to an otherwise fully-themed dark
+   form. */
+.product-review-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.product-review-form textarea {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 13px 14px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.24);
+  font: inherit;
+  resize: vertical;
+}
+
+.product-review-form textarea:focus {
+  outline: none;
+  border-color: rgba(139, 127, 192, 0.62);
+  box-shadow: 0 0 0 4px rgba(139, 127, 192, 0.16);
 }
 
 .footer-tagline {

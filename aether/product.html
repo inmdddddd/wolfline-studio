@@ -25,8 +25,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap">
-  <link rel="stylesheet" href="styles.css?v=aether-26">
-  <link rel="stylesheet" href="aether-theme.css?v=aether-26">
+  <link rel="stylesheet" href="styles.css?v=aether-28">
+  <link rel="stylesheet" href="aether-theme.css?v=aether-28">
   <script type="module" src="https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
 </head>
 <body class="beca-minimal product-page">
@@ -168,13 +168,14 @@
         <form class="product-review-form" data-review-form>
           <label>
             <span data-i18n="product.reviews.rating">Rating</span>
-            <select name="rating" class="product-review-rating">
-              <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733;</option>
-              <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734;</option>
-              <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734;</option>
-              <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734;</option>
-              <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734;</option>
-            </select>
+            <div class="star-picker" data-star-picker>
+              <button type="button" class="star-picker-star" data-star="1" aria-label="1 star">&#9733;</button>
+              <button type="button" class="star-picker-star" data-star="2" aria-label="2 stars">&#9733;</button>
+              <button type="button" class="star-picker-star" data-star="3" aria-label="3 stars">&#9733;</button>
+              <button type="button" class="star-picker-star" data-star="4" aria-label="4 stars">&#9733;</button>
+              <button type="button" class="star-picker-star" data-star="5" aria-label="5 stars">&#9733;</button>
+              <input type="hidden" name="rating" value="5">
+            </div>
           </label>
           <label>
             <span data-i18n="product.reviews.text">Your review</span>
@@ -186,6 +187,37 @@
       </div>
     </section>
   </main>
+
+  <script>
+    (function () {
+      var picker = document.querySelector("[data-star-picker]");
+      if (!picker) return;
+      var stars = Array.from(picker.querySelectorAll("[data-star]"));
+      var input = picker.querySelector("input[name='rating']");
+
+      function paint(value) {
+        stars.forEach(function (star) {
+          star.classList.toggle("is-active", Number(star.dataset.star) <= value);
+        });
+      }
+
+      stars.forEach(function (star) {
+        star.addEventListener("click", function () {
+          input.value = star.dataset.star;
+          paint(Number(star.dataset.star));
+        });
+        star.addEventListener("mouseenter", function () {
+          paint(Number(star.dataset.star));
+        });
+      });
+
+      picker.addEventListener("mouseleave", function () {
+        paint(Number(input.value));
+      });
+
+      paint(Number(input.value));
+    })();
+  </script>
 
   <footer class="site-footer">
     <div class="footer-glow" aria-hidden="true"></div>
@@ -220,11 +252,11 @@
     </div>
   </footer>
 
-  <script src="locale.js?v=aether-26"></script>
-  <script src="script.js?v=aether-26"></script>
-  <script src="product.js?v=aether-26"></script>
-  <script src="security.js?v=aether-26"></script>
-  <script src="auth.js?v=aether-26"></script>
-  <script src="wishlist.js?v=aether-26"></script>
+  <script src="locale.js?v=aether-28"></script>
+  <script src="script.js?v=aether-28"></script>
+  <script src="product.js?v=aether-28"></script>
+  <script src="security.js?v=aether-28"></script>
+  <script src="auth.js?v=aether-28"></script>
+  <script src="wishlist.js?v=aether-28"></script>
 </body>
 </html>
