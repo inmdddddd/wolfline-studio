@@ -134,6 +134,7 @@ p, li, dd, .info-lede {
 .product-detail-info strong[data-product-price],
 .admin-metrics span,
 .admin-stats-grid strong,
+.product-card strong,
 .aether-numerals {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums lining-nums;
@@ -1085,8 +1086,51 @@ body.is-auth-transitioning .hero-auth-view::before {
     radial-gradient(circle, rgba(139, 127, 192, 0.22), rgba(185, 174, 209, 0.08) 33%, transparent 68%);
 }
 
+/* The base engine's ".product-detail-info button" is a blanket rule
+   (width:100%, purple background) meant for the single main "Add to
+   cart" CTA - it also catches the small circular wishlist button next
+   to it (both are <button> inside .product-detail-info), stretching it
+   into a second full-width pill. Worse, .is-saved then sets the heart
+   glyph to the same purple as that inherited background, making it
+   invisible once saved. Scope back down with higher specificity and
+   give the saved state its own contrasting fill. */
+.product-add-row .product-wishlist-toggle {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  margin-top: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--aether-marble);
+  font-size: 0.95rem;
+}
+
+.product-add-row .product-wishlist-toggle.is-saved {
+  background: var(--aether-gold);
+  border-color: var(--aether-gold);
+  color: var(--aether-void);
+}
+
 .site-footer {
   border-top: 1px solid rgba(139, 127, 192, 0.2);
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015) 44%, rgba(139, 127, 192, 0.035)),
+    rgba(7, 11, 9, 0.5);
+}
+
+/* The blurred glow sitting above the footer is gold by default. */
+.footer-glow {
+  background: radial-gradient(closest-side, rgba(139, 127, 192, 0.16), transparent);
+}
+
+/* Review rating dropdown: show as stars (set on the <option> text in
+   product.html) instead of plain digits 1-5. */
+.product-review-rating {
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  color: var(--aether-gold-bright);
 }
 
 .footer-tagline {
