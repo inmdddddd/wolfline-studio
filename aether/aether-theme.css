@@ -1110,6 +1110,16 @@ body.is-auth-transitioning .hero-auth-view::before {
   font-size: 1.25rem;
 }
 
+/* Live edition state next to the price: fixed total, pieces claimed. */
+.product-edition-state {
+  margin: 4px 0 2px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--aether-gold-bright);
+}
+
 /* Ritual scarcity line under the product price - the brand promise
    stated where the buying decision happens, not buried in a footer. */
 .product-edition-note {
@@ -1235,6 +1245,133 @@ body.is-auth-transitioning .hero-auth-view::before {
   .archive-chapter-state {
     margin-left: 0;
   }
+}
+
+/* Numbered pieces already claimed from an open chapter - each links to
+   its permanent certificate page (/archive/<record>). */
+.archive-pieces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0 22px;
+}
+
+.archive-pieces a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--aether-gold-bright);
+  text-decoration: none;
+  font-size: 0.92rem;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.archive-pieces a:hover {
+  border-color: var(--aether-gold);
+  box-shadow: 0 0 18px rgba(164, 150, 219, 0.25);
+}
+
+.archive-pieces a small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.archive-pieces-empty {
+  margin: 18px 0 22px;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* ---------- 10c. Certificate page (/archive/<record>) ---------- */
+
+.certificate {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.certificate .beca-kicker {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.certificate-card {
+  padding: clamp(36px, 6vw, 56px) clamp(24px, 5vw, 48px);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+}
+
+.certificate-card .aether-divider {
+  margin-bottom: 22px;
+}
+
+.certificate-chapter {
+  font-family: "Cinzel", serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--aether-gold);
+  margin: 0 0 18px;
+}
+
+.certificate-number {
+  font-size: clamp(3rem, 10vw, 4.6rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+
+.certificate-name {
+  font-size: clamp(1.1rem, 2.6vw, 1.4rem);
+  letter-spacing: 0.06em;
+  margin: 0 0 28px;
+}
+
+.certificate-meta {
+  display: flex;
+  justify-content: center;
+  gap: clamp(18px, 5vw, 44px);
+  margin: 0 0 26px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.certificate-meta div {
+  display: grid;
+  gap: 4px;
+}
+
+.certificate-meta dt {
+  font-family: "Cinzel", serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.certificate-meta dd {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.certificate-note {
+  max-width: 40ch;
+  margin: 0 auto;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.certificate-actions {
+  margin-top: 30px;
 }
 
 /* ---------- 11. Shared chrome touch-ups ---------- */

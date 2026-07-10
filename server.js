@@ -176,6 +176,13 @@ function ensureDataFiles() {
     writeJson("coupons.json", []);
   }
 
+  // Per-unit edition records: one entry per physical piece sold, assigned
+  // at checkout. Records are append-only - the archive is a permanent
+  // ledger, entries are never renumbered or deleted.
+  if (!fs.existsSync(path.join(dataDir, "editions.json"))) {
+    writeJson("editions.json", []);
+  }
+
   const products = readJson("products.json", []);
   let migrated = false;
   const migratedProducts = products.map((product) => {
@@ -740,6 +747,34 @@ function publicProduct(product) {
   };
 }
 
+// Attaches the fixed-edition state to a public product payload: how many
+// numbered pieces have been assigned so far and the pinned edition total
+// (assigned + unsold stock - constant once the first piece sells).
+function withEditionInfo(payload, product, editions) {
+  const assigned = editions.filter((record) => record.productId === product.id).length;
+  return {
+    ...payload,
+    editionAssigned: assigned,
+    editionTotal: assigned + (Number(product.stock) || 0)
+  };
+}
+
+// The public shape of an edition record: everything a certificate shows,
+// nothing that identifies the buyer (order ids stay internal).
+function publicEditionRecord(record) {
+  return {
+    id: record.id,
+    productId: record.productId,
+    productName: record.productName,
+    size: record.size || "",
+    number: record.number,
+    total: record.total,
+    chapter: record.chapter,
+    chapterName: record.chapterName,
+    assignedAt: record.assignedAt
+  };
+}
+
 function publicOrder(order) {
   return {
     id: order.id,
@@ -1299,9 +1334,10 @@ async function handleShopApi(request, response, pathname) {
   }
 
   if (pathname === "/api/products" && request.method === "GET") {
+    const editions = readJson("editions.json", []);
     const products = readJson("products.json", [])
       .filter((product) => product.status === "live" || product.status === "preview")
-      .map(publicProduct);
+      .map((product) => withEditionInfo(publicProduct(product), product, editions));
     const categories = [...new Set(products.map((product) => product.category).filter(Boolean))];
     json(response, 200, { products, categories });
     return true;
@@ -1319,7 +1355,28 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
-    json(response, 200, { product: publicProduct(product) });
+    const editions = readJson("editions.json", []);
+    json(response, 200, { product: withEditionInfo(publicProduct(product), product, editions) });
+    return true;
+  }
+
+  // Public archive record: every numbered piece ever sold, without any
+  // buyer-identifying data (order ids stay internal).
+  if (pathname === "/api/archive" && request.method === "GET") {
+    const pieces = readJson("editions.json", []).map(publicEditionRecord);
+    json(response, 200, { pieces, count: pieces.length });
+    return true;
+  }
+
+  const archiveDetailMatch = pathname.match(/^\/api\/archive\/(\d{1,6})$/);
+  if (archiveDetailMatch && request.method === "GET") {
+    const recordId = Number(archiveDetailMatch[1]);
+    const record = readJson("editions.json", []).find((item) => item.id === recordId);
+    if (!record) {
+      json(response, 404, { error: "This piece is not in the record." });
+      return true;
+    }
+    json(response, 200, { piece: publicEditionRecord(record) });
     return true;
   }
 
@@ -1645,12 +1702,33 @@ async function handleShopApi(request, response, pathname) {
       const products = readJson("products.json", []);
       const productUpdates = [...products];
 
+      // Per-unit edition numbering. Every physical piece sold gets the next
+      // number in its product's fixed edition. The edition total is pinned
+      // the first time a product sells: numbers already assigned + stock
+      // still unsold - a quantity that stays constant afterwards, since
+      // each sale moves exactly one unit from "unsold" to "assigned".
+      const editions = readJson("editions.json", []);
+      const editionMeta = new Map();
+      const itemEditions = new Map();
+
       for (const item of payload.items) {
         const productIndex = productUpdates.findIndex((product) => product.id === item.product.id);
         const current = productIndex !== -1 ? productUpdates[productIndex] : null;
         if (!current || current.status !== "live" || availableStock(current, item.size) < item.qty) {
           return { error: `Stoc insuficient pentru ${item.product.name}.` };
         }
+
+        if (!editionMeta.has(current.id)) {
+          const assigned = editions.filter((record) => record.productId === current.id).length;
+          editionMeta.set(current.id, { assigned, total: assigned + current.stock });
+        }
+        const meta = editionMeta.get(current.id);
+        const numbers = [];
+        for (let unit = 0; unit < item.qty; unit += 1) {
+          meta.assigned += 1;
+          numbers.push(meta.assigned);
+        }
+        itemEditions.set(item, { numbers, total: meta.total });
 
         const nextSizeStock = current.sizeStock && item.size
           ? { ...current.sizeStock, [item.size]: current.sizeStock[item.size] - item.qty }
@@ -1685,7 +1763,9 @@ async function handleShopApi(request, response, pathname) {
           price: item.product.price,
           currency: item.product.currency,
           qty: item.qty,
-          subtotal: item.subtotal
+          subtotal: item.subtotal,
+          editionNumbers: itemEditions.get(item)?.numbers || [],
+          editionTotal: itemEditions.get(item)?.total || null
         })),
         processedAt: null,
         shippedAt: null,
@@ -1706,9 +1786,32 @@ async function handleShopApi(request, response, pathname) {
         createdAt
       };
 
+      // Append one permanent record per physical piece. The record id is a
+      // simple global sequence (records are never deleted or renumbered),
+      // and doubles as the public certificate URL: /archive/<id>.
+      let recordSeq = editions.length;
+      for (const item of order.items) {
+        for (const number of item.editionNumbers) {
+          recordSeq += 1;
+          editions.push({
+            id: recordSeq,
+            productId: item.productId,
+            productName: item.name,
+            size: item.size,
+            number,
+            total: item.editionTotal,
+            chapter: 1,
+            chapterName: "ORIGIN",
+            orderId: order.id,
+            assignedAt: createdAt
+          });
+        }
+      }
+
       orders.unshift(order);
       writeJson("products.json", productUpdates);
       writeJson("orders.json", orders);
+      writeJson("editions.json", editions);
 
       if (appliedCoupon) {
         const coupons = readJson("coupons.json", []);
@@ -2932,6 +3035,16 @@ function start() {
       }
 
       if (serveUploadedProductFile(response, pathname)) return;
+
+      // Pretty certificate URLs: /archive/14 renders the brand's
+      // archive-piece.html shell (the page itself fetches
+      // /api/archive/14). Only rewrites when the brand actually ships
+      // that page - brands without one keep their normal 404.
+      if (/^\/archive\/\d{1,6}$/.test(pathname) && resolveStaticFilePath("archive-piece.html")) {
+        serveFile(request, response, "/archive-piece.html");
+        return;
+      }
+
       serveFile(request, response, pathname);
     } catch (error) {
       console.error(error);

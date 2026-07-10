@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap">
-  <link rel="stylesheet" href="styles.css?v=aether-34">
-  <link rel="stylesheet" href="aether-theme.css?v=aether-34">
+  <link rel="stylesheet" href="styles.css?v=aether-35">
+  <link rel="stylesheet" href="aether-theme.css?v=aether-35">
 </head>
 <body class="beca-minimal info-page">
   <div class="cursor-glow" aria-hidden="true"></div>
@@ -108,6 +108,8 @@
           <span class="archive-chapter-state">Open</span>
         </div>
         <p>The first chapter. From nothing, form. The current relic is offered in the sanctuary in a fixed and final quantity &mdash; when it closes, it moves here, permanently.</p>
+        <div class="archive-pieces" data-archive-pieces hidden></div>
+        <p class="archive-pieces-empty" data-archive-empty hidden>No pieces have passed into the record yet.</p>
         <a class="aether-btn aether-btn--on-dark" href="/#relic">Enter the Sanctuary</a>
       </article>
 
@@ -203,10 +205,46 @@
     </div>
   </footer>
 
-  <script src="brand-copy.js?v=aether-34"></script>
-  <script src="locale.js?v=aether-34"></script>
-  <script src="script.js?v=aether-34"></script>
-  <script src="auth.js?v=aether-34"></script>
-  <script src="security.js?v=aether-34"></script>
+  <script src="brand-copy.js?v=aether-35"></script>
+  <script src="locale.js?v=aether-35"></script>
+  <script src="script.js?v=aether-35"></script>
+  <script src="auth.js?v=aether-35"></script>
+  <script src="security.js?v=aether-35"></script>
+  <script>
+    (function () {
+      var list = document.querySelector("[data-archive-pieces]");
+      var empty = document.querySelector("[data-archive-empty]");
+      if (!list || !empty) return;
+
+      function pad(value) {
+        return String(value).padStart(3, "0");
+      }
+
+      fetch("/api/archive")
+        .then(function (response) { return response.ok ? response.json() : { pieces: [] }; })
+        .then(function (payload) {
+          var pieces = payload.pieces || [];
+          if (!pieces.length) {
+            empty.hidden = false;
+            return;
+          }
+          pieces.forEach(function (piece) {
+            var link = document.createElement("a");
+            link.href = "/archive/" + piece.id;
+            var number = document.createElement("span");
+            number.className = "aether-numerals";
+            number.textContent = pad(piece.number) + "/" + pad(piece.total);
+            var date = document.createElement("small");
+            date.textContent = new Date(piece.assignedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+            link.append(number, date);
+            list.appendChild(link);
+          });
+          list.hidden = false;
+        })
+        .catch(function () {
+          empty.hidden = false;
+        });
+    })();
+  </script>
 </body>
 </html>

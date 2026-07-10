@@ -176,6 +176,15 @@ async function initProductPage() {
     : productMoney(product.price, product.currency);
   document.querySelector("[data-product-description]").textContent = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
 
+  // Fixed-edition state (brands whose product page has the element and
+  // whose API reports edition fields; a no-op everywhere else).
+  const editionEl = document.querySelector("[data-product-edition]");
+  if (editionEl && Number.isFinite(product.editionTotal) && product.editionTotal > 0) {
+    const pad = (value) => String(value).padStart(3, "0");
+    editionEl.textContent = `Edition of ${pad(product.editionTotal)} — ${pad(product.editionAssigned)} claimed`;
+    editionEl.hidden = false;
+  }
+
   const sizes = document.querySelector("[data-product-sizes]");
   const previewNote = document.querySelector("[data-preview-note]");
   sizes.innerHTML = "";
