@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap">
   <link rel="stylesheet" href="styles.css?v=aether-35">
-  <link rel="stylesheet" href="aether-theme.css?v=aether-37">
+  <link rel="stylesheet" href="aether-theme.css?v=aether-38">
   <script type="module" src="https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
 </head>
 <body class="beca-minimal product-page">
@@ -120,6 +120,7 @@
       </model-viewer>
     </section>
     <section class="product-detail-info">
+      <div class="product-summary-panel">
       <div class="archive-badge">
         <span>Private archive</span>
         <span>Not for mass release</span>
@@ -129,6 +130,9 @@
       <strong data-product-price>GBP 0.00</strong>
       <p class="product-edition-state aether-numerals" data-product-edition hidden></p>
       <p class="product-edition-note">Offered once, in fixed and final quantity. When this chapter closes, it enters the <a href="/archive.html">Archive</a> &mdash; permanently.</p>
+      </div>
+
+      <div class="product-story-panel">
       <p data-product-description></p>
       <div class="product-preview-note" data-preview-note hidden>
         <span data-i18n="product.previewReason">Enter your name for access before the chapter opens. Fixed quantity.</span>
@@ -151,6 +155,9 @@
           </div>
         </dl>
       </div>
+      </div>
+
+      <div class="product-purchase-panel">
       <div class="product-specs" data-product-sizes></div>
       <div class="product-add-row">
         <button type="button" data-product-add>Add to cart</button>
@@ -163,6 +170,9 @@
         <li data-i18n="trust.payment">Fixed, numbered editions</li>
       </ul>
 
+      </div>
+
+      <div class="product-review-panel">
       <div class="product-reviews" data-product-reviews>
         <div class="product-reviews-head">
           <p data-i18n="product.reviews.title">Reviews</p>
@@ -189,6 +199,7 @@
           <button type="submit" data-i18n="product.reviews.submit">Submit review</button>
           <span class="form-message" data-review-message></span>
         </form>
+      </div>
       </div>
     </section>
   </main>
