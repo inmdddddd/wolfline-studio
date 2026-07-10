@@ -91,9 +91,13 @@
 
 /* ---------- 2. Global typography ---------- */
 
+/* Cormorant Garamond has a small x-height - at a given px size it reads
+   noticeably smaller than a system font, and light-on-dark makes thin
+   strokes look thinner still. Compensate with a larger base size and a
+   500 body weight instead of shrinking the design around it. */
 body {
   font-family: "Cormorant Garamond", "Inter Tight", "Segoe UI", serif;
-  font-size: 17px;
+  font-size: 19px;
 }
 
 h1, h2, h3,
@@ -116,8 +120,9 @@ h1, h2, h3 {
 
 p, li, dd, .info-lede {
   font-family: "Cormorant Garamond", "Inter Tight", serif;
-  font-size: 1.06em;
-  line-height: 1.7;
+  font-size: 1.1em;
+  font-weight: 500;
+  line-height: 1.75;
 }
 
 /* ---------- Numerals ----------
@@ -154,7 +159,7 @@ button,
 .beca-actions a {
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
 }
 
 .beca-kicker {
@@ -506,7 +511,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   gap: 14px;
   color: var(--aether-gold-bright);
   font-family: "Cinzel", serif;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   letter-spacing: 0.34em;
   text-transform: uppercase;
   margin-bottom: 26px;
@@ -568,7 +573,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   gap: 10px;
   padding: 16px 34px;
   font-family: "Cinzel", serif;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   border: 1px solid var(--aether-gold);
@@ -1076,7 +1081,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   display: block;
   color: var(--aether-gold);
   letter-spacing: 0.3em;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   margin-bottom: 22px;
 }
 
@@ -1196,7 +1201,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   border: 1px solid var(--aether-gold);
   color: var(--aether-gold-bright);
   font-family: "Cinzel", serif;
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
@@ -1322,7 +1327,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   display: grid;
   gap: 8px;
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.82rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
