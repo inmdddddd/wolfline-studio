@@ -1488,6 +1488,55 @@ body.is-auth-transitioning .hero-auth-view::before {
   box-shadow: 0 0 0 4px rgba(164, 150, 219, 0.16);
 }
 
+.product-page .product-detail-shell {
+  width: min(920px, calc(100% - 36px));
+  min-height: auto;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 18px;
+  padding-top: clamp(116px, 13vh, 150px);
+}
+
+.product-page .product-detail-viewer {
+  min-height: clamp(440px, 58vh, 640px);
+}
+
+.product-page .product-detail-viewer model-viewer {
+  height: clamp(440px, 58vh, 640px);
+}
+
+.product-page .product-detail-info {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(300px, 0.72fr);
+  gap: clamp(18px, 3vw, 34px);
+  align-items: start;
+}
+
+.product-page .product-detail-info h1 {
+  max-width: 11ch;
+  font-size: clamp(3.1rem, 7vw, 5.6rem);
+}
+
+.product-page .product-detail-info > p[data-product-description],
+.product-page .product-materials,
+.product-page .product-preview-note,
+.product-page .product-specs,
+.product-page .product-add-row,
+.product-page .form-message,
+.product-page .trust-strip,
+.product-page .product-reviews {
+  grid-column: 2;
+}
+
+.product-page .archive-badge,
+.product-page .product-detail-info > p[data-product-category],
+.product-page .product-detail-info > h1,
+.product-page .product-detail-info > strong[data-product-price],
+.product-page .product-edition-state,
+.product-page .product-edition-note {
+  grid-column: 1;
+}
+
 .footer-tagline {
   font-style: italic;
   color: var(--aether-lavender);
@@ -1507,6 +1556,24 @@ body.is-auth-transitioning .hero-auth-view::before {
 /* ---------- 12. Responsive ---------- */
 
 @media (max-width: 960px) {
+  .product-page .product-detail-shell {
+    width: min(100% - 28px, 720px);
+    padding-top: 104px;
+  }
+
+  .product-page .product-detail-info {
+    grid-template-columns: 1fr;
+  }
+
+  .product-page .product-detail-info > * {
+    grid-column: 1 !important;
+  }
+
+  .product-page .product-detail-info h1 {
+    max-width: 100%;
+    font-size: clamp(2.65rem, 12vw, 4.5rem);
+  }
+
   .aether-symbols {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
