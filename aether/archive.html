@@ -1,11 +1,18 @@
 <!doctype html>
-<html lang="ro">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Comenzile mele / &#198;THER ORIGIN</title>
-  <meta name="description" content="Istoricul comenzilor tale &#198;THER ORIGIN: status, tracking si facturi.">
+  <title>Archive / &#198;THER ORIGIN</title>
+  <meta name="description" content="The &#198;THER ORIGIN archive: every chapter of the genealogy, from the first cut to the sealed eras still to come. Sold once. Never repeated.">
   <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://aether-studio.example/archive.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="&#198;THER ORIGIN">
+  <meta property="og:title" content="Archive / &#198;THER ORIGIN">
+  <meta property="og:description" content="Every chapter of the genealogy. Sold once. Never repeated.">
+  <meta property="og:url" content="https://aether-studio.example/archive.html">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23151322'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='34' fill='%23a496db' text-anchor='middle'%3E%C3%86%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,8 +34,8 @@
     </a>
     <nav aria-label="Main navigation">
       <a href="/#primordial-light">Myth</a>
-      <a href="/#lineage">Lineage</a>
       <a href="/#relic">Sanctuary</a>
+      <a href="/archive.html" aria-current="page">Archive</a>
       <a href="/#login" data-guest-only>Login</a>
       <div class="profile-menu" data-user-only hidden>
         <button type="button" class="profile-trigger" data-profile-toggle aria-expanded="false" aria-label="Profile menu">
@@ -44,7 +51,7 @@
           </div>
           <div class="profile-dropdown-list">
             <a href="/account.html"><span class="profile-row-icon"><img src="assets/icon-user.png" alt=""></span>My Profile</a>
-            <a href="/orders.html"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Comenzile mele</a>
+            <a href="/orders.html"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>My Orders</a>
             <a href="/admin/dashboard.html" data-admin-only hidden><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Admin Panel</a>
             <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span>Settings</a>
           </div>
@@ -64,30 +71,99 @@
         <a class="beca-logo mobile-menu-logo" href="/" data-mobile-menu-link aria-label="&#198;THER ORIGIN">
           <span class="aether-wordmark">&#198;THER<small>ORIGIN</small></span>
         </a>
-        <button type="button" data-mobile-menu-close aria-label="Close menu">Inchide</button>
+        <button type="button" data-mobile-menu-close aria-label="Close menu">Close</button>
       </div>
+
       <div class="mobile-menu-section">
         <a href="/#primordial-light" data-mobile-menu-link>Myth</a>
-        <a href="/#lineage" data-mobile-menu-link>Lineage</a>
         <a href="/#relic" data-mobile-menu-link>Sanctuary</a>
-        <a href="/" data-mobile-menu-link>Acasa</a>
+        <a href="/archive.html" data-mobile-menu-link>Archive</a>
+        <a href="/" data-mobile-menu-link>Home</a>
       </div>
+
       <div class="mobile-menu-section" data-guest-only>
         <a href="/#login" data-mobile-menu-link>Login</a>
-        <a href="/#register" data-mobile-menu-link>Inregistrare</a>
+        <a href="/#register" data-mobile-menu-link>Register</a>
       </div>
     </aside>
   </div>
 
   <main class="info-page-shell">
     <section class="info-hero">
-      <p class="beca-kicker">Cont</p>
-      <h1>Comenzile mele.</h1>
-      <p class="info-lede">Statusul si istoricul comenzilor tale &#198;THER ORIGIN, cu link direct catre factura fiecareia.</p>
+      <p class="beca-kicker">The Genealogy</p>
+      <h1>The Archive.</h1>
+      <p class="info-lede">Every chapter is cut once, numbered once, and closed forever when it sells out. What you see here is not a catalogue &mdash; it is a record.</p>
     </section>
 
-    <section class="info-section" data-orders-root>
-      <p class="orders-loading">Se incarca comenzile...</p>
+    <section class="info-section archive-chapters" aria-label="Chapters of the genealogy">
+      <article class="archive-chapter is-open">
+        <div class="archive-chapter-head">
+          <span class="archive-chapter-num aether-numerals">001</span>
+          <div>
+            <h2>ORIGIN</h2>
+            <p class="archive-chapter-era">Chaos &mdash; the yawning gap before form</p>
+          </div>
+          <span class="archive-chapter-state">Open</span>
+        </div>
+        <p>The first chapter. From nothing, form. The current relic is offered in the sanctuary in a fixed and final quantity &mdash; when it closes, it moves here, permanently.</p>
+        <a class="aether-btn aether-btn--on-dark" href="/#relic">Enter the Sanctuary</a>
+      </article>
+
+      <div class="aether-divider" aria-hidden="true"></div>
+
+      <article class="archive-chapter is-sealed">
+        <div class="archive-chapter-head">
+          <span class="archive-chapter-num aether-numerals">002</span>
+          <div>
+            <h2>EREBUS</h2>
+            <p class="archive-chapter-era">The primordial darkness</p>
+          </div>
+          <span class="archive-chapter-state">Sealed</span>
+        </div>
+        <p>Unwritten. The second chapter opens only after the first has closed.</p>
+      </article>
+
+      <article class="archive-chapter is-sealed">
+        <div class="archive-chapter-head">
+          <span class="archive-chapter-num aether-numerals">003</span>
+          <div>
+            <h2>NYX</h2>
+            <p class="archive-chapter-era">The night</p>
+          </div>
+          <span class="archive-chapter-state">Sealed</span>
+        </div>
+        <p>Unwritten.</p>
+      </article>
+
+      <article class="archive-chapter is-sealed">
+        <div class="archive-chapter-head">
+          <span class="archive-chapter-num aether-numerals">004</span>
+          <div>
+            <h2>HEMERA</h2>
+            <p class="archive-chapter-era">The day</p>
+          </div>
+          <span class="archive-chapter-state">Sealed</span>
+        </div>
+        <p>Unwritten.</p>
+      </article>
+
+      <article class="archive-chapter is-sealed">
+        <div class="archive-chapter-head">
+          <span class="archive-chapter-num aether-numerals">005</span>
+          <div>
+            <h2>AETHER</h2>
+            <p class="archive-chapter-era">The pure light of the upper sky</p>
+          </div>
+          <span class="archive-chapter-state">Sealed</span>
+        </div>
+        <p>Unwritten. The closing chapter of the first genealogy.</p>
+      </article>
+    </section>
+
+    <section class="info-section info-cta">
+      <h2>Origin is not a season.</h2>
+      <a href="/#register" data-guest-only>Register for access</a>
+      <a href="/#relic" data-user-only hidden>Enter the Sanctuary</a>
     </section>
   </main>
 
@@ -97,12 +173,13 @@
       <a class="beca-logo" href="/" aria-label="&#198;THER ORIGIN">
         <span class="aether-wordmark">&#198;THER<small>ORIGIN</small></span>
       </a>
-      <p class="footer-tagline">Piese elaborate in serii mici, gandite sa dureze.</p>
+      <p class="footer-tagline">Cut once. Numbered once. Never again.</p>
     </div>
     <div class="footer-columns">
       <div class="footer-col">
         <strong>Companie</strong>
         <a href="/about.html">Despre noi</a>
+        <a href="/archive.html">Archive</a>
         <a href="/support.html">Contact</a>
       </div>
       <div class="footer-col">
@@ -124,10 +201,9 @@
     </div>
   </footer>
 
-  <script src="locale.js?v=order-tracking-1"></script>
-  <script src="script.js?v=etapa1-1"></script>
-  <script src="orders.js"></script>
-  <script src="security.js?v=no-block-1"></script>
-  <script src="auth.js?v=mobile-drawer-1"></script>
+  <script src="locale.js?v=aether-31"></script>
+  <script src="script.js?v=aether-31"></script>
+  <script src="auth.js?v=aether-31"></script>
+  <script src="security.js?v=aether-31"></script>
 </body>
 </html>

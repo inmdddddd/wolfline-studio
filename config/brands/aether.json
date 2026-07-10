@@ -1,6 +1,6 @@
 {
   "id": "aether",
-  "brandName": "AETHER STUDIO",
+  "brandName": "ÆTHER ORIGIN",
   "brandShortName": "AETHER",
   "tagline": "Born from light. Made with weight.",
   "domain": "[COMPLETE DOMAIN]",
@@ -11,7 +11,7 @@
   "companyAddress": "[COMPLETE COMPANY ADDRESS]",
   "primaryAdminEmailDefault": "admin@aether.local",
   "adminDisplayName": "AETHER Admin",
-  "mailFromName": "AETHER STUDIO",
+  "mailFromName": "ÆTHER ORIGIN",
   "publicDir": "aether",
   "themeColors": {
     "bg": "#0b0b0c",
@@ -31,6 +31,6 @@
     "imageUrl": "",
     "sizes": ["L"],
     "color": "Washed Black",
-    "description": "A private archive sample built from heavyweight cotton, designed to define the first visual language of AETHER STUDIO. Minimal at the front, powerful at the back, cut with weight and made for permanence."
+    "description": "A private archive sample built from heavyweight cotton, designed to define the first visual language of ÆTHER ORIGIN. Minimal at the front, powerful at the back, cut with weight and made for permanence."
   }
 }
