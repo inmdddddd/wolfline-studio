@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-// Covers the white-label brand system: each brand (BeCa, AETHER STUDIO) runs
+// Covers the white-label brand system: each brand (BeCa, ÆTHER ORIGIN) runs
 // as its own process, picking BRAND/DATA_DIR once at boot. These tests start
 // isolated server instances one at a time (never concurrently - server.js has
 // module-level state, so two brands only coexist safely as separate
@@ -53,7 +53,7 @@ test("default brand (BRAND unset) boots as BeCa with BeCa's seed product", async
   try {
     const homepage = await fetch(`${baseUrl}/`).then((response) => response.text());
     assert.match(homepage, /BeCa/);
-    assert.doesNotMatch(homepage, /AETHER STUDIO/);
+    assert.doesNotMatch(homepage, /THER ORIGIN/);
 
     const { products } = await fetch(`${baseUrl}/api/products`).then((response) => response.json());
     assert.equal(products.length, 1);
@@ -65,12 +65,12 @@ test("default brand (BRAND unset) boots as BeCa with BeCa's seed product", async
   }
 });
 
-test("BRAND=aether boots as AETHER STUDIO with its own seed product and no BeCa text", async () => {
+test("BRAND=aether boots as ÆTHER ORIGIN with its own seed product and no BeCa text", async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "aether-brand-test-"));
   const { httpServer, baseUrl } = await startServer({ BRAND: "aether", DATA_DIR: tempDir });
   try {
     const homepage = await fetch(`${baseUrl}/`).then((response) => response.text());
-    assert.match(homepage, /AETHER STUDIO/);
+    assert.match(homepage, /THER ORIGIN/);
     assert.doesNotMatch(homepage, /BeCa/);
 
     const { products } = await fetch(`${baseUrl}/api/products`).then((response) => response.json());
@@ -104,7 +104,7 @@ test("aether static files fall back to the shared engine root but prefer its own
     const root = await fetch(`${baseUrl}/`);
     assert.equal(root.status, 200);
     const rootBody = await root.text();
-    assert.match(rootBody, /AETHER STUDIO/);
+    assert.match(rootBody, /THER ORIGIN/);
   } finally {
     stopServer(httpServer);
     fs.rmSync(tempDir, { recursive: true, force: true });

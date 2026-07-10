@@ -1,4 +1,4 @@
-// Convenience entry point for running the AETHER STUDIO instance locally
+// Convenience entry point for running the ÆTHER ORIGIN instance locally
 // (`node aether-start.js`) or under pm2 (`pm2 start aether-start.js --name aether`).
 // Sets BRAND before server.js's own .env loader runs, so it always wins over
 // any BRAND value left in .env.

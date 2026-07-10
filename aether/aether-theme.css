@@ -64,26 +64,29 @@
   --panel-2: #242239;
   --text: #f4efe7;
   --muted: #a9a1bf;
-  --line: rgba(139, 127, 192, 0.22);
-  --accent: #8b7fc0;
-  --accent-2: #b9aed1;
+  --line: rgba(164, 150, 219, 0.22);
+  --accent: #a496db;
+  --accent-2: #948aa8;
 
-  /* Aether palette. */
-  --aether-marble: #faf8f2;
+  /* Aether palette - refined per the ÆTHER ORIGIN brand strategy
+     (Void Black / Marble / Deep Violet / Aether Accent / Ash Grey /
+     Signal Blue). */
+  --aether-marble: #f4efe4;
   --aether-marble-shadow: #e3dbe9;
   --aether-ink: #2b2a3d;
   --aether-ink-soft: #524f6b;
   /* Named --aether-gold(-bright) for historical reasons, but the values
      are purple now - matches the hero video's lavender/violet palette
      instead of the old warm gold accent. */
-  --aether-gold: #8b7fc0;
-  --aether-gold-bright: #c3b3ea;
-  --aether-lavender: #b9aed1;
-  --aether-lavender-deep: #6f6690;
+  --aether-gold: #a496db;
+  --aether-gold-bright: #c2b6e8;
+  --aether-lavender: #948aa8;
+  --aether-lavender-deep: #332c4d;
+  --aether-signal-blue: #7c93b8;
   --aether-sky-blue: #bcd4e6;
   --aether-silver: #c9cdd8;
   --aether-water: #9fb8cc;
-  --aether-void: #0c0b16;
+  --aether-void: #0c0b14;
 }
 
 /* ---------- 2. Global typography ---------- */
@@ -172,11 +175,15 @@ button,
   text-transform: uppercase;
 }
 
+/* ÆTHER carries the serif from .aether-wordmark above; ORIGIN (the
+   sub-word, marking this as the first chapter/era) is sans, bold and
+   tracked wide - the two words read as a deliberate hierarchy, not
+   two mismatched fonts stuck together. */
 .aether-wordmark small {
-  font-family: "Cormorant Garamond", serif;
-  font-size: 0.6em;
-  font-weight: 500;
-  letter-spacing: 0.32em;
+  font-family: "Inter Tight", -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.42em;
+  font-weight: 700;
+  letter-spacing: 0.3em;
   color: var(--aether-gold);
   text-transform: uppercase;
 }
@@ -194,15 +201,15 @@ button,
 
 .site-scene {
   background:
-    radial-gradient(ellipse at 50% -10%, rgba(185, 174, 209, 0.16), transparent 55%),
-    radial-gradient(circle at 15% 85%, rgba(139, 127, 192, 0.07), transparent 45%),
+    radial-gradient(ellipse at 50% -10%, rgba(148, 138, 168, 0.16), transparent 55%),
+    radial-gradient(circle at 15% 85%, rgba(164, 150, 219, 0.07), transparent 45%),
     radial-gradient(circle at 85% 75%, rgba(159, 184, 204, 0.1), transparent 50%),
     linear-gradient(180deg, #0c0b16 0%, #151322 45%, #191730 100%);
   filter: none;
 }
 
 .site-scene::before {
-  background: radial-gradient(ellipse at 50% 0%, rgba(139, 127, 192, 0.16), transparent 60%);
+  background: radial-gradient(ellipse at 50% 0%, rgba(164, 150, 219, 0.16), transparent 60%);
   mix-blend-mode: screen;
   opacity: 0.7;
 }
@@ -216,9 +223,9 @@ button,
 
 .scene-aurora {
   background:
-    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(185, 174, 209, 0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(148, 138, 168, 0.18), transparent 60%),
     radial-gradient(ellipse 50% 35% at 80% 15%, rgba(188, 212, 230, 0.12), transparent 60%),
-    radial-gradient(ellipse 55% 45% at 50% 90%, rgba(139, 127, 192, 0.1), transparent 65%);
+    radial-gradient(ellipse 55% 45% at 50% 90%, rgba(164, 150, 219, 0.1), transparent 65%);
   filter: blur(60px);
   opacity: 0.7;
   mix-blend-mode: screen;
@@ -231,7 +238,7 @@ button,
   background-image:
     radial-gradient(2px 2px at 12% 22%, rgba(195, 179, 234, 0.85), transparent 60%),
     radial-gradient(2px 2px at 28% 68%, rgba(244, 239, 231, 0.7), transparent 60%),
-    radial-gradient(1.5px 1.5px at 44% 14%, rgba(185, 174, 209, 0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 44% 14%, rgba(148, 138, 168, 0.8), transparent 60%),
     radial-gradient(2px 2px at 62% 52%, rgba(195, 179, 234, 0.65), transparent 60%),
     radial-gradient(1.5px 1.5px at 76% 30%, rgba(244, 239, 231, 0.6), transparent 60%),
     radial-gradient(2px 2px at 88% 74%, rgba(188, 212, 230, 0.65), transparent 60%),
@@ -360,7 +367,7 @@ body.is-video-ready .aether-bg-video {
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(ellipse 60% 45% at 50% 6%, rgba(139, 127, 192, 0.14), transparent 55%),
+    radial-gradient(ellipse 60% 45% at 50% 6%, rgba(164, 150, 219, 0.14), transparent 55%),
     linear-gradient(180deg, rgba(9, 8, 16, 0.74) 0%, rgba(13, 11, 22, 0.68) 30%, rgba(13, 11, 22, 0.74) 70%, rgba(9, 8, 16, 0.86) 100%);
   pointer-events: none;
 }
@@ -470,7 +477,7 @@ body.is-video-ready .aether-bg-video {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(158deg, rgba(255, 255, 255, 0.55), rgba(139, 127, 192, 0.15) 40%, rgba(255, 255, 255, 0.06));
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.55), rgba(164, 150, 219, 0.15) 40%, rgba(255, 255, 255, 0.06));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -520,7 +527,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   letter-spacing: 0.04em;
   margin: 0 0 18px;
   color: var(--aether-marble);
-  text-shadow: 0 4px 44px rgba(139, 127, 192, 0.35);
+  text-shadow: 0 4px 44px rgba(164, 150, 219, 0.35);
   overflow-wrap: break-word;
 }
 
@@ -587,7 +594,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 .aether-btn:hover {
   color: var(--aether-void);
   border-color: var(--aether-gold-bright);
-  box-shadow: 0 0 32px rgba(139, 127, 192, 0.5);
+  box-shadow: 0 0 32px rgba(164, 150, 219, 0.5);
 }
 
 .aether-btn:hover::before {
@@ -610,7 +617,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 .aether-btn--ghost:hover {
   color: var(--aether-void);
   border-color: var(--aether-lavender);
-  box-shadow: 0 0 32px rgba(185, 174, 209, 0.45);
+  box-shadow: 0 0 32px rgba(148, 138, 168, 0.45);
 }
 
 /* Dark-context variant, used below the hero (on the twilight body bg). */
@@ -625,8 +632,21 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 /* ---------- 8. Greek key divider / column ornament ---------- */
 
+/* "The Fracture" - the brand's recurring symbol (a single jagged
+   crack line, echoing the podium/rock texture in the hero footage)
+   used as a section separator. Replaces the old Greek-key divider,
+   which read as generic ornament rather than a mark specific to this
+   brand. */
 .aether-divider {
-  display: none;
+  display: block;
+  width: 40px;
+  height: 32px;
+  margin: 0 auto;
+  opacity: 0.85;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='32' viewBox='0 0 40 32'%3E%3Cpath d='M20 1 L14 12 L24 15 L11 31' fill='none' stroke='%23a496db' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 40px 32px;
 }
 
 .aether-btn--glass {
@@ -664,7 +684,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 .aether-btn--glass.aether-btn--ghost:hover {
   border-color: var(--aether-lavender);
-  box-shadow: 0 0 28px rgba(185, 174, 209, 0.35);
+  box-shadow: 0 0 28px rgba(148, 138, 168, 0.35);
 }
 
 /* ---------- 6b. Glass header — hero page only ----------
@@ -824,8 +844,8 @@ body.is-auth-transitioning .hero-auth-view::before {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 30%, rgba(185, 174, 209, 0.18), transparent 65%),
-    radial-gradient(ellipse 70% 40% at 50% 100%, rgba(139, 127, 192, 0.1), transparent 60%);
+    radial-gradient(ellipse 60% 50% at 50% 30%, rgba(148, 138, 168, 0.18), transparent 65%),
+    radial-gradient(ellipse 70% 40% at 50% 100%, rgba(164, 150, 219, 0.1), transparent 60%);
   pointer-events: none;
 }
 
@@ -897,7 +917,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 }
 
 .aether-symbol-card:hover .aether-symbol-glyph {
-  box-shadow: 0 0 28px rgba(139, 127, 192, 0.5);
+  box-shadow: 0 0 28px rgba(164, 150, 219, 0.5);
   transform: scale(1.08);
 }
 
@@ -932,7 +952,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 .aether-lineage-node {
   padding: 15px 24px;
-  border: 1px solid rgba(139, 127, 192, 0.35);
+  border: 1px solid rgba(164, 150, 219, 0.35);
   background: rgba(250, 248, 242, 0.03);
   font-family: "Cinzel", serif;
   font-size: 0.8rem;
@@ -944,7 +964,7 @@ body.is-auth-transitioning .hero-auth-view::before {
 .aether-lineage-node.is-focus {
   border-color: var(--aether-gold);
   color: var(--aether-gold-bright);
-  box-shadow: 0 0 26px rgba(139, 127, 192, 0.28);
+  box-shadow: 0 0 26px rgba(164, 150, 219, 0.28);
 }
 
 .aether-lineage-connector {
@@ -1014,7 +1034,7 @@ body.is-auth-transitioning .hero-auth-view::before {
   border-color: var(--aether-gold);
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.4),
-    0 0 40px rgba(139, 127, 192, 0.18),
+    0 0 40px rgba(164, 150, 219, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
@@ -1091,7 +1111,7 @@ body.is-auth-transitioning .hero-auth-view::before {
    (rgba(232,184,75,...)) - recolor to match the purple accent. */
 .beca-minimal .cursor-glow {
   background:
-    radial-gradient(circle, rgba(139, 127, 192, 0.22), rgba(185, 174, 209, 0.08) 33%, transparent 68%);
+    radial-gradient(circle, rgba(164, 150, 219, 0.22), rgba(148, 138, 168, 0.08) 33%, transparent 68%);
 }
 
 /* The base engine's ".product-detail-info button" is a blanket rule
@@ -1122,15 +1142,15 @@ body.is-auth-transitioning .hero-auth-view::before {
 }
 
 .site-footer {
-  border-top: 1px solid rgba(139, 127, 192, 0.2);
+  border-top: 1px solid rgba(164, 150, 219, 0.2);
   background:
-    linear-gradient(150deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015) 44%, rgba(139, 127, 192, 0.035)),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015) 44%, rgba(164, 150, 219, 0.035)),
     rgba(7, 11, 9, 0.5);
 }
 
 /* The blurred glow sitting above the footer is gold by default. */
 .footer-glow {
-  background: radial-gradient(closest-side, rgba(139, 127, 192, 0.16), transparent);
+  background: radial-gradient(closest-side, rgba(164, 150, 219, 0.16), transparent);
 }
 
 /* Review rating: five clickable stars (replaces a plain 1-5 <select>).
@@ -1195,8 +1215,8 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 .product-review-form textarea:focus {
   outline: none;
-  border-color: rgba(139, 127, 192, 0.62);
-  box-shadow: 0 0 0 4px rgba(139, 127, 192, 0.16);
+  border-color: rgba(164, 150, 219, 0.62);
+  box-shadow: 0 0 0 4px rgba(164, 150, 219, 0.16);
 }
 
 .footer-tagline {
