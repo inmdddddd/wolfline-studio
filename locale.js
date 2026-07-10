@@ -194,8 +194,21 @@
     };
   }
 
+  function getForcedLanguage() {
+    // Same page-level pin as script.js: <html data-force-lang="en">.
+    // Single-language brand instances set it so auto-detection and any
+    // previously saved manual choice can't flip their copy. Currency
+    // detection is unaffected - only the language is pinned. The typeof
+    // guard keeps this loadable in non-DOM contexts (unit tests).
+    if (typeof document === "undefined") return "";
+    const forced = document.documentElement?.dataset?.forceLang;
+    return forced === "ro" || forced === "en" ? forced : "";
+  }
+
   function getProfile() {
     const profile = detect();
+    const forcedLanguage = getForcedLanguage();
+    if (forcedLanguage) return { ...profile, language: forcedLanguage, locale: forcedLanguage === "ro" ? "ro-RO" : "en-GB" };
     const manualLanguage = getManualLanguage();
     if (manualLanguage) return { ...profile, language: manualLanguage, locale: manualLanguage === "ro" ? "ro-RO" : "en-GB" };
     return profile;
@@ -216,8 +229,10 @@
   }
 
   function text(key, replacements = {}) {
-    const pack = dictionary[language()] || dictionary.en;
-    let value = pack[key] || dictionary.en[key] || key;
+    const lang = language();
+    const overrides = window.__BRAND_COPY__?.[lang] || {};
+    const pack = dictionary[lang] || dictionary.en;
+    let value = overrides[key] || pack[key] || dictionary.en[key] || key;
     Object.entries(replacements).forEach(([name, replacement]) => {
       value = value.replace(new RegExp(`\\{${name}\\}`, "g"), replacement);
     });

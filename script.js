@@ -302,6 +302,18 @@ const defaultCopy = {
 
 let copy = defaultCopy;
 
+// Brand copy overrides: a brand page may define window.__BRAND_COPY__
+// (e.g. in aether/brand-copy.js, loaded before this script) to replace
+// individual strings per language without forking the shared engine
+// dictionary. Missing keys fall through to the defaults, and brands
+// that don't define it are untouched.
+if (window.__BRAND_COPY__) {
+  copy = {};
+  Object.keys(defaultCopy).forEach((language) => {
+    copy[language] = { ...defaultCopy[language], ...(window.__BRAND_COPY__[language] || {}) };
+  });
+}
+
 function updateHeroGlitchCountdown() {
   const pad = (value) => String(value).padStart(2, "0");
   const glitchValue = (max) => pad(Math.floor(Math.random() * (max + 1)));
@@ -318,6 +330,13 @@ function updateHeroGlitchCountdown() {
 }
 
 function detectLanguage() {
+  // A brand page can pin its language (<html data-force-lang="en">),
+  // overriding both the visitor's saved choice and auto-detection -
+  // used by single-language brand instances (e.g. ÆTHER ORIGIN is
+  // English-only). Brands without the attribute behave as before.
+  const forced = document.documentElement.dataset.forceLang;
+  if (forced === "ro" || forced === "en") return forced;
+
   const saved = localStorage.getItem("beca-language");
   const source = localStorage.getItem("beca-language-source");
   if (source === "manual" && (saved === "ro" || saved === "en")) {
@@ -380,9 +399,12 @@ fetch("/api/content")
   .then((response) => (response.ok ? response.json() : null))
   .then((data) => {
     if (!data) return;
+    // Brand copy overrides stay on top of admin-edited content too - the
+    // brand voice keys (trust strip, scarcity wording) are fixed rules,
+    // not editable copy. Keys the brand doesn't override behave as before.
     copy = {
-      en: { ...defaultCopy.en, ...data.en },
-      ro: { ...defaultCopy.ro, ...data.ro }
+      en: { ...defaultCopy.en, ...data.en, ...(window.__BRAND_COPY__?.en || {}) },
+      ro: { ...defaultCopy.ro, ...data.ro, ...(window.__BRAND_COPY__?.ro || {}) }
     };
     setLanguage(detectLanguage(), { source: "auto" });
     applyBrandingImages(data.branding);
