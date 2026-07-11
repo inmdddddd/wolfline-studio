@@ -260,14 +260,18 @@ async function initProductPage() {
   }
 
   const addButton = document.querySelector("[data-product-add]");
-  addButton.disabled = !isPreviewProduct(product) && product.stock <= 0;
-  addButton.textContent = isPreviewProduct(product)
-    ? productText("notifyMe", "Notify me when available")
-    : (product.stock > 0 ? productText("addToCart", "Add to cart") : productText("soldOut", "Sold out"));
+  const chapterIsOpen = !product.chapterStatus || product.chapterStatus === "open";
+  addButton.disabled = !chapterIsOpen || (!isPreviewProduct(product) && !product.purchasable);
+  addButton.textContent = !chapterIsOpen
+    ? (product.chapterStatus === "closed" ? "Chapter closed" : "Chapter sealed")
+    : (isPreviewProduct(product)
+      ? productText("notifyMe", "Notify me when available")
+      : (product.purchasable ? productText("addToCart", "Add to cart") : productText("soldOut", "Sold out")));
   addButton.addEventListener("click", async () => {
     let notifySaved = false;
     addButton.disabled = true;
     try {
+      if (!chapterIsOpen) return;
       if ((product.sizes || []).length && !sizes.dataset.selectedSize) {
         sizes.classList.add("needs-size");
         message.dataset.type = "";
@@ -304,7 +308,7 @@ async function initProductPage() {
       message.dataset.type = "";
       message.textContent = error.message;
     } finally {
-      addButton.disabled = notifySaved || (!isPreviewProduct(product) && product.stock <= 0);
+      addButton.disabled = notifySaved || !chapterIsOpen || (!isPreviewProduct(product) && !product.purchasable);
     }
   });
 }

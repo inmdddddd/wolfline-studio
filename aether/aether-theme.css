@@ -1000,9 +1000,9 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 .aether-relic-frame {
   position: relative;
-  max-width: 680px;
+  max-width: 1060px;
   margin: 0 auto 12px;
-  padding: 40px 20px 20px;
+  padding: 40px 10px 20px;
 }
 
 .aether-relic-frame::before,
@@ -1020,11 +1020,20 @@ body.is-auth-transitioning .hero-auth-view::before {
 
 .drop-strip.product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  justify-content: center;
+  gap: 28px;
 }
 
-.product-card {
+.aether-relic .product-card {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 320px;
+  min-height: 100%;
+  justify-self: center;
+  padding: 18px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 18px;
@@ -1034,7 +1043,75 @@ body.is-auth-transitioning .hero-auth-view::before {
   transition: transform 420ms ease, box-shadow 420ms ease, border-color 420ms ease;
 }
 
-.product-card:hover {
+.aether-relic .product-card:nth-last-child(2):nth-child(3n + 1) {
+  grid-column: 2 / span 2;
+}
+
+.aether-relic .product-card .product-media {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 16px;
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.aether-relic .product-card .product-media.has-product-shot {
+  aspect-ratio: 4 / 3;
+}
+
+.aether-relic .product-card h3 {
+  margin: 10px 0 8px;
+  font-size: clamp(1.08rem, 1.6vw, 1.3rem);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.aether-relic .product-card > p {
+  display: -webkit-box;
+  min-height: calc(1.5em * 4);
+  margin: 0 0 16px;
+  overflow: hidden;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.aether-relic .product-card .product-card-footer {
+  margin-top: auto;
+}
+
+@media (max-width: 1040px) {
+  .aether-relic-frame {
+    max-width: 720px;
+  }
+
+  .drop-strip.product-grid {
+    grid-template-columns: repeat(2, minmax(0, 320px));
+  }
+
+  .aether-relic .product-card,
+  .aether-relic .product-card:nth-last-child(2):nth-child(3n + 1) {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .aether-relic-frame {
+    width: 100%;
+    padding-inline: 0;
+  }
+
+  .drop-strip.product-grid {
+    grid-template-columns: minmax(0, 320px);
+  }
+
+  .aether-relic .product-card {
+    width: calc(100% - 32px);
+  }
+}
+
+.aether-relic .product-card:hover {
   transform: translateY(-6px);
   border-color: var(--aether-gold);
   box-shadow:
@@ -1172,6 +1249,11 @@ body.is-auth-transitioning .hero-auth-view::before {
   opacity: 0.72;
 }
 
+.archive-chapter.is-closed {
+  border-color: rgba(191, 164, 106, 0.26);
+  background: linear-gradient(135deg, rgba(191, 164, 106, 0.07), rgba(255, 255, 255, 0.02));
+}
+
 .archive-chapter-head {
   display: flex;
   align-items: baseline;
@@ -1219,6 +1301,11 @@ body.is-auth-transitioning .hero-auth-view::before {
 .archive-chapter.is-sealed .archive-chapter-state {
   border-color: rgba(255, 255, 255, 0.16);
   color: var(--muted);
+}
+
+.archive-chapter.is-closed .archive-chapter-state {
+  border-color: rgba(191, 164, 106, 0.4);
+  color: var(--aether-gold);
 }
 
 .archive-chapter > p {
@@ -1661,6 +1748,82 @@ body.is-auth-transitioning .hero-auth-view::before {
 
   .aether-light-rule {
     display: none;
+  }
+}
+
+/* Genealogy registry and admin fields share the existing Aether materials. */
+.archive-products {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 22px;
+}
+
+.archive-product-record {
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.archive-product-record header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.archive-product-record h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  letter-spacing: 0.04em;
+}
+
+.archive-product-record header span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.archive-registry-error {
+  margin: 18px 0 22px;
+  color: #e6b6b6;
+  font-style: italic;
+}
+
+.admin-genealogy-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-column: 1 / -1;
+  gap: 14px;
+  margin: 2px 0 4px;
+  padding: 16px;
+  border: 1px solid rgba(191, 164, 106, 0.34);
+  border-radius: 14px;
+}
+
+.admin-genealogy-fields legend {
+  padding: 0 8px;
+  color: var(--aether-gold-bright);
+  font-family: "Cinzel", serif;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.admin-genealogy-fields small,
+.admin-edit-form label small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 680px) {
+  .admin-genealogy-fields {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -50,6 +50,57 @@ function loadBrandConfig(brandId) {
 }
 
 const BRAND = loadBrandConfig(BRAND_ID);
+const GENEALOGY = BRAND.genealogy?.enabled ? BRAND.genealogy : null;
+const GENEALOGY_CHAPTERS = Array.isArray(GENEALOGY?.chapters)
+  ? GENEALOGY.chapters
+      .filter((chapter) => chapter && chapter.id)
+      .map((chapter) => ({
+        id: String(chapter.id).trim().toLowerCase(),
+        number: String(chapter.number || "").padStart(3, "0"),
+        name: String(chapter.name || "").trim(),
+        subtitle: String(chapter.subtitle || "").trim(),
+        description: String(chapter.description || "").trim(),
+        status: ["sealed", "open", "closed"].includes(chapter.status) ? chapter.status : "sealed",
+        displayOrder: Math.max(0, Number(chapter.display_order ?? chapter.displayOrder) || 0)
+      }))
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+  : [];
+const GENEALOGY_CHAPTER_IDS = new Set(GENEALOGY_CHAPTERS.map((chapter) => chapter.id));
+
+function genealogyChapter(chapterId) {
+  return GENEALOGY_CHAPTERS.find((chapter) => chapter.id === String(chapterId || "").toLowerCase()) || null;
+}
+
+function openGenealogyChapter() {
+  return GENEALOGY_CHAPTERS.find((chapter) => chapter.status === "open") || null;
+}
+
+function productChapterId(product) {
+  return String(product?.chapterId || product?.chapter_id || "origin").toLowerCase();
+}
+
+function productChapterOrder(product) {
+  const value = Number(product?.chapterProductOrder ?? product?.chapter_product_order ?? 999);
+  return Number.isFinite(value) && value >= 0 ? value : 999;
+}
+
+function productBelongsToOpenChapter(product) {
+  if (!GENEALOGY) return true;
+  const openChapter = openGenealogyChapter();
+  return Boolean(openChapter && productChapterId(product) === openChapter.id);
+}
+
+function productCanBePurchased(product) {
+  return product?.status === "live" && productBelongsToOpenChapter(product) && Number(product.stock) > 0;
+}
+
+function sortGenealogyProducts(a, b) {
+  const orderDifference = productChapterOrder(a) - productChapterOrder(b);
+  if (orderDifference) return orderDifference;
+  const createdDifference = new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+  if (createdDifference) return createdDifference;
+  return String(a.id || "").localeCompare(String(b.id || ""));
+}
 
 // A brand's own public/ directory (BeCa's is "." - the project root itself,
 // so this is a no-op and BeCa's file resolution is byte-for-byte unchanged).
@@ -192,6 +243,8 @@ function ensureDataFiles() {
   });
   if (migrated) writeJson("products.json", migratedProducts);
 
+  migrateGenealogyData();
+
   const orders = readJson("orders.json", []);
   let migratedOrders = false;
   const migratedOrdersList = orders.map((order) => {
@@ -253,6 +306,31 @@ function ensureDataFiles() {
       )));
     }
   }
+}
+
+function migrateGenealogyData() {
+  if (!GENEALOGY) return { enabled: false, updated: 0 };
+
+  const products = readJson("products.json", []);
+  let updated = 0;
+  const migratedProducts = products.map((product) => {
+    const currentChapterId = productChapterId(product);
+    const chapterId = GENEALOGY_CHAPTER_IDS.has(currentChapterId) ? currentChapterId : "origin";
+    const chapterProductOrder = productChapterOrder(product);
+    const alreadyMigrated = product.chapterId === chapterId
+      && product.chapterProductOrder === chapterProductOrder
+      && product.chapter_id === undefined
+      && product.chapter_product_order === undefined;
+    if (alreadyMigrated) return product;
+    updated += 1;
+    const next = { ...product, chapterId, chapterProductOrder };
+    delete next.chapter_id;
+    delete next.chapter_product_order;
+    return next;
+  });
+
+  if (updated) writeJson("products.json", migratedProducts);
+  return { enabled: true, updated, total: migratedProducts.length };
 }
 
 function readJson(fileName, fallback) {
@@ -720,6 +798,7 @@ function toSlug(value) {
 }
 
 function publicProduct(product) {
+  const chapter = genealogyChapter(productChapterId(product));
   return {
     id: product.id,
     slug: product.slug || toSlug(product.name),
@@ -739,6 +818,10 @@ function publicProduct(product) {
     description: product.description || "",
     descriptionRo: product.descriptionRo || "",
     descriptionEn: product.descriptionEn || "",
+    chapterId: productChapterId(product),
+    chapterProductOrder: productChapterOrder(product),
+    chapterStatus: chapter?.status || null,
+    purchasable: productCanBePurchased(product),
     studio: product.studio ? {
       model: product.studio.model || "assets/models/tshirt-web.glb",
       textureUrl: product.studio.textureUrl || "",
@@ -762,6 +845,8 @@ function withEditionInfo(payload, product, editions) {
 // The public shape of an edition record: everything a certificate shows,
 // nothing that identifies the buyer (order ids stay internal).
 function publicEditionRecord(record) {
+  const legacyChapter = GENEALOGY_CHAPTERS.find((chapter) => Number(chapter.number) === Number(record.chapter));
+  const chapter = genealogyChapter(record.chapterId) || legacyChapter || genealogyChapter("origin");
   return {
     id: record.id,
     productId: record.productId,
@@ -769,8 +854,11 @@ function publicEditionRecord(record) {
     size: record.size || "",
     number: record.number,
     total: record.total,
-    chapter: record.chapter,
-    chapterName: record.chapterName,
+    chapter: Number(chapter?.number || record.chapter || 1),
+    chapterId: chapter?.id || record.chapterId || "origin",
+    chapterName: chapter?.name || record.chapterName || "ORIGIN",
+    chapterProductOrder: Number(record.chapterProductOrder ?? 999),
+    productStatus: record.productStatus || "sold-out",
     assignedAt: record.assignedAt
   };
 }
@@ -939,6 +1027,36 @@ function sanitizeProduct(input, existing = {}) {
   }
 
   const stock = sizeStock ? totalStockFromSizeStock(sizeStock) : (Number.isFinite(inputStock) ? Math.max(0, Math.floor(inputStock)) : 0);
+  let chapterId = productChapterId(existing);
+  let chapterProductOrder = productChapterOrder(existing);
+
+  if (GENEALOGY) {
+    const rawChapterId = input.chapterId ?? input.chapter_id;
+    if (!existing.id && (rawChapterId === undefined || String(rawChapterId).trim() === "")) {
+      const error = new Error("Genealogy chapter is required.");
+      error.statusCode = 400;
+      throw error;
+    }
+    if (rawChapterId !== undefined) chapterId = String(rawChapterId).trim().toLowerCase();
+    if (!GENEALOGY_CHAPTER_IDS.has(chapterId)) {
+      const error = new Error("Select a valid genealogy chapter.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const rawOrder = input.chapterProductOrder ?? input.chapter_product_order;
+    if (rawOrder !== undefined && String(rawOrder).trim() !== "") {
+      const parsedOrder = Number(rawOrder);
+      if (!Number.isFinite(parsedOrder) || parsedOrder < 0) {
+        const error = new Error("Product order must be a non-negative number.");
+        error.statusCode = 400;
+        throw error;
+      }
+      chapterProductOrder = parsedOrder;
+    } else if (!existing.id) {
+      chapterProductOrder = 999;
+    }
+  }
 
   return {
     ...existing,
@@ -959,6 +1077,8 @@ function sanitizeProduct(input, existing = {}) {
     description: String(input.description || "").trim().slice(0, 900),
     descriptionRo: String(input.descriptionRo || existing.descriptionRo || "").trim().slice(0, 900),
     descriptionEn: String(input.descriptionEn || existing.descriptionEn || "").trim().slice(0, 900),
+    chapterId,
+    chapterProductOrder,
     updatedAt: new Date().toISOString(),
     createdAt: existing.createdAt || new Date().toISOString()
   };
@@ -970,7 +1090,7 @@ function buildCartPayload(cart) {
     .map(([key, qty]) => {
       const { productId, size } = parseCartKey(key);
       const product = products.find((item) => item.id === productId);
-      if (!product || product.status !== "live") return null;
+      if (!product || !productCanBePurchased(product)) return null;
       const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
       return {
         key,
@@ -1333,10 +1453,20 @@ async function handleShopApi(request, response, pathname) {
     return true;
   }
 
+  if (pathname === "/api/genealogy" && request.method === "GET") {
+    json(response, 200, {
+      enabled: Boolean(GENEALOGY),
+      chapters: GENEALOGY_CHAPTERS,
+      openChapter: openGenealogyChapter()
+    });
+    return true;
+  }
+
   if (pathname === "/api/products" && request.method === "GET") {
     const editions = readJson("editions.json", []);
     const products = readJson("products.json", [])
-      .filter((product) => product.status === "live" || product.status === "preview")
+      .filter((product) => (product.status === "live" || product.status === "preview") && productBelongsToOpenChapter(product))
+      .sort(sortGenealogyProducts)
       .map((product) => withEditionInfo(publicProduct(product), product, editions));
     const categories = [...new Set(products.map((product) => product.category).filter(Boolean))];
     json(response, 200, { products, categories });
@@ -1363,8 +1493,25 @@ async function handleShopApi(request, response, pathname) {
   // Public archive record: every numbered piece ever sold, without any
   // buyer-identifying data (order ids stay internal).
   if (pathname === "/api/archive" && request.method === "GET") {
-    const pieces = readJson("editions.json", []).map(publicEditionRecord);
-    json(response, 200, { pieces, count: pieces.length });
+    const products = readJson("products.json", []);
+    const productById = new Map(products.map((product) => [product.id, product]));
+    const pieces = readJson("editions.json", [])
+      .map((record) => {
+        const product = productById.get(record.productId);
+        return publicEditionRecord({
+          ...record,
+          chapterId: record.chapterId || productChapterId(product),
+          chapterProductOrder: record.chapterProductOrder ?? productChapterOrder(product),
+          productStatus: product?.status || record.productStatus || "sold-out"
+        });
+      })
+      .sort((a, b) => a.chapterProductOrder - b.chapterProductOrder || a.number - b.number || a.id - b.id);
+    json(response, 200, {
+      chapters: GENEALOGY_CHAPTERS,
+      openChapter: openGenealogyChapter(),
+      pieces,
+      count: pieces.length
+    });
     return true;
   }
 
@@ -1397,7 +1544,7 @@ async function handleShopApi(request, response, pathname) {
     const preferredSize = String(body.preferredSize || "").trim().slice(0, 12);
     const product = readJson("products.json", []).find((item) => item.id === productId);
 
-    if (!product || (product.status !== "preview" && product.status !== "live")) {
+    if (!product || (product.status !== "preview" && product.status !== "live") || !productBelongsToOpenChapter(product)) {
       json(response, 404, { error: "Produsul nu este disponibil pentru notificari." });
       return true;
     }
@@ -1585,7 +1732,7 @@ async function handleShopApi(request, response, pathname) {
     const qty = Math.max(1, Math.min(20, Math.floor(Number(body.qty) || 1)));
     const product = readJson("products.json", []).find((item) => item.id === productId);
 
-    if (!product || product.status !== "live") {
+    if (!product || !productCanBePurchased(product)) {
       json(response, 404, { error: "Produsul nu este disponibil." });
       return true;
     }
@@ -1714,7 +1861,7 @@ async function handleShopApi(request, response, pathname) {
       for (const item of payload.items) {
         const productIndex = productUpdates.findIndex((product) => product.id === item.product.id);
         const current = productIndex !== -1 ? productUpdates[productIndex] : null;
-        if (!current || current.status !== "live" || availableStock(current, item.size) < item.qty) {
+        if (!current || !productCanBePurchased(current) || availableStock(current, item.size) < item.qty) {
           return { error: `Stoc insuficient pentru ${item.product.name}.` };
         }
 
@@ -1793,6 +1940,7 @@ async function handleShopApi(request, response, pathname) {
       for (const item of order.items) {
         for (const number of item.editionNumbers) {
           recordSeq += 1;
+          const chapter = genealogyChapter(productChapterId(productUpdates.find((product) => product.id === item.productId))) || genealogyChapter("origin");
           editions.push({
             id: recordSeq,
             productId: item.productId,
@@ -1800,8 +1948,10 @@ async function handleShopApi(request, response, pathname) {
             size: item.size,
             number,
             total: item.editionTotal,
-            chapter: 1,
-            chapterName: "ORIGIN",
+            chapter: Number(chapter?.number || 1),
+            chapterId: chapter?.id || "origin",
+            chapterName: chapter?.name || "ORIGIN",
+            chapterProductOrder: productChapterOrder(productUpdates.find((product) => product.id === item.productId)),
             orderId: order.id,
             assignedAt: createdAt
           });
@@ -3087,6 +3237,10 @@ module.exports = {
   sanitizeProduct,
   parseSizesInput,
   sanitizeCheckout,
+  migrateGenealogyData,
+  openGenealogyChapter,
+  productBelongsToOpenChapter,
+  productCanBePurchased,
   canAccessFile,
   clientIp
 };

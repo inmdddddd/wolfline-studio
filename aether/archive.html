@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap">
   <link rel="stylesheet" href="styles.css?v=aether-35">
-  <link rel="stylesheet" href="aether-theme.css?v=aether-35">
+  <link rel="stylesheet" href="aether-theme.css?v=genealogy-1">
 </head>
 <body class="beca-minimal info-page">
   <div class="cursor-glow" aria-hidden="true"></div>
@@ -98,7 +98,7 @@
     </section>
 
     <section class="info-section archive-chapters" aria-label="Chapters of the genealogy">
-      <article class="archive-chapter is-open">
+      <article class="archive-chapter is-open" data-chapter-id="origin">
         <div class="archive-chapter-head">
           <span class="archive-chapter-num aether-numerals">001</span>
           <div>
@@ -108,14 +108,12 @@
           <span class="archive-chapter-state">Open</span>
         </div>
         <p>The first chapter. From nothing, form. The current relic is offered in the sanctuary in a fixed and final quantity &mdash; when it closes, it moves here, permanently.</p>
-        <div class="archive-pieces" data-archive-pieces hidden></div>
-        <p class="archive-pieces-empty" data-archive-empty hidden>No pieces have passed into the record yet.</p>
-        <a class="aether-btn aether-btn--on-dark" href="/#relic">Enter the Sanctuary</a>
+        <a class="aether-btn aether-btn--on-dark" href="/#relic" data-enter-sanctuary>Enter the Sanctuary</a>
       </article>
 
       <div class="aether-divider" aria-hidden="true"></div>
 
-      <article class="archive-chapter is-sealed">
+      <article class="archive-chapter is-sealed" data-chapter-id="erebus">
         <div class="archive-chapter-head">
           <span class="archive-chapter-num aether-numerals">002</span>
           <div>
@@ -127,7 +125,7 @@
         <p>Unwritten. The second chapter opens only after the first has closed.</p>
       </article>
 
-      <article class="archive-chapter is-sealed">
+      <article class="archive-chapter is-sealed" data-chapter-id="nyx">
         <div class="archive-chapter-head">
           <span class="archive-chapter-num aether-numerals">003</span>
           <div>
@@ -139,7 +137,7 @@
         <p>Unwritten.</p>
       </article>
 
-      <article class="archive-chapter is-sealed">
+      <article class="archive-chapter is-sealed" data-chapter-id="hemera">
         <div class="archive-chapter-head">
           <span class="archive-chapter-num aether-numerals">004</span>
           <div>
@@ -151,7 +149,7 @@
         <p>Unwritten.</p>
       </article>
 
-      <article class="archive-chapter is-sealed">
+      <article class="archive-chapter is-sealed" data-chapter-id="aether">
         <div class="archive-chapter-head">
           <span class="archive-chapter-num aether-numerals">005</span>
           <div>
@@ -212,37 +210,108 @@
   <script src="security.js?v=aether-35"></script>
   <script>
     (function () {
-      var list = document.querySelector("[data-archive-pieces]");
-      var empty = document.querySelector("[data-archive-empty]");
-      if (!list || !empty) return;
-
       function pad(value) {
         return String(value).padStart(3, "0");
       }
 
-      fetch("/api/archive")
-        .then(function (response) { return response.ok ? response.json() : { pieces: [] }; })
-        .then(function (payload) {
-          var pieces = payload.pieces || [];
-          if (!pieces.length) {
-            empty.hidden = false;
-            return;
-          }
-          pieces.forEach(function (piece) {
-            var link = document.createElement("a");
-            link.href = "/archive/" + piece.id;
-            var number = document.createElement("span");
-            number.className = "aether-numerals";
-            number.textContent = pad(piece.number) + "/" + pad(piece.total);
-            var date = document.createElement("small");
-            date.textContent = new Date(piece.assignedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-            link.append(number, date);
-            list.appendChild(link);
+      function ensureRegistry(article) {
+        var list = article.querySelector(".archive-products");
+        if (!list) {
+          list = document.createElement("div");
+          list.className = "archive-products";
+          var action = article.querySelector("[data-enter-sanctuary]");
+          article.insertBefore(list, action || null);
+        }
+        return list;
+      }
+
+      function renderChapter(chapter, pieces, sanctuaryButton) {
+        var article = document.querySelector('[data-chapter-id="' + chapter.id + '"]');
+        if (!article) return;
+
+        article.classList.remove("is-open", "is-sealed", "is-closed");
+        article.classList.add("is-" + chapter.status);
+        article.querySelector(".archive-chapter-num").textContent = chapter.number;
+        article.querySelector("h2").textContent = chapter.name;
+        article.querySelector(".archive-chapter-era").textContent = chapter.subtitle;
+        article.querySelector(".archive-chapter-state").textContent = chapter.status;
+        var description = article.querySelector(":scope > p");
+        if (description && chapter.description) description.textContent = chapter.description;
+
+        var registry = ensureRegistry(article);
+        registry.innerHTML = "";
+        var chapterPieces = pieces.filter(function (piece) { return piece.chapterId === chapter.id; });
+        var grouped = new Map();
+        chapterPieces.forEach(function (piece) {
+          if (!grouped.has(piece.productId)) grouped.set(piece.productId, []);
+          grouped.get(piece.productId).push(piece);
+        });
+
+        Array.from(grouped.values())
+          .sort(function (a, b) {
+            return (a[0].chapterProductOrder || 999) - (b[0].chapterProductOrder || 999)
+              || String(a[0].productName).localeCompare(String(b[0].productName));
+          })
+          .forEach(function (productPieces) {
+            var record = document.createElement("section");
+            var head = document.createElement("header");
+            var title = document.createElement("h3");
+            var state = document.createElement("span");
+            var links = document.createElement("div");
+            record.className = "archive-product-record";
+            title.textContent = productPieces[0].productName;
+            state.textContent = productPieces[0].productStatus === "sold-out" ? "Edition closed" : "Edition in progress";
+            links.className = "archive-pieces";
+            productPieces.sort(function (a, b) { return a.number - b.number || a.id - b.id; });
+            productPieces.forEach(function (piece) {
+              var link = document.createElement("a");
+              var number = document.createElement("span");
+              var date = document.createElement("small");
+              link.href = "/archive/" + piece.id;
+              number.className = "aether-numerals";
+              number.textContent = pad(piece.number) + "/" + pad(piece.total);
+              date.textContent = new Date(piece.assignedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+              link.append(number, date);
+              links.appendChild(link);
+            });
+            head.append(title, state);
+            record.append(head, links);
+            registry.appendChild(record);
           });
-          list.hidden = false;
+
+        var existingEmpty = article.querySelector("[data-archive-empty]");
+        if (existingEmpty) existingEmpty.remove();
+        // Sealed chapters already read "Unwritten." - the empty-registry
+        // line only belongs to chapters that could hold pieces.
+        if (!chapterPieces.length && chapter.status !== "sealed") {
+          var empty = document.createElement("p");
+          empty.className = "archive-pieces-empty";
+          empty.dataset.archiveEmpty = "";
+          empty.textContent = "No pieces have passed into the record yet.";
+          registry.appendChild(empty);
+        }
+
+        if (chapter.status === "open" && sanctuaryButton) article.appendChild(sanctuaryButton);
+      }
+
+      fetch("/api/archive")
+        .then(function (response) {
+          if (!response.ok) throw new Error("Archive registry unavailable.");
+          return response.json();
+        })
+        .then(function (payload) {
+          var button = document.querySelector("[data-enter-sanctuary]");
+          (payload.chapters || []).forEach(function (chapter) {
+            renderChapter(chapter, payload.pieces || [], button);
+          });
         })
         .catch(function () {
-          empty.hidden = false;
+          var openArticle = document.querySelector(".archive-chapter.is-open") || document.querySelector(".archive-chapter");
+          if (!openArticle) return;
+          var error = document.createElement("p");
+          error.className = "archive-registry-error";
+          error.textContent = "The registry could not be loaded. Chapter information remains available.";
+          ensureRegistry(openArticle).appendChild(error);
         });
     })();
   </script>

@@ -293,6 +293,8 @@ function renderProducts(products) {
       createField("Sizes (e.g. S:5, M:8, L:6, XL:2)", "sizes", sizeBreakdown || (Array.isArray(product.sizes) ? product.sizes.join(", ") : "")),
       createField("Color", "color", product.color || ""),
       createStatusField(product.status),
+      createChapterField(product.chapterId),
+      createProductOrderField(product.chapterProductOrder),
       createFileField(),
       createTextarea("Description EN", "description", product.description || ""),
       createTextarea("Description RO", "descriptionRo", product.descriptionRo || ""),
@@ -519,6 +521,53 @@ function createFileField() {
   input.accept = "image/png,image/jpeg,image/webp,image/gif";
   label.appendChild(input);
   return label;
+}
+
+let genealogyState = { enabled: false, chapters: [], openChapter: null };
+
+function chapterOptionLabel(chapter) {
+  return `${chapter.number} — ${chapter.name}`;
+}
+
+function createChapterField(value) {
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+  label.textContent = "Genealogy chapter";
+  select.name = "chapterId";
+  select.required = true;
+  genealogyState.chapters.forEach((chapter) => {
+    const option = document.createElement("option");
+    option.value = chapter.id;
+    option.textContent = chapterOptionLabel(chapter);
+    option.selected = chapter.id === value;
+    select.appendChild(option);
+  });
+  label.appendChild(select);
+  return label;
+}
+
+function createProductOrderField(value) {
+  const label = createField("Product order", "chapterProductOrder", value ?? 999, false, "number", "1");
+  const input = label.querySelector("input");
+  input.min = "0";
+  const helper = document.createElement("small");
+  helper.textContent = "Controls the product's position inside its chapter in Sanctuary.";
+  label.appendChild(helper);
+  return label;
+}
+
+function hydrateGenealogySelects() {
+  document.querySelectorAll("[data-chapter-select]").forEach((select) => {
+    const current = select.value;
+    select.innerHTML = "";
+    genealogyState.chapters.forEach((chapter) => {
+      const option = document.createElement("option");
+      option.value = chapter.id;
+      option.textContent = chapterOptionLabel(chapter);
+      option.selected = chapter.id === current || (!current && chapter.status === "open");
+      select.appendChild(option);
+    });
+  });
 }
 
 function renderNotifications(notifications) {
@@ -964,7 +1013,7 @@ async function uploadBrandingImage(file, key) {
 async function loadDashboard() {
   const [
     summary, { products }, usersPayload, { orders }, { notifications },
-    content, analytics, revenue, topProducts, traffic, { reviews }, { coupons }
+    content, analytics, revenue, topProducts, traffic, { reviews }, { coupons }, genealogy
   ] = await Promise.all([
     requestJson("/api/admin/summary"),
     requestJson("/api/admin/products"),
@@ -977,9 +1026,12 @@ async function loadDashboard() {
     requestJson("/api/admin/stats/products"),
     requestJson("/api/admin/stats/traffic"),
     requestJson("/api/admin/reviews"),
-    requestJson("/api/admin/coupons")
+    requestJson("/api/admin/coupons"),
+    requestJson("/api/genealogy")
   ]);
 
+  genealogyState = genealogy;
+  hydrateGenealogySelects();
   renderSummary(summary);
   renderProducts(products);
   renderPhotoProducts(products);

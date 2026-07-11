@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap">
   <link rel="stylesheet" href="../styles.css?v=aether-35">
-  <link rel="stylesheet" href="../aether-theme.css?v=aether-35">
+  <link rel="stylesheet" href="../aether-theme.css?v=genealogy-1">
   <script type="importmap">
     {
       "imports": {
@@ -146,6 +146,16 @@
                   <option value="live">Live</option>
                 </select>
               </label>
+              <fieldset class="admin-genealogy-fields">
+                <legend>Genealogy</legend>
+                <label>Genealogy chapter
+                  <select name="chapterId" data-chapter-select required></select>
+                </label>
+                <label>Product order
+                  <input name="chapterProductOrder" type="number" min="0" step="1" value="999">
+                  <small>Controls the product's position inside its chapter in Sanctuary.</small>
+                </label>
+              </fieldset>
               <label>Sizes (e.g. S:5, M:8, L:6, XL:2)<input name="sizes" value="S, M, L, XL"></label>
               <label>Print mode
                 <select name="studioMode" data-studio-mode>
@@ -239,6 +249,16 @@
                 <option value="sold-out">Sold out</option>
               </select>
             </label>
+            <fieldset class="admin-genealogy-fields">
+              <legend>Genealogy</legend>
+              <label>Genealogy chapter
+                <select name="chapterId" data-chapter-select required></select>
+              </label>
+              <label>Product order
+                <input name="chapterProductOrder" type="number" min="0" step="1" value="999">
+                <small>Controls the product's position inside its chapter in Sanctuary.</small>
+              </label>
+            </fieldset>
           </div>
           <label>Description EN<textarea name="description" rows="4"></textarea></label>
           <label>Description RO<textarea name="descriptionRo" rows="4"></textarea></label>
@@ -382,7 +402,7 @@
   <script src="../security.js?v=no-block-1"></script>
   <script src="../brand-copy.js?v=aether-35"></script>
   <script src="../script.js?v=aether-35"></script>
-  <script src="../admin.js?v=stats-design-1"></script>
+  <script src="../admin.js?v=genealogy-1"></script>
   <script type="module" src="../studio.js?v=photo-studio-poses-1"></script>
 </body>
 </html>

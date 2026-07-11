@@ -21,6 +21,56 @@
     "accent": "#bfa46a",
     "accent2": "#c8b89b"
   },
+  "genealogy": {
+    "enabled": true,
+    "chapters": [
+      {
+        "id": "origin",
+        "number": "001",
+        "name": "ORIGIN",
+        "subtitle": "Chaos — the yawning gap before form",
+        "description": "The first chapter. From nothing, form. The current relic is offered in the sanctuary in a fixed and final quantity — when it closes, it moves here, permanently.",
+        "status": "open",
+        "display_order": 1
+      },
+      {
+        "id": "erebus",
+        "number": "002",
+        "name": "EREBUS",
+        "subtitle": "primordial darkness",
+        "description": "Unwritten. The second chapter remains sealed until it is opened deliberately.",
+        "status": "sealed",
+        "display_order": 2
+      },
+      {
+        "id": "nyx",
+        "number": "003",
+        "name": "NYX",
+        "subtitle": "night",
+        "description": "Unwritten.",
+        "status": "sealed",
+        "display_order": 3
+      },
+      {
+        "id": "hemera",
+        "number": "004",
+        "name": "HEMERA",
+        "subtitle": "day",
+        "description": "Unwritten.",
+        "status": "sealed",
+        "display_order": 4
+      },
+      {
+        "id": "aether",
+        "number": "005",
+        "name": "AETHER",
+        "subtitle": "pure upper light",
+        "description": "Unwritten. The closing chapter of the first genealogy.",
+        "status": "sealed",
+        "display_order": 5
+      }
+    ]
+  },
   "seedProduct": {
     "name": "THE FIRST FORM — 001/001",
     "category": "Archive Tee",
