@@ -1013,7 +1013,7 @@ async function uploadBrandingImage(file, key) {
 async function loadDashboard() {
   const [
     summary, { products }, usersPayload, { orders }, { notifications },
-    content, analytics, revenue, topProducts, traffic, { reviews }, { coupons }, genealogy
+    content, analytics, revenue, topProducts, traffic, { reviews }, { coupons }
   ] = await Promise.all([
     requestJson("/api/admin/summary"),
     requestJson("/api/admin/products"),
@@ -1026,11 +1026,19 @@ async function loadDashboard() {
     requestJson("/api/admin/stats/products"),
     requestJson("/api/admin/stats/traffic"),
     requestJson("/api/admin/reviews"),
-    requestJson("/api/admin/coupons"),
-    requestJson("/api/genealogy")
+    requestJson("/api/admin/coupons")
   ]);
 
-  genealogyState = genealogy;
+  // Genealogy is optional chrome, not an auth-gated resource. Keeping it
+  // out of the critical Promise.all means an old server that lacks
+  // /api/genealogy (e.g. static files pulled but the Node process not yet
+  // restarted) can't reject the whole load and bounce an authenticated
+  // admin back to /admin/login.html.
+  try {
+    genealogyState = await requestJson("/api/genealogy");
+  } catch {
+    genealogyState = { enabled: false, chapters: [], openChapter: null };
+  }
   hydrateGenealogySelects();
   renderSummary(summary);
   renderProducts(products);
