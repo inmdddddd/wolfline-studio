@@ -3397,6 +3397,19 @@ body.beca-minimal {
   background: var(--accent);
 }
 
+/* Spec strip inside the materials card. Borrows the trust-strip bullets so
+   it stays in the brand's visual language, but sits above the prose and is
+   read at full contrast - these are the numbers that justify the price, so
+   they have to scan before the sentences do. */
+.product-spec-strip {
+  margin: 0 0 16px;
+  gap: 8px 18px;
+}
+
+.product-spec-strip li {
+  color: var(--text);
+}
+
 .product-specs {
   display: flex;
   flex-wrap: wrap;
