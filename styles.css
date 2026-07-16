@@ -7081,10 +7081,19 @@ body[data-hero-auth="login"] .beca-hero-copy {
   gap: 10px;
 }
 
-.product-wishlist-toggle {
-  flex-shrink: 0;
+/* ".product-detail-info button" above is a blanket rule (width:100%,
+   min-height, accent fill) written for the single main CTA, but it also
+   catches the little wishlist heart sitting beside it in .product-add-row -
+   and at (0,1,1) it outranks a bare .product-wishlist-toggle no matter how
+   far down the file this sits. The result: the heart inflates into a
+   full-width accent pill and squeezes the real CTA to ~72px. Match it on
+   specificity and undo each property it imposes. */
+.product-add-row .product-wishlist-toggle {
+  flex: 0 0 auto;
   width: 44px;
   height: 44px;
+  min-height: 0;
+  margin-top: 0;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: transparent;
@@ -7094,9 +7103,10 @@ body[data-hero-auth="login"] .beca-hero-copy {
   transition: color 0.2s ease, border-color 0.2s ease;
 }
 
-.product-wishlist-toggle.is-saved {
+.product-add-row .product-wishlist-toggle.is-saved {
   color: var(--accent);
   border-color: var(--accent);
+  background: transparent;
 }
 
 .product-reviews {
