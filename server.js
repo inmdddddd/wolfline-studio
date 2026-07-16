@@ -2293,6 +2293,58 @@ async function handleAdminApi(request, response, pathname) {
     return true;
   }
 
+  // Per-page numbers for the in-page stats popover. The dashboard endpoint
+  // above only exposes site-wide daily totals plus a top-8 list, so a page
+  // outside that list has nothing to show - but byDay[day].paths already
+  // holds the per-path counts. Views are tracked by pathname only, so
+  // /product.html here means every product, not one slug.
+  if (pathname === "/api/admin/analytics/page" && request.method === "GET") {
+    const target = new URL(request.url, `http://${request.headers.host}`).searchParams.get("path") || "/";
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
+    const today = new Date();
+    const days = [];
+    let total = 0;
+    let siteTotal = 0;
+    let best = 0;
+
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().slice(0, 10);
+      const entry = analytics.byDay[key];
+      const views = (entry && entry.paths && entry.paths[target]) || 0;
+      days.push({ date: key, views });
+      total += views;
+      siteTotal += (entry && entry.pageviews) || 0;
+      if (views > best) best = views;
+    }
+
+    // Where this page ranks against every other page over the same window.
+    const totals = {};
+    days.forEach((_, index) => {
+      const date = new Date(today);
+      date.setDate(date.getDate() - (13 - index));
+      const entry = analytics.byDay[date.toISOString().slice(0, 10)];
+      if (!entry || !entry.paths) return;
+      for (const [key, count] of Object.entries(entry.paths)) {
+        totals[key] = (totals[key] || 0) + count;
+      }
+    });
+    const ranked = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+
+    json(response, 200, {
+      path: target,
+      last14Days: days,
+      total14: total,
+      today: days[days.length - 1].views,
+      peak: best,
+      siteTotal14: siteTotal,
+      rank: ranked.findIndex(([key]) => key === target) + 1 || null,
+      pagesTracked: ranked.length
+    });
+    return true;
+  }
+
   if (pathname === "/api/admin/email/test" && request.method === "POST") {
     const config = email.getConfig();
     const configured = email.isConfigured(config);

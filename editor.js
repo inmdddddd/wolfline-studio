@@ -281,20 +281,69 @@
       <button type="button" class="oed-toggle" title="Mod editare">
         <span class="oed-pencil">✎</span><span class="oed-label">Editează</span>
       </button>
+      <button type="button" class="oed-eye" title="Statistici pagina" aria-expanded="false">👁</button>
       <div class="oed-tools">
         <span class="oed-hint">Apasă pe orice text sau imagine</span>
         <span class="oed-status" data-oed-status></span>
         <button type="button" class="oed-save" disabled>Salvează</button>
         <button type="button" class="oed-done">Gata</button>
-      </div>`;
+      </div>
+      <div class="oed-stats" data-oed-stats hidden></div>`;
     document.body.appendChild(bar);
 
     saveBtn = bar.querySelector(".oed-save");
     statusEl = bar.querySelector("[data-oed-status]");
     bar.querySelector(".oed-toggle").addEventListener("click", () => setEditing(!editing));
     bar.querySelector(".oed-done").addEventListener("click", () => setEditing(false));
+    bar.querySelector(".oed-eye").addEventListener("click", toggleStats);
     saveBtn.addEventListener("click", save);
     document.addEventListener("click", onDocClick, true);
+  }
+
+  /* ---------- page stats ---------- */
+  function renderStats(panel, d) {
+    const peak = Math.max(1, d.peak || 0);
+    const bars = d.last14Days.map((day) => {
+      const h = Math.round((day.views / peak) * 100);
+      return `<i style="height:${Math.max(h, 3)}%" title="${day.date}: ${day.views}"></i>`;
+    }).join("");
+    const share = d.siteTotal14 ? Math.round((d.total14 / d.siteTotal14) * 100) : 0;
+    const rank = d.rank ? `Locul ${d.rank} din ${d.pagesTracked} pagini` : "Fără vizite încă";
+    panel.innerHTML = `
+      <div class="oed-stats-head">Statistici pagină</div>
+      <div class="oed-stats-path">${d.path}</div>
+      <div class="oed-stats-row">
+        <div class="oed-stat"><b>${d.today}</b><span>azi</span></div>
+        <div class="oed-stat"><b>${d.total14}</b><span>14 zile</span></div>
+        <div class="oed-stat"><b>${share}%</b><span>din trafic</span></div>
+      </div>
+      <div class="oed-spark">${bars}</div>
+      <div class="oed-stats-foot">${rank} · ultimele 14 zile</div>`;
+  }
+
+  async function toggleStats() {
+    const panel = bar.querySelector("[data-oed-stats]");
+    const eye = bar.querySelector(".oed-eye");
+    if (!panel.hidden) {
+      panel.hidden = true;
+      bar.dataset.stats = "";
+      eye.setAttribute("aria-expanded", "false");
+      return;
+    }
+    panel.hidden = false;
+    bar.dataset.stats = "1";
+    eye.setAttribute("aria-expanded", "true");
+    panel.innerHTML = `<div class="oed-stats-foot">Se încarcă…</div>`;
+    try {
+      // location.pathname, not PAGE: views are recorded under the exact path
+      // requested, so "/" and "/index.html" are separate rows.
+      const res = await fetch("/api/admin/analytics/page?path=" + encodeURIComponent(location.pathname));
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Nu am putut citi statisticile.");
+      renderStats(panel, data);
+    } catch (err) {
+      panel.innerHTML = `<div class="oed-stats-foot">${err.message || "Eroare."}</div>`;
+    }
   }
 
   function injectStyles() {
@@ -304,6 +353,21 @@
          opposite it rather than on top of it. */
       .oed-bar{position:fixed;left:18px;bottom:18px;z-index:2147483000;display:flex;align-items:center;gap:10px;
         font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:13px;}
+      .oed-eye{font-size:15px;line-height:1;padding:11px 13px;}
+      .oed-bar[data-stats="1"] .oed-eye{background:var(--accent,#b9a7ee);color:#14101f;border-color:transparent;}
+      .oed-stats{position:absolute;left:0;bottom:56px;width:270px;padding:14px;border-radius:16px;
+        border:1px solid rgba(255,255,255,.16);background:rgba(12,10,20,.95);color:#f4efe4;
+        box-shadow:0 20px 60px rgba(0,0,0,.5);backdrop-filter:blur(14px);}
+      .oed-stats[hidden]{display:none;}
+      .oed-stats-head{font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.55;}
+      .oed-stats-path{margin:2px 0 12px;font-size:12px;font-weight:700;color:var(--accent,#b9a7ee);word-break:break-all;}
+      .oed-stats-row{display:flex;gap:14px;margin-bottom:10px;}
+      .oed-stat b{display:block;font-size:19px;font-weight:800;line-height:1.15;}
+      .oed-stat span{font-size:10px;opacity:.55;text-transform:uppercase;letter-spacing:.06em;}
+      .oed-spark{display:flex;align-items:flex-end;gap:2px;height:36px;margin-bottom:8px;}
+      .oed-spark i{flex:1;min-height:2px;border-radius:2px 2px 0 0;background:var(--accent,#b9a7ee);opacity:.7;}
+      .oed-spark i:last-child{opacity:1;}
+      .oed-stats-foot{font-size:10.5px;opacity:.55;line-height:1.4;}
       .oed-bar button{cursor:pointer;border-radius:999px;border:1px solid rgba(255,255,255,.22);color:#f4efe4;
         background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.04)),rgba(12,10,20,.86);
         padding:11px 16px;font:inherit;font-weight:700;letter-spacing:.02em;
