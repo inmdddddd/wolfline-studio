@@ -93,17 +93,41 @@
 
   /* ---------- edit mode ---------- */
   let fileInput;
-  let pendingImg = null;
+  let pending = null;   // { kind: "img" | "product", el, card, id }
+
+  /* A product card's shot is catalog data, not page copy. Storing it as a
+     selector-keyed page override would break the moment the cards reorder,
+     and it would never reach the product's own page or the admin. Route it
+     to the product instead. The card carries data-product-id; fall back to
+     its buttons for cards rendered before that existed. */
+  function productCardTarget(node) {
+    const media = node.closest(".product-card .product-media");
+    if (!media) return null;
+    const card = media.closest(".product-card");
+    const id = card.dataset.productId
+      || card.querySelector("[data-add-to-cart]")?.dataset.addToCart
+      || card.querySelector("[data-notify-product]")?.dataset.notifyProduct;
+    return id ? { kind: "product", el: media, card, id } : null;
+  }
 
   function onDocClick(event) {
     if (!editing) return;
     if (event.target.closest("[data-oed-ui]")) return;
 
+    const product = productCardTarget(event.target);
+    if (product) {
+      event.preventDefault();
+      event.stopPropagation();
+      pending = product;
+      fileInput.click();
+      return;
+    }
+
     const img = event.target.closest("img");
     if (isEditableImg(img)) {
       event.preventDefault();
       event.stopPropagation();
-      pendingImg = img;
+      pending = { kind: "img", el: img };
       fileInput.click();
       return;
     }
@@ -142,26 +166,53 @@
     el.addEventListener("keydown", onKey);
   }
 
+  function readAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("Nu am putut citi fisierul."));
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function onFilePicked() {
     const file = fileInput.files && fileInput.files[0];
     fileInput.value = "";
-    if (!file || !pendingImg) return;
-    const img = pendingImg;
-    pendingImg = null;
-    img.classList.add("oed-uploading");
+    if (!file || !pending) return;
+    const target = pending;
+    pending = null;
+    target.el.classList.add("oed-uploading");
     try {
-      const fd = new FormData();
-      fd.append("image", file);
-      const res = await fetch("/api/admin/content/image", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || "Upload esuat.");
-      img.src = data.url;
-      changes.set(cssPath(img), { t: "img", v: data.url });
-      markDirty();
+      if (target.kind === "product") {
+        // Writes straight to the catalog, so unlike a page override this one
+        // saves on the spot rather than waiting for the Save button.
+        const res = await fetch(`/api/admin/products/${encodeURIComponent(target.id)}/scene-image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: await readAsDataUrl(file) })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Salvare esuata.");
+        const url = data.product && data.product.imageUrl;
+        const img = target.card.querySelector(".product-media img");
+        if (img && url) img.src = url + (url.indexOf("?") === -1 ? "?" : "&") + "t=" + Date.now();
+        // On desktop the card keeps the rotating model, so a silent success
+        // there reads as nothing happening - say where the shot landed.
+        toast(img ? "Poza produsului salvata ✓" : "Salvat ✓ — apare pe mobil si pe pagina produsului");
+      } else {
+        const fd = new FormData();
+        fd.append("image", file);
+        const res = await fetch("/api/admin/content/image", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error || "Upload esuat.");
+        target.el.src = data.url;
+        changes.set(cssPath(target.el), { t: "img", v: data.url });
+        markDirty();
+      }
     } catch (err) {
       toast(err.message || "Upload esuat.", true);
     } finally {
-      img.classList.remove("oed-uploading");
+      target.el.classList.remove("oed-uploading");
     }
   }
 
@@ -271,6 +322,12 @@
       .oed-save{background:var(--accent,#b9a7ee)!important;color:#14101f!important;border-color:transparent!important;}
       body.oed-editing [data-oed-editable-hover]{outline:1px dashed var(--accent,#b9a7ee);outline-offset:3px;cursor:pointer;}
       body.oed-editing img:not([data-oed-ui] img):hover{outline:2px solid var(--accent,#b9a7ee);outline-offset:3px;cursor:pointer;}
+      /* The card shows a rotating model on desktop, so there is no <img> to
+         hint at - outline the media box itself. */
+      body.oed-editing .product-card .product-media{position:relative;}
+      body.oed-editing .product-card .product-media:hover{outline:2px solid var(--accent,#b9a7ee);outline-offset:3px;cursor:pointer;}
+      body.oed-editing .product-card .product-media:hover::after{content:"Schimba poza";position:absolute;left:50%;bottom:10px;transform:translateX(-50%);
+        padding:5px 11px;border-radius:999px;background:rgba(12,10,20,.88);color:#fff;font-size:12px;font-weight:700;pointer-events:none;white-space:nowrap;}
       .oed-active{outline:2px solid var(--accent,#b9a7ee)!important;outline-offset:3px;background:color-mix(in srgb,var(--accent,#b9a7ee) 10%,transparent);border-radius:4px;}
       .oed-uploading{opacity:.45;filter:grayscale(.4);}
     `;

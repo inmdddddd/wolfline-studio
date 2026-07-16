@@ -154,6 +154,9 @@ function renderProducts(products = []) {
 
     card.className = "product-card";
     card.classList.toggle("is-preview", isPreviewProduct(product));
+    // Lets the inline editor tie a card back to its catalog entry, so
+    // swapping the shot writes to the product rather than to the page.
+    card.dataset.productId = product.id;
     media.className = "product-media";
     const imageSource = productImageSrc(product);
     const shouldUseProductShot = Boolean(imageSource) && (isMobileShop || isSafariShop);
