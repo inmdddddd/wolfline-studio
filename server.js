@@ -2729,6 +2729,45 @@ async function handleAdminApi(request, response, pathname) {
     return true;
   }
 
+  // Drag-to-reorder from the grid. /api/products already sorts on
+  // chapterProductOrder, but sanitizeProduct only writes that field for
+  // brands with genealogy - BeCa has none, so every product sat on the 999
+  // default and the grid fell back to creation date. Set the field directly
+  // from the order the admin dropped the cards in.
+  if (pathname === "/api/admin/products/reorder" && request.method === "POST") {
+    const body = await readBody(request);
+    const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+
+    if (!ids.length) {
+      json(response, 400, { error: "Lipseste ordinea produselor." });
+      return true;
+    }
+
+    const result = await withStockLock(() => {
+      const products = readJson("products.json", []);
+      const known = new Set(products.map((product) => product.id));
+      if (ids.some((id) => !known.has(id))) return null;
+
+      const now = new Date().toISOString();
+      ids.forEach((id, index) => {
+        const product = products.find((item) => item.id === id);
+        // 1-based: 0 would tie with a genuinely unset field in some sorts.
+        product.chapterProductOrder = index + 1;
+        product.updatedAt = now;
+      });
+      writeJson("products.json", products);
+      return ids.length;
+    });
+
+    if (result === null) {
+      json(response, 404, { error: "Un produs din lista nu exista." });
+      return true;
+    }
+
+    json(response, 200, { ok: true, reordered: result });
+    return true;
+  }
+
   const productMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)$/);
   if (productMatch && request.method === "PUT") {
     const productId = productMatch[1];

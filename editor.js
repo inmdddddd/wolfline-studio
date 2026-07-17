@@ -237,9 +237,83 @@
     editing = on;
     document.body.classList.toggle("oed-editing", on);
     bar.dataset.editing = on ? "1" : "";
+    setCardsDraggable(on);
     if (!on) {
       document.querySelectorAll("[contenteditable]").forEach((el) => el.removeAttribute("contenteditable"));
     }
+  }
+
+  /* ---------- drag to reorder the product grid ---------- */
+  let dragCard = null;
+
+  function productGrid() {
+    const card = document.querySelector(".product-card[data-product-id], .product-card");
+    return card ? card.parentElement : null;
+  }
+
+  // Cards render after the editor boots, and can re-render (language switch,
+  // wishlist), so tag them on demand rather than once.
+  function setCardsDraggable(on) {
+    document.querySelectorAll(".product-card").forEach((card) => {
+      if (on) card.setAttribute("draggable", "true");
+      else card.removeAttribute("draggable");
+    });
+  }
+
+  function cardId(card) {
+    return card.dataset.productId
+      || card.querySelector("[data-add-to-cart]")?.dataset.addToCart
+      || card.querySelector("[data-notify-product]")?.dataset.notifyProduct
+      || null;
+  }
+
+  function onDragStart(event) {
+    if (!editing) return;
+    const card = event.target.closest(".product-card");
+    if (!card) return;
+    dragCard = card;
+    card.classList.add("oed-dragging");
+    try { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", ""); } catch (_) {}
+  }
+
+  function onDragOver(event) {
+    if (!editing || !dragCard) return;
+    const grid = productGrid();
+    if (!grid || !event.target.closest || event.target.closest(".product-card")?.parentElement !== grid) return;
+    event.preventDefault();
+    const over = event.target.closest(".product-card");
+    if (!over || over === dragCard) return;
+    const rect = over.getBoundingClientRect();
+    const after = (event.clientY - rect.top) > rect.height / 2 || (event.clientX - rect.left) > rect.width / 2;
+    grid.insertBefore(dragCard, after ? over.nextSibling : over);
+  }
+
+  async function onDrop(event) {
+    if (!editing || !dragCard) return;
+    event.preventDefault();
+    dragCard.classList.remove("oed-dragging");
+    dragCard = null;
+    const grid = productGrid();
+    if (!grid) return;
+    const ids = [...grid.querySelectorAll(".product-card")].map(cardId).filter(Boolean);
+    if (!ids.length) return;
+    try {
+      const res = await fetch("/api/admin/products/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Reordonare esuata.");
+      toast("Ordine salvata ✓");
+    } catch (err) {
+      toast(err.message || "Reordonare esuata.", true);
+    }
+  }
+
+  function onDragEnd() {
+    if (dragCard) dragCard.classList.remove("oed-dragging");
+    dragCard = null;
   }
 
   async function save() {
@@ -298,6 +372,10 @@
     bar.querySelector(".oed-eye").addEventListener("click", toggleStats);
     saveBtn.addEventListener("click", save);
     document.addEventListener("click", onDocClick, true);
+    document.addEventListener("dragstart", onDragStart);
+    document.addEventListener("dragover", onDragOver);
+    document.addEventListener("drop", onDrop);
+    document.addEventListener("dragend", onDragEnd);
   }
 
   /* ---------- page stats ---------- */
@@ -394,6 +472,8 @@
         padding:5px 11px;border-radius:999px;background:rgba(12,10,20,.88);color:#fff;font-size:12px;font-weight:700;pointer-events:none;white-space:nowrap;}
       .oed-active{outline:2px solid var(--accent,#b9a7ee)!important;outline-offset:3px;background:color-mix(in srgb,var(--accent,#b9a7ee) 10%,transparent);border-radius:4px;}
       .oed-uploading{opacity:.45;filter:grayscale(.4);}
+      body.oed-editing .product-card[draggable]{cursor:grab;}
+      body.oed-editing .product-card.oed-dragging{opacity:.4;cursor:grabbing;outline:2px dashed var(--accent,#b9a7ee);}
     `;
     const style = document.createElement("style");
     style.setAttribute("data-oed-ui", "");
