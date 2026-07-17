@@ -301,6 +301,16 @@ const defaultCopy = {
     "product.spec.fit": "Oversized",
     "product.spec.preshrunk": "Pre-shrunk",
     "product.spec.print": "DTG premium print"
+  ,
+
+    // --- profile menu ---
+    "nav.profile": "My Profile",
+    "nav.myOrders": "My Orders",
+    "nav.adminPanel": "Admin Panel",
+    "nav.settings": "Settings",
+    "nav.privacy": "Privacy & Security",
+    "nav.help": "Help & Support",
+    "nav.logout": "Logout"
   },
   ro: {
     "nav.drop": "Drop",
@@ -547,6 +557,16 @@ const defaultCopy = {
     "product.spec.fit": "Croi oversized",
     "product.spec.preshrunk": "Pre-spalat",
     "product.spec.print": "Print DTG premium"
+  ,
+
+    // --- profile menu ---
+    "nav.profile": "Profilul meu",
+    "nav.myOrders": "Comenzile mele",
+    "nav.adminPanel": "Panou admin",
+    "nav.settings": "Setari",
+    "nav.privacy": "Confidentialitate si securitate",
+    "nav.help": "Ajutor si suport",
+    "nav.logout": "Deconectare"
   }
 };
 
