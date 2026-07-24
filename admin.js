@@ -301,6 +301,9 @@ function renderProducts(products) {
 
     form.className = "admin-edit-form";
     form.dataset.editProduct = product.id;
+    const genealogyFields = genealogyState.enabled
+      ? [createChapterField(product.chapterId), createProductOrderField(product.chapterProductOrder)]
+      : [];
     form.append(
       createField("Name", "name", product.name, true),
       createField("Name RO", "nameRo", product.nameRo || ""),
@@ -312,8 +315,7 @@ function renderProducts(products) {
       createField("Sizes (e.g. S:5, M:8, L:6, XL:2)", "sizes", sizeBreakdown || (Array.isArray(product.sizes) ? product.sizes.join(", ") : "")),
       createField("Color", "color", product.color || ""),
       createStatusField(product.status),
-      createChapterField(product.chapterId),
-      createProductOrderField(product.chapterProductOrder),
+      ...genealogyFields,
       createFileField(),
       createTextarea("Description EN", "description", product.description || ""),
       createTextarea("Description RO", "descriptionRo", product.descriptionRo || ""),
