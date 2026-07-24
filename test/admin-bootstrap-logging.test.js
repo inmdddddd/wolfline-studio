@@ -12,13 +12,13 @@ const crypto = require("crypto");
 function withIsolatedServer(setupFn, testFn) {
   return async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "beca-admin-bootstrap-"));
-    setupFn?.(tempDir);
 
     const originalEnv = {
       DATA_DIR: process.env.DATA_DIR,
       PORT: process.env.PORT,
       HOST: process.env.HOST,
       NODE_ENV: process.env.NODE_ENV,
+      SITE_ORIGIN: process.env.SITE_ORIGIN,
       ADMIN_EMAIL: process.env.ADMIN_EMAIL,
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
       SMTP_HOST: process.env.SMTP_HOST,
@@ -34,6 +34,10 @@ function withIsolatedServer(setupFn, testFn) {
     process.env.SMTP_HOST = "";
     process.env.SMTP_USER = "";
     process.env.SMTP_PASS = "";
+
+    // Runs after the env defaults above so a scenario can set NODE_ENV,
+    // ADMIN_PASSWORD etc. without being overwritten.
+    setupFn?.(tempDir);
 
     const originalLog = console.log;
     const logLines = [];
@@ -78,7 +82,13 @@ test(
 test(
   "fresh install in production never logs admin credentials",
   withIsolatedServer(
-    () => { process.env.NODE_ENV = "production"; },
+    () => {
+      process.env.NODE_ENV = "production";
+      // Production now refuses to boot without an explicit ADMIN_PASSWORD
+      // (startup validation), so the production scenario must provide one.
+      process.env.ADMIN_PASSWORD = "prod-bootstrap-secret-1";
+      process.env.SITE_ORIGIN = "https://beca-wlf.com";
+    },
     async ({ logLines, tempDir }) => {
       const leaked = logLines.filter((line) => /Generated admin account|password/i.test(line));
       assert.deepEqual(leaked, [], "no log line may mention the generated admin password in production");

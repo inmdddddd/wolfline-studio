@@ -1,8 +1,35 @@
+# Render deployment.
+#
+# IMPORTANT: the free plan has NO persistent disk - every deploy/restart wipes
+# the filesystem, i.e. all orders/users/content JSON data is LOST. That is not
+# safe for real data. This config therefore uses a paid plan with a persistent
+# disk mounted at /var/data, and points DATA_DIR/UPLOAD_DIR at it (also
+# required by the production startup validation: DATA_DIR must live outside
+# the servable project directory).
 services:
   - type: web
     name: beca-wolfline-platform
     env: node
-    plan: free
+    plan: starter
     buildCommand: npm install
     startCommand: npm start
     autoDeploy: true
+    disk:
+      name: beca-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BRAND
+        value: beca
+      - key: DATA_DIR
+        value: /var/data/beca
+      - key: UPLOAD_DIR
+        value: /var/data/beca-uploads
+      - key: SITE_ORIGIN
+        sync: false # set the real https origin in the Render dashboard
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false # required in production - set it in the Render dashboard

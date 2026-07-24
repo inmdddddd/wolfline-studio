@@ -72,38 +72,26 @@ function waitForModelReady(viewer, attemptsLeft = 40) {
 }
 
 async function applyModelViewerTexture(viewer, textureUrl, attempt = 0) {
-  const tag = viewer?.id ? `[HERO-DEBUG #${viewer.id}]` : "[HERO-DEBUG]";
-  console.log(`${tag} applyModelViewerTexture called, attempt=${attempt}, textureUrl=${textureUrl}`);
   if (!viewer || !textureUrl) {
-    console.log(`${tag} bailing: no viewer or no textureUrl`);
     return;
   }
 
   try {
     if (!viewer.model || !viewer.model.materials || !viewer.model.materials.length) {
-      console.log(`${tag} model not ready yet, polling...`);
       await waitForModelReady(viewer);
-      console.log(`${tag} model is now ready`);
     }
 
-    console.log(`${tag} creating texture...`);
     const texture = await viewer.createTexture(textureUrl);
-    console.log(`${tag} texture created:`, texture, "materials count:", viewer.model.materials.length);
-    viewer.model.materials.forEach((material, index) => {
+    viewer.model.materials.forEach((material) => {
       material.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
       material.pbrMetallicRoughness.setBaseColorFactor([0.94, 0.94, 0.9, 1]);
       material.pbrMetallicRoughness.setMetallicFactor?.(0);
       material.pbrMetallicRoughness.setRoughnessFactor?.(0.98);
-      console.log(`${tag} material[${index}] texture set`);
     });
     forceModelViewerRepaint(viewer);
-    console.log(`${tag} done, repaint requested`);
   } catch (error) {
-    console.log(`${tag} error on attempt ${attempt}:`, error);
     if (attempt < 2) {
       window.setTimeout(() => applyModelViewerTexture(viewer, textureUrl, attempt + 1), 400);
-    } else {
-      console.warn(`${tag} gave up after retries`, error);
     }
   }
 }
@@ -358,18 +346,15 @@ function setCartDrawer(open) {
 
 function randomizeHeroShirt(products) {
   const heroViewer = document.querySelector("#tshirtViewer");
-  console.log("[HERO-DEBUG] randomizeHeroShirt called, heroViewer found:", Boolean(heroViewer), "products count:", products.length);
   if (!heroViewer) return;
 
   const liveCandidates = products.filter((product) => product.status === "live" && product.studio?.textureUrl);
   const candidates = liveCandidates.length ? liveCandidates : products.filter((product) => product.studio?.textureUrl);
-  console.log("[HERO-DEBUG] candidates:", candidates.length, "(live-only:", liveCandidates.length, ")");
   if (!candidates.length) return;
 
   const lastId = sessionStorage.getItem("beca-hero-last");
   const pool = candidates.length > 1 ? candidates.filter((product) => product.id !== lastId) : candidates;
   const pick = pool[Math.floor(Math.random() * pool.length)];
-  console.log("[HERO-DEBUG] picked product:", pick.id, pick.name, "textureUrl:", pick.studio.textureUrl);
   sessionStorage.setItem("beca-hero-last", pick.id);
   applyModelViewerTexture(heroViewer, pick.studio.textureUrl);
 }
@@ -521,11 +506,12 @@ document.querySelector("[data-checkout-form]")?.addEventListener("submit", async
   button.disabled = true;
 
   try {
-    const { order } = await shopRequest("/api/checkout", {
+    const { order, publicAccessToken } = await shopRequest("/api/checkout", {
       method: "POST",
       body: JSON.stringify(data)
     });
-    window.location.href = `/thank-you.html?order=${encodeURIComponent(order.id)}`;
+    const tokenPart = publicAccessToken ? `&token=${encodeURIComponent(publicAccessToken)}` : "";
+    window.location.href = `/thank-you.html?order=${encodeURIComponent(order.id)}${tokenPart}`;
   } catch (error) {
     message.dataset.type = "";
     message.textContent = error.message;

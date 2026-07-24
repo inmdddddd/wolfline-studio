@@ -78,21 +78,24 @@
         <h2>${escapeHtml(text("thankYou.viewShop", "Keep exploring"))}</h2>
         <div class="info-cta-actions">
           <a href="/">${escapeHtml(text("thankYou.backHome", "Back to home"))}</a>
-          <a href="/invoice.html?order=${encodeURIComponent(order.id)}">${escapeHtml(text("thankYou.invoice", "View invoice"))}</a>
+          <a href="/invoice.html?order=${encodeURIComponent(order.id)}${accessToken ? `&token=${encodeURIComponent(accessToken)}` : ""}">${escapeHtml(text("thankYou.invoice", "View invoice"))}</a>
           <a href="/support.html">${escapeHtml(text("thankYou.support", "Need help? Contact support"))}</a>
         </div>
       </section>
     `;
   }
 
-  const orderId = new URLSearchParams(window.location.search).get("order");
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get("order");
+  // Guest access token issued at checkout; only its hash is stored server-side.
+  const accessToken = params.get("token") || "";
 
   if (!orderId) {
     renderNotFound();
     return;
   }
 
-  fetch(`/api/orders/${encodeURIComponent(orderId)}`)
+  fetch(`/api/orders/${encodeURIComponent(orderId)}${accessToken ? `?token=${encodeURIComponent(accessToken)}` : ""}`)
     .then((response) => {
       if (!response.ok) throw new Error("Order not found");
       return response.json();

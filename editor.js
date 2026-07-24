@@ -55,6 +55,30 @@
   }
 
   /* ---------- apply saved overrides (runs for everyone) ---------- */
+
+  /* Values are stored as PLAIN TEXT and applied with text nodes only -
+     newlines become <br> elements built via createElement, never via
+     innerHTML - so a value can never execute as markup (no <script>,
+     no event handlers, no javascript: URLs). */
+  function setMultilineText(el, value) {
+    const lines = String(value == null ? "" : value).split("\n");
+    el.textContent = "";
+    lines.forEach(function (line, index) {
+      if (index > 0) el.appendChild(document.createElement("br"));
+      el.appendChild(document.createTextNode(line));
+    });
+  }
+
+  /* Only local approved paths or https URLs may be applied as images -
+     the server enforces the same rule when saving. */
+  function isSafeImageUrl(value) {
+    const v = String(value || "").trim();
+    if (!v || /[\s<>"']/.test(v)) return false;
+    if (/^https:\/\//i.test(v)) return true;
+    if (v.indexOf("..") !== -1 || v.indexOf(":") !== -1) return false;
+    return /^\/?(assets\/|uploads\/)/i.test(v);
+  }
+
   function applyOverrides(branding) {
     if (!branding) return;
     Object.keys(branding).forEach((fullKey) => {
@@ -63,9 +87,9 @@
       const el = resolve(fullKey.slice(PREFIX.length));
       if (!el || !rec) return;
       if (rec.t === "img") {
-        if (el.tagName === "IMG") el.src = rec.v;
-      } else {
-        el.innerHTML = rec.v;
+        if (el.tagName === "IMG" && isSafeImageUrl(rec.v)) el.src = rec.v;
+      } else if (rec.t === "text") {
+        setMultilineText(el, rec.v);
       }
     });
   }
@@ -142,8 +166,15 @@
 
   function startTextEdit(el) {
     if (el.isContentEditable) return;
-    const original = el.innerHTML;
-    el.setAttribute("contenteditable", "true");
+    const originalText = el.innerText;
+    /* plaintext-only strips any pasted markup while typing where supported;
+       either way only innerText (plain text) is ever read back and saved. */
+    try {
+      el.setAttribute("contenteditable", "plaintext-only");
+      if (!el.isContentEditable) el.setAttribute("contenteditable", "true");
+    } catch (_) {
+      el.setAttribute("contenteditable", "true");
+    }
     el.classList.add("oed-active");
     el.focus();
     const finish = () => {
@@ -151,13 +182,17 @@
       el.classList.remove("oed-active");
       el.removeEventListener("blur", finish);
       el.removeEventListener("keydown", onKey);
-      if (el.innerHTML !== original) {
-        changes.set(cssPath(el), { t: "text", v: el.innerHTML });
+      const nextText = el.innerText;
+      /* Re-render through the safe text path so whatever the browser left in
+         the DOM while editing (e.g. pasted markup) is discarded. */
+      setMultilineText(el, nextText);
+      if (nextText !== originalText) {
+        changes.set(cssPath(el), { t: "text", v: nextText });
         markDirty();
       }
     };
     const onKey = (e) => {
-      if (e.key === "Escape") { el.innerHTML = original; el.blur(); }
+      if (e.key === "Escape") { setMultilineText(el, originalText); el.blur(); }
       if (e.key === "Enter" && !e.shiftKey && el.tagName !== "P" && el.tagName !== "LI") {
         e.preventDefault(); el.blur();
       }

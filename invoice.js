@@ -90,7 +90,10 @@
     `;
   }
 
-  const orderId = new URLSearchParams(window.location.search).get("order");
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get("order");
+  // Guest access token issued at checkout; only its hash is stored server-side.
+  const accessToken = params.get("token") || "";
 
   if (!orderId) {
     renderNotFound();
@@ -98,7 +101,7 @@
   }
 
   Promise.all([
-    fetch(`/api/orders/${encodeURIComponent(orderId)}`).then((response) => {
+    fetch(`/api/orders/${encodeURIComponent(orderId)}${accessToken ? `?token=${encodeURIComponent(accessToken)}` : ""}`).then((response) => {
       if (!response.ok) throw new Error("Order not found");
       return response.json();
     }),

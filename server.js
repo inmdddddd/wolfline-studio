@@ -28,6 +28,7 @@ const path = require("path");
 })();
 
 const email = require("./lib/email");
+const { createStorage } = require("./lib/storage");
 
 // White-label support: this whole codebase (engine, data model, admin, email
 // logic) is shared across brands. What differs per brand is: which JSON config
@@ -50,6 +51,18 @@ function loadBrandConfig(brandId) {
 }
 
 const BRAND = loadBrandConfig(BRAND_ID);
+
+// Legal/company fields still holding "[COMPLETE...]" placeholders. Surfaced
+// as a warning in the admin dashboard; in production it is also logged as a
+// critical warning at startup.
+function brandLegalPlaceholders() {
+  return ["legalCompanyName", "companyNumber", "companyAddress", "supportEmail", "domain"]
+    .filter((field) => {
+      const value = String(BRAND[field] || "").trim();
+      return !value || /\[COMPLET/i.test(value);
+    });
+}
+
 const GENEALOGY = BRAND.genealogy?.enabled ? BRAND.genealogy : null;
 const GENEALOGY_CHAPTERS = Array.isArray(GENEALOGY?.chapters)
   ? GENEALOGY.chapters
@@ -110,6 +123,11 @@ const publicRootResolved = path.resolve(publicRoot);
 const dataDir = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
   : path.join(root, BRAND_ID === "beca" ? "data" : `data-${BRAND_ID}`);
+// Rolling local snapshots of dataDir (see backupDataFiles below). Sibling of
+// dataDir so it follows DATA_DIR overrides; brand-suffixed for every brand
+// except BeCa so two brands with default DATA_DIRs never share a folder.
+const backupsDir = path.join(dataDir, "..", BRAND_ID === "beca" ? "backups" : `backups-${BRAND_ID}`);
+const storage = createStorage({ dataDir, backupsDir });
 const uploadDir = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.join(publicRoot, "assets", "products");
 const uploadDirResolved = path.resolve(uploadDir);
 const uploadPublicBase = (process.env.UPLOAD_PUBLIC_BASE || "assets/products").replace(/^\/+|\/+$/g, "");
@@ -121,6 +139,13 @@ const cartCookie = "beca_cart";
 const primaryAdminEmail = BRAND.primaryAdminEmailDefault;
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
 const cartTtlMs = 1000 * 60 * 60 * 24 * 30;
+
+// How long a pending, unpaid order keeps its stock reserved before it is
+// auto-cancelled and the stock restored. Configurable per deployment.
+const STOCK_RESERVATION_MS = Math.max(1, Number(process.env.STOCK_RESERVATION_HOURS) || 72) * 60 * 60 * 1000;
+// Analytics/PII retention (days).
+const ANALYTICS_RETENTION_DAYS = Math.max(1, Number(process.env.ANALYTICS_RETENTION_DAYS) || 90);
+const OUTBOX_RETENTION_DAYS = Math.max(1, Number(process.env.OUTBOX_RETENTION_DAYS) || 90);
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -244,6 +269,7 @@ function ensureDataFiles() {
   if (migrated) writeJson("products.json", migratedProducts);
 
   migrateGenealogyData();
+  migrateLegacyContentClaims();
 
   const orders = readJson("orders.json", []);
   let migratedOrders = false;
@@ -252,6 +278,26 @@ function ensureDataFiles() {
     if (next.status === "completed") {
       migratedOrders = true;
       next = { ...next, status: "delivered" };
+    }
+    // Payment-field migration for orders created before paymentStatus existed.
+    // Legacy checkout marked orders "confirmed" without payment, so to keep
+    // historical revenue unchanged those orders count as manually paid; only
+    // orders created after this change start as unpaid requests.
+    if (next.paymentStatus === undefined) {
+      migratedOrders = true;
+      const legacyPaid = ["confirmed", "processing", "shipped", "delivered"].includes(next.status);
+      next = {
+        ...next,
+        paymentStatus: legacyPaid ? "paid" : "unpaid",
+        paymentMethod: next.paymentMethod || "manual",
+        paidAt: next.paidAt || (legacyPaid ? next.createdAt || null : null),
+        // Legacy cancelled orders never had stock restored - don't restore
+        // retroactively; legacy coupons were consumed at checkout.
+        stockRestored: next.status === "cancelled",
+        couponConsumed: Boolean(next.couponCode) && next.status !== "cancelled",
+        couponRestored: false,
+        editionsCancelled: next.status === "cancelled"
+      };
     }
     if (!next.fulfillment || !Array.isArray(next.statusHistory)) {
       migratedOrders = true;
@@ -308,6 +354,71 @@ function ensureDataFiles() {
   }
 }
 
+// A deployed content.json can still hold the old false commercial claims
+// (Stripe, "100% secure payment", "encrypted"), which would override the
+// corrected page defaults. Replace ONLY exact matches of the known legacy
+// strings with the corrected wording - custom admin copy is never touched.
+const LEGACY_CLAIM_REPLACEMENTS = {
+  en: {
+    "trust.payment": [
+      ["100% secure payment", "Order verified & confirmed by our team"]
+    ],
+    "checkout.trustNote": [
+      ["Your details are encrypted and used only to process this order.",
+        "Orders are recorded in GBP; prices shown in other currencies are indicative. Your details are used only to process this order."]
+    ],
+    "privacy.s2.body": [
+      ["Account data (name, email, encrypted password), order data (name, email, phone, delivery address) and payment data (processed directly by Stripe; we do not store card numbers).",
+        "Account data (name, email, password stored as a secure hash), order data (name, email, phone, delivery address) and technical traffic data (anonymized IP address, page visited, time of visit). No card details are collected on this site."]
+    ],
+    "privacy.s4.body": [
+      ["Payment data is processed by Stripe, under Stripe's own privacy policy. Delivery data may be passed to the chosen courier to complete delivery. We do not share data with other third parties beyond what is strictly necessary to deliver your order and process payment.",
+        "Delivery data may be passed to the chosen courier to complete delivery. We do not share data with other third parties beyond what is strictly necessary to deliver your order. No card payments are processed on this site."]
+    ]
+  },
+  ro: {
+    "trust.payment": [
+      ["Plata 100% securizata", "Comanda verificata si confirmata de echipa noastra"]
+    ],
+    "checkout.trustNote": [
+      ["Datele tale sunt criptate si folosite doar pentru procesarea acestei comenzi.",
+        "Comanda se inregistreaza in GBP; preturile afisate in alte monede sunt orientative. Datele tale sunt folosite doar pentru procesarea acestei comenzi."]
+    ],
+    "privacy.s2.body": [
+      ["Date de cont (nume, email, parola criptata), date de comanda (nume, email, telefon, adresa de livrare) si date de plata (procesate direct de Stripe; noi nu stocam numere de card).",
+        "Date de cont (nume, email, parola stocata sub forma de hash securizat), date de comanda (nume, email, telefon, adresa de livrare) si date tehnice de trafic (adresa IP anonimizata, pagina accesata, ora vizitei). Pe acest site nu se colecteaza date de card."]
+    ],
+    "privacy.s4.body": [
+      ["Datele de plata sunt procesate de Stripe, conform politicii proprii de confidentialitate a Stripe. Datele de livrare pot fi transmise curierului ales pentru finalizarea livrarii. Nu impartasim date cu alti terti in afara celor strict necesare pentru livrarea comenzii si procesarea platii.",
+        "Datele de livrare pot fi transmise curierului ales pentru finalizarea livrarii. Nu impartasim date cu alti terti in afara celor strict necesare pentru livrarea comenzii. Pe acest site nu se proceseaza plati cu cardul."]
+    ]
+  }
+};
+
+function migrateLegacyContentClaims() {
+  try {
+    const content = readJson("content.json", null);
+    if (!content || typeof content !== "object") return;
+
+    let changed = false;
+    for (const [lang, keys] of Object.entries(LEGACY_CLAIM_REPLACEMENTS)) {
+      const dictionary = content[lang];
+      if (!dictionary || typeof dictionary !== "object") continue;
+      for (const [key, replacements] of Object.entries(keys)) {
+        for (const [oldValue, newValue] of replacements) {
+          if (dictionary[key] === oldValue) {
+            dictionary[key] = newValue;
+            changed = true;
+          }
+        }
+      }
+    }
+    if (changed) writeJson("content.json", content);
+  } catch (error) {
+    console.error("[content-migration]", error);
+  }
+}
+
 function migrateGenealogyData() {
   if (!GENEALOGY) return { enabled: false, updated: 0 };
 
@@ -333,19 +444,16 @@ function migrateGenealogyData() {
   return { enabled: true, updated, total: migratedProducts.length };
 }
 
+// All JSON persistence goes through lib/storage.js: missing files fall back,
+// corrupt files are never silently replaced with an empty fallback (they are
+// preserved, restored from the newest valid backup when possible, or the
+// operation fails with a server error), and writes are atomic + fsynced.
 function readJson(fileName, fallback) {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(dataDir, fileName), "utf8"));
-  } catch {
-    return fallback;
-  }
+  return storage.readJson(fileName, fallback);
 }
 
 function writeJson(fileName, data) {
-  const filePath = path.join(dataDir, fileName);
-  const tempPath = `${filePath}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(data, null, 2));
-  fs.renameSync(tempPath, filePath);
+  storage.writeJson(fileName, data);
 }
 
 function isTrackablePageRequest(pathname) {
@@ -390,7 +498,7 @@ function trackPageview(pathname, request) {
     analytics.recentVisits = analytics.recentVisits || [];
     analytics.recentVisits.unshift({
       path: pathname,
-      ip: request ? clientIp(request) : "unknown",
+      ip: request ? anonymizeIp(clientIp(request)) : "unknown",
       referrer: referrerSource,
       locale: localeHint,
       hour,
@@ -445,6 +553,37 @@ function verifyPassword(password, stored) {
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
+}
+
+// Baseline password policy: minimum 10 characters plus basic checks against
+// trivially weak choices. Returns an error message or null when acceptable.
+const COMMON_WEAK_PASSWORDS = new Set([
+  "password", "password1", "password12", "password123", "parola1234",
+  "1234567890", "12345678910", "qwertyuiop", "1q2w3e4r5t", "asdfghjkl1",
+  "iloveyou123", "administrator", "welcome123", "letmein123", "abc1234567"
+]);
+
+function passwordPolicyError(password) {
+  const value = String(password || "");
+  if (value.length < 10) return "Parola trebuie sa aiba minimum 10 caractere.";
+  if (/^(.)\1+$/.test(value)) return "Parola nu poate fi un singur caracter repetat.";
+  if (COMMON_WEAK_PASSWORDS.has(value.toLowerCase())) return "Parola este prea comuna. Alege una mai greu de ghicit.";
+  if (/^\d+$/.test(value)) return "Parola nu poate fi formata doar din cifre.";
+  return null;
+}
+
+// Removes every other session belonging to the user; the current session id
+// (when given) survives. Used after password changes/resets.
+function invalidateUserSessions(userId, keepSessionId = null) {
+  const sessions = readJson("sessions.json", {});
+  let changed = false;
+  for (const [sessionId, session] of Object.entries(sessions)) {
+    if (session.userId === userId && sessionId !== keepSessionId) {
+      delete sessions[sessionId];
+      changed = true;
+    }
+  }
+  if (changed) writeJson("sessions.json", sessions);
 }
 
 function createUserRecord({ email, name, password, role, emailVerified = false, isPrimaryAdmin = false }) {
@@ -863,11 +1002,138 @@ function publicEditionRecord(record) {
   };
 }
 
+// --- Order access tokens (guest orders) -------------------------------------
+// Guest orders are viewable only with a random, unguessable token issued at
+// checkout. Only the SHA-256 hash is stored on the order; the plain token
+// travels once in the checkout response / email link. Re-sending an email
+// rotates the token (a new one is issued and the stored hash replaced).
+function hashOrderToken(token) {
+  return crypto.createHash("sha256").update(String(token), "utf8").digest("hex");
+}
+
+function generateOrderAccessToken() {
+  const token = crypto.randomBytes(32).toString("hex");
+  return { token, hash: hashOrderToken(token) };
+}
+
+function orderTokenMatches(order, token) {
+  if (!order || !order.publicAccessTokenHash || !token) return false;
+  const expected = Buffer.from(order.publicAccessTokenHash, "hex");
+  const actual = Buffer.from(hashOrderToken(token), "hex");
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+}
+
+// Who may see this order: any admin; the authenticated owner; a guest holding
+// the order's public access token.
+function canViewOrder(order, session, token) {
+  if (session && session.user.role === "admin") return true;
+  if (session && order.userId && order.userId === session.user.id) return true;
+  return orderTokenMatches(order, token);
+}
+
+// --- Order state machine ----------------------------------------------------
+const ORDER_TRANSITIONS = {
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["processing", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped: ["delivered"],
+  delivered: [],
+  cancelled: []
+};
+
+function isAllowedOrderTransition(from, to) {
+  if (from === to) return true;
+  return Array.isArray(ORDER_TRANSITIONS[from]) && ORDER_TRANSITIONS[from].includes(to);
+}
+
+const PAYMENT_STATUSES = ["unpaid", "paid", "refunded", "failed"];
+const PAYMENT_METHODS = ["cod", "card", "manual"];
+
+function orderCountsAsRevenue(order) {
+  return order.paymentStatus === "paid";
+}
+
+// --- Cancellation / resource restoration ------------------------------------
+// Idempotent: guarded by per-order flags so cancelling twice can never
+// restore stock or a coupon use twice. Must be called inside withStockLock.
+function restoreOrderResources(order, changedBy) {
+  const now = new Date().toISOString();
+
+  if (!order.stockRestored) {
+    const products = readJson("products.json", []);
+    let productsChanged = false;
+    for (const item of order.items || []) {
+      const index = products.findIndex((product) => product.id === item.productId);
+      if (index === -1) continue;
+      const current = products[index];
+      const qty = Math.max(0, Math.floor(Number(item.qty) || 0));
+      const nextSizeStock = current.sizeStock && item.size
+        ? { ...current.sizeStock, [item.size]: Math.max(0, Math.floor(Number(current.sizeStock[item.size]) || 0)) + qty }
+        : current.sizeStock;
+      const nextStock = nextSizeStock ? totalStockFromSizeStock(nextSizeStock) : (Math.max(0, Math.floor(Number(current.stock) || 0)) + qty);
+      products[index] = {
+        ...current,
+        stock: nextStock,
+        sizeStock: nextSizeStock,
+        status: current.status === "sold-out" && nextStock > 0 ? "live" : current.status,
+        updatedAt: now
+      };
+      productsChanged = true;
+    }
+    if (productsChanged) writeJson("products.json", products);
+    order.stockRestored = true;
+    order.stockRestoredAt = now;
+  }
+
+  if (order.couponCode && order.couponConsumed && !order.couponRestored) {
+    const coupons = readJson("coupons.json", []);
+    const index = coupons.findIndex((coupon) => coupon.code === order.couponCode);
+    if (index !== -1) {
+      coupons[index] = { ...coupons[index], usedCount: Math.max(0, (coupons[index].usedCount || 0) - 1) };
+      writeJson("coupons.json", coupons);
+    }
+    order.couponRestored = true;
+  }
+
+  // Edition numbers are a permanent ledger: never renumbered or reused.
+  // Cancelled pieces stay in the file, flagged, and leave the public archive.
+  if (!order.editionsCancelled) {
+    const editions = readJson("editions.json", []);
+    let editionsChanged = false;
+    const next = editions.map((record) => {
+      if (record.orderId !== order.id || record.status === "cancelled") return record;
+      editionsChanged = true;
+      return { ...record, status: "cancelled", cancelledAt: now, cancelledBy: changedBy || null };
+    });
+    if (editionsChanged) writeJson("editions.json", next);
+    order.editionsCancelled = true;
+  }
+
+  return order;
+}
+
+// Consumes the coupon exactly once per order (on confirm or on payment,
+// whichever happens first). Must be called inside withStockLock.
+function consumeOrderCoupon(order) {
+  if (!order.couponCode || order.couponConsumed) return order;
+  const coupons = readJson("coupons.json", []);
+  const index = coupons.findIndex((coupon) => coupon.code === order.couponCode);
+  if (index !== -1) {
+    coupons[index] = { ...coupons[index], usedCount: (coupons[index].usedCount || 0) + 1 };
+    writeJson("coupons.json", coupons);
+  }
+  order.couponConsumed = true;
+  order.couponRestored = false;
+  return order;
+}
+
 function publicOrder(order) {
   return {
     id: order.id,
     number: order.number,
     status: order.status,
+    paymentStatus: order.paymentStatus || "unpaid",
+    paymentMethod: order.paymentMethod || "manual",
     currency: order.currency,
     total: order.total,
     discount: order.discount || 0,
@@ -880,11 +1146,98 @@ function publicOrder(order) {
       price: item.price,
       currency: item.currency,
       qty: item.qty,
-      subtotal: item.subtotal
+      subtotal: item.subtotal,
+      // Edition numbers are public archive data (never buyer-identifying).
+      editionNumbers: item.editionNumbers || [],
+      editionTotal: item.editionTotal ?? null
     })),
     customerName: order.customerName,
     customerAddress: order.customerAddress,
     createdAt: order.createdAt
+  };
+}
+
+// --- Content (inline editor) sanitization -----------------------------------
+// Editor overrides are stored as plain text (never HTML) and re-applied in the
+// browser via textContent, so stored XSS can't execute. Sanitization runs on
+// write AND on read, so payloads already sitting in an old content.json are
+// neutralized too.
+function stripHtmlToText(value) {
+  let text = String(value ?? "");
+  // Keep author line breaks from <br> / block closings, drop everything else.
+  text = text.replace(/<\s*br\s*\/?\s*>/gi, "\n");
+  text = text.replace(/<\/\s*(p|div|li|h[1-6]|blockquote)\s*>/gi, "\n");
+  text = text.replace(/<[^>]*>/g, "");
+  // Decode the entities innerHTML-era saves produced so text renders as the
+  // author wrote it (it is applied with textContent, so this stays inert).
+  text = text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, "\"")
+    .replace(/&#0*39;/g, "'")
+    .replace(/&amp;/gi, "&");
+  return text.slice(0, 4000);
+}
+
+// Image override URLs: only local approved paths (assets/ or the upload
+// folder) or absolute https URLs. javascript:, data:, protocol-relative and
+// traversal are all rejected.
+function isApprovedImageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw || raw.length > 500 || /[\s<>"']/.test(raw)) return false;
+  if (/^https:\/\/[^/]+\/.+/i.test(raw)) return true;
+  if (raw.includes("..") || raw.includes(":")) return false;
+  const cleaned = raw.replace(/^\/+/, "");
+  const uploadPrefix = `${uploadPublicBase}/`;
+  return cleaned.startsWith("assets/") || cleaned.startsWith(uploadPrefix);
+}
+
+// Normalizes one branding entry to a safe record ({t:"text"|"img", v}) or a
+// safe plain string. Returns null when the entry must be dropped.
+function sanitizeBrandingEntry(key, record) {
+  if (typeof record === "string") {
+    // Legacy plain-string branding values (logoUrl etc.) are image URLs.
+    return /url$/i.test(key) ? (isApprovedImageUrl(record) ? record : null) : stripHtmlToText(record);
+  }
+  if (!record || typeof record !== "object") return null;
+  if (record.t === "img") {
+    const url = String(record.v || "").trim();
+    return isApprovedImageUrl(url) ? { t: "img", v: url } : null;
+  }
+  if (record.t === "text") {
+    return { t: "text", v: stripHtmlToText(record.v) };
+  }
+  return null;
+}
+
+function sanitizeBranding(branding) {
+  const result = {};
+  if (!branding || typeof branding !== "object") return result;
+  for (const [key, record] of Object.entries(branding)) {
+    if (typeof key !== "string" || key.length > 400) continue;
+    const safe = sanitizeBrandingEntry(key, record);
+    if (safe !== null) result[key] = safe;
+  }
+  return result;
+}
+
+function sanitizeContentDictionary(dictionary) {
+  const result = {};
+  if (!dictionary || typeof dictionary !== "object") return result;
+  for (const [key, value] of Object.entries(dictionary)) {
+    if (typeof key !== "string" || key.length > 200) continue;
+    result[key] = stripHtmlToText(value);
+  }
+  return result;
+}
+
+function sanitizeContent(content) {
+  const base = content && typeof content === "object" ? content : {};
+  return {
+    en: sanitizeContentDictionary(base.en),
+    ro: sanitizeContentDictionary(base.ro),
+    branding: sanitizeBranding(base.branding)
   };
 }
 
@@ -920,6 +1273,26 @@ function clientIp(request) {
   }
 
   return remote || "unknown";
+}
+
+// Analytics never needs the full address: IPv4 keeps the /24 (last octet
+// zeroed), IPv6 keeps only the first 3 groups (~/48 prefix).
+function anonymizeIp(ip) {
+  const value = String(ip || "").trim();
+  if (!value || value === "unknown") return "unknown";
+
+  const mappedV4 = value.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/i);
+  if (mappedV4) return `${mappedV4[1]}.0`;
+
+  if (value.includes(":")) {
+    const groups = value.split(":");
+    return `${groups.slice(0, 3).join(":")}::`;
+  }
+
+  const v4 = value.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/);
+  if (v4) return `${v4[1]}.0`;
+
+  return "unknown";
 }
 
 // Whether this request is actually arriving over HTTPS - either terminated
@@ -1121,8 +1494,27 @@ function sanitizeCheckout(input, session) {
   };
 }
 
+// Segment-level blocklist for static serving. Works on normalized path
+// segments (not a naive startsWith), so "data-aether", "backups-aether",
+// nested "x/data/y" and Windows separators are all covered - for BeCa,
+// AETHER and any future brand's data/backup folder naming.
+const BLOCKED_STATIC_SEGMENT = /^(data|data-.*|backups|backups-.*|tmp|node_modules|\.git)$/i;
+
+function isBlockedStaticPath(requestedPath) {
+  const segments = String(requestedPath || "")
+    .split(/[/\\]+/)
+    .filter(Boolean);
+  return segments.some((segment) =>
+    BLOCKED_STATIC_SEGMENT.test(segment)
+    || segment.startsWith(".env")
+    || segment === ".server.lock"
+    || segment.endsWith(".corrupt")
+    || /\.corrupt-\d+$/.test(segment)
+    || segment.endsWith(".tmp"));
+}
+
 function canAccessFile(requestedPath, session) {
-  if (requestedPath.startsWith("data/") || requestedPath.startsWith("tmp/") || requestedPath.includes("\\data\\")) {
+  if (isBlockedStaticPath(requestedPath)) {
     return false;
   }
 
@@ -1156,6 +1548,11 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
+    if (isRateLimited(`profile:${session.user.id}`, 10, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
     const body = await readBody(request);
     const nextName = String(body.name || "").trim().slice(0, 80);
     const nextEmail = normalizeEmail(body.email);
@@ -1177,13 +1574,30 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
+    const emailChanged = users[userIndex].email !== nextEmail;
+
     users[userIndex] = {
       ...users[userIndex],
       name: nextName,
       email: nextEmail,
+      // A new address is unverified until the owner confirms it. The primary
+      // admin keeps its isPrimaryAdmin flag (role management is backed by the
+      // flag, not the address), but must re-verify like anyone else.
+      emailVerified: emailChanged ? false : users[userIndex].emailVerified,
       updatedAt: new Date().toISOString()
     };
     writeJson("users.json", users);
+
+    if (emailChanged) {
+      // Old verification links and password-reset tokens pointed at the old
+      // address - none of them may remain usable.
+      const verifications = readJson("email-verifications.json", []);
+      writeJson("email-verifications.json", verifications.filter((item) => item.userId !== session.user.id));
+      const resets = readJson("password-resets.json", []);
+      writeJson("password-resets.json", resets.filter((item) => item.userId !== session.user.id));
+      sendVerificationEmail(users[userIndex]);
+    }
+
     json(response, 200, { ok: true, user: safePublicUser(users[userIndex]) });
     return true;
   }
@@ -1200,6 +1614,11 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
+    if (isRateLimited(`password-change:${session.user.id}`, 5, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
     const body = await readBody(request);
     const currentPassword = String(body.currentPassword || "");
     const nextPassword = String(body.newPassword || "");
@@ -1211,8 +1630,9 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
-    if (nextPassword.length < 8) {
-      json(response, 400, { error: "Parola noua trebuie sa aiba minimum 8 caractere." });
+    const policyError = passwordPolicyError(nextPassword);
+    if (policyError) {
+      json(response, 400, { error: policyError });
       return true;
     }
 
@@ -1222,6 +1642,11 @@ async function handleAuth(request, response, pathname) {
       updatedAt: new Date().toISOString()
     };
     writeJson("users.json", users);
+
+    // Every other session of this account is logged out; only the session
+    // that changed the password stays valid.
+    invalidateUserSessions(session.user.id, session.id);
+
     json(response, 200, { ok: true });
     return true;
   }
@@ -1280,8 +1705,9 @@ async function handleAuth(request, response, pathname) {
     const token = String(body.token || "");
     const nextPassword = String(body.password || "");
 
-    if (nextPassword.length < 8) {
-      json(response, 400, { error: "Parola trebuie sa aiba minimum 8 caractere." });
+    const resetPolicyError = passwordPolicyError(nextPassword);
+    if (resetPolicyError) {
+      json(response, 400, { error: resetPolicyError });
       return true;
     }
 
@@ -1310,11 +1736,9 @@ async function handleAuth(request, response, pathname) {
     entry.usedAt = new Date().toISOString();
     writeJson("password-resets.json", resets);
 
-    const sessions = readJson("sessions.json", {});
-    for (const [sessionId, sessionEntry] of Object.entries(sessions)) {
-      if (sessionEntry.userId === users[userIndex].id) delete sessions[sessionId];
-    }
-    writeJson("sessions.json", sessions);
+    // A reset from a link logs out every session - the user logs in again
+    // with the new password.
+    invalidateUserSessions(users[userIndex].id, null);
 
     json(response, 200, { ok: true, redirect: "/login.html" });
     return true;
@@ -1323,6 +1747,10 @@ async function handleAuth(request, response, pathname) {
   if (request.method === "POST" && pathname === "/auth/verify-email") {
     if (!sameOriginPost(request)) {
       json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+    if (isRateLimited(`verify-email:${clientIp(request)}`, 10, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
       return true;
     }
 
@@ -1393,8 +1821,14 @@ async function handleAuth(request, response, pathname) {
     const password = String(body.password || "");
     const name = String(body.name || "").trim();
 
-    if (!email.includes("@") || password.length < 8 || name.length < 2) {
-      json(response, 400, { error: "Completeaza nume, email si parola de minimum 8 caractere." });
+    if (!email.includes("@") || name.length < 2) {
+      json(response, 400, { error: "Completeaza nume si email valid." });
+      return true;
+    }
+
+    const registerPolicyError = passwordPolicyError(password);
+    if (registerPolicyError) {
+      json(response, 400, { error: registerPolicyError });
       return true;
     }
 
@@ -1449,7 +1883,24 @@ async function handleAuth(request, response, pathname) {
 
 async function handleShopApi(request, response, pathname) {
   if (pathname === "/api/content" && request.method === "GET") {
-    json(response, 200, readJson("content.json", { en: {}, ro: {}, branding: {} }));
+    // Sanitized on the way out too, so anything injected into an old
+    // content.json can never reach a browser.
+    json(response, 200, sanitizeContent(readJson("content.json", { en: {}, ro: {}, branding: {} })));
+    return true;
+  }
+
+  // Display-currency configuration. Orders are always recorded in the
+  // product currency (GBP); any RON display is an indicative conversion made
+  // client-side with this rate. No rate configured => clients show the
+  // original currency instead of guessing.
+  if (pathname === "/api/region-config" && request.method === "GET") {
+    const rate = Number(process.env.GBP_TO_RON_RATE);
+    json(response, 200, {
+      orderCurrency: "GBP",
+      gbpToRon: Number.isFinite(rate) && rate > 0 ? rate : null,
+      gbpToRonUpdatedAt: process.env.GBP_TO_RON_UPDATED_AT || null,
+      conversionIsIndicative: true
+    });
     return true;
   }
 
@@ -1496,6 +1947,7 @@ async function handleShopApi(request, response, pathname) {
     const products = readJson("products.json", []);
     const productById = new Map(products.map((product) => [product.id, product]));
     const pieces = readJson("editions.json", [])
+      .filter((record) => record.status !== "cancelled")
       .map((record) => {
         const product = productById.get(record.productId);
         return publicEditionRecord({
@@ -1519,7 +1971,7 @@ async function handleShopApi(request, response, pathname) {
   if (archiveDetailMatch && request.method === "GET") {
     const recordId = Number(archiveDetailMatch[1]);
     const record = readJson("editions.json", []).find((item) => item.id === recordId);
-    if (!record) {
+    if (!record || record.status === "cancelled") {
       json(response, 404, { error: "This piece is not in the record." });
       return true;
     }
@@ -1893,12 +2345,28 @@ async function handleShopApi(request, response, pathname) {
 
       const orders = readJson("orders.json", []);
       const createdAt = new Date().toISOString();
+      const accessToken = generateOrderAccessToken();
+      const paymentMethod = PAYMENT_METHODS.includes(body.paymentMethod) ? body.paymentMethod : "manual";
       const order = {
         id: crypto.randomUUID(),
         number: `BC-${String(orders.length + 1).padStart(4, "0")}`,
         userId: session?.user.id || null,
         ...customer,
-        status: "confirmed",
+        // No payment processor is integrated yet: every checkout is an order
+        // REQUEST. It starts pending/unpaid; stock is held as a reservation
+        // that expires (and restores itself) if the order is never confirmed.
+        status: "pending",
+        paymentStatus: "unpaid",
+        paymentMethod,
+        paidAt: null,
+        publicAccessTokenHash: accessToken.hash,
+        reservation: {
+          expiresAt: new Date(Date.now() + STOCK_RESERVATION_MS).toISOString()
+        },
+        stockRestored: false,
+        couponConsumed: false,
+        couponRestored: false,
+        editionsCancelled: false,
         currency: payload.currency,
         total: finalTotal,
         discount,
@@ -1928,7 +2396,7 @@ async function handleShopApi(request, response, pathname) {
         },
         cancellationReason: "",
         statusHistory: [
-          { from: null, to: "confirmed", changedAt: createdAt, changedBy: null, emailSent: true }
+          { from: null, to: "pending", changedAt: createdAt, changedBy: null, emailSent: true }
         ],
         createdAt
       };
@@ -1963,19 +2431,14 @@ async function handleShopApi(request, response, pathname) {
       writeJson("orders.json", orders);
       writeJson("editions.json", editions);
 
-      if (appliedCoupon) {
-        const coupons = readJson("coupons.json", []);
-        const couponIndex = coupons.findIndex((coupon) => coupon.id === appliedCoupon.id);
-        if (couponIndex !== -1) {
-          coupons[couponIndex] = { ...coupons[couponIndex], usedCount: (coupons[couponIndex].usedCount || 0) + 1 };
-          writeJson("coupons.json", coupons);
-        }
-      }
+      // The coupon's usedCount is only incremented when the order is actually
+      // confirmed/paid (see the admin transition handler); pending orders hold
+      // a "reservation" on the coupon counted by resolveCoupon instead.
 
       cart.items = {};
       cart.reminderSentAt = null;
       saveCart(cartId, cart, carts);
-      return { order };
+      return { order, publicAccessToken: accessToken.token };
     });
 
     if (outcome.error) {
@@ -1984,12 +2447,18 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
-    const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${outcome.order.id}`;
-    const invoiceUrl = `${SITE_ORIGIN}/invoice.html?order=${outcome.order.id}`;
-    email.sendMail(email.buildOrderConfirmationEmail(outcome.order, orderUrl, invoiceUrl)).catch(() => {});
+    const orderUrl = orderAccessUrl("thank-you.html", outcome.order.id, outcome.publicAccessToken);
+    const invoiceUrl = orderAccessUrl("invoice.html", outcome.order.id, outcome.publicAccessToken);
+    email.sendMail(email.buildOrderReceivedEmail(outcome.order, orderUrl, invoiceUrl)).catch(() => {});
 
     const { cart } = getCart(request, response, session);
-    json(response, 200, { ok: true, order: outcome.order, cart: buildCartPayload(cart) });
+    // The plain token is returned exactly once, here; only its hash is stored.
+    json(response, 200, {
+      ok: true,
+      order: publicOrder(outcome.order),
+      publicAccessToken: outcome.publicAccessToken,
+      cart: buildCartPayload(cart)
+    });
     return true;
   }
 
@@ -2010,9 +2479,18 @@ async function handleShopApi(request, response, pathname) {
 
   const orderDetailMatch = pathname.match(/^\/api\/orders\/([0-9a-f-]{36})$/);
   if (orderDetailMatch && request.method === "GET") {
-    const order = readJson("orders.json", []).find((item) => item.id === orderDetailMatch[1]);
+    if (isRateLimited(`order-view:${clientIp(request)}`, 30, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
 
-    if (!order) {
+    const order = readJson("orders.json", []).find((item) => item.id === orderDetailMatch[1]);
+    const session = getSession(request);
+    const token = new URL(request.url, `http://${request.headers.host || "localhost"}`).searchParams.get("token") || "";
+
+    // Same 404 whether the order is missing or the caller isn't allowed to
+    // see it, so order ids can't be probed for existence.
+    if (!order || !canViewOrder(order, session, token)) {
       json(response, 404, { error: "Comanda nu exista." });
       return true;
     }
@@ -2022,6 +2500,13 @@ async function handleShopApi(request, response, pathname) {
   }
 
   return false;
+}
+
+// Builds the customer-facing link for an order page. The token grants guest
+// access; without one the link only works for the logged-in owner or admins.
+function orderAccessUrl(page, orderId, token) {
+  const tokenPart = token ? `&token=${encodeURIComponent(token)}` : "";
+  return `${SITE_ORIGIN}/${page}?order=${encodeURIComponent(orderId)}${tokenPart}`;
 }
 
 function paginate(request, list) {
@@ -2108,20 +2593,124 @@ function checkAbandonedCarts() {
 
 setInterval(checkAbandonedCarts, 1000 * 60 * 30).unref();
 
+// Auto-cancels pending, unpaid orders whose stock reservation expired,
+// restoring stock/coupon/editions exactly once (same idempotent path as a
+// manual cancellation). Paid orders are never auto-cancelled.
+function expireStaleReservations() {
+  return withStockLock(() => {
+    try {
+      const now = Date.now();
+      const orders = readJson("orders.json", []);
+      let changed = false;
+
+      for (let index = 0; index < orders.length; index += 1) {
+        const order = orders[index];
+        if (order.status !== "pending" || order.paymentStatus === "paid") continue;
+        const expiresAt = order.reservation?.expiresAt ? new Date(order.reservation.expiresAt).getTime() : NaN;
+        if (!Number.isFinite(expiresAt) || now < expiresAt) continue;
+
+        const stamp = new Date().toISOString();
+        let cancelled = {
+          ...order,
+          status: "cancelled",
+          cancelledAt: stamp,
+          cancellationReason: order.cancellationReason || "Rezervarea de stoc a expirat fara confirmare.",
+          updatedAt: stamp,
+          statusHistory: [...(order.statusHistory || []), {
+            from: "pending",
+            to: "cancelled",
+            changedAt: stamp,
+            changedBy: "system:reservation-expired",
+            emailSent: false
+          }]
+        };
+        cancelled = restoreOrderResources(cancelled, "system:reservation-expired");
+        orders[index] = cancelled;
+        changed = true;
+      }
+
+      if (changed) writeJson("orders.json", orders);
+    } catch (error) {
+      console.error("[reservations]", error);
+    }
+  });
+}
+
+setInterval(expireStaleReservations, 1000 * 60 * 15).unref();
+
+// Periodic data hygiene: expired sessions/tokens, stale carts, old outbox
+// entries and analytics retention. Keeps the JSON files from accumulating
+// personal data or dead entries forever.
+function runDataMaintenance() {
+  try {
+    const now = Date.now();
+
+    const sessions = readJson("sessions.json", {});
+    let sessionsChanged = false;
+    for (const [sessionId, session] of Object.entries(sessions)) {
+      if (!session || now > Number(session.expiresAt || 0)) {
+        delete sessions[sessionId];
+        sessionsChanged = true;
+      }
+    }
+    if (sessionsChanged) writeJson("sessions.json", sessions);
+
+    const resets = readJson("password-resets.json", []);
+    const liveResets = resets.filter((entry) => entry && !entry.usedAt && now <= Number(entry.expiresAt || 0));
+    if (liveResets.length !== resets.length) writeJson("password-resets.json", liveResets);
+
+    const verifications = readJson("email-verifications.json", []);
+    const liveVerifications = verifications.filter((entry) => entry && now <= Number(entry.expiresAt || 0));
+    if (liveVerifications.length !== verifications.length) writeJson("email-verifications.json", liveVerifications);
+
+    const carts = readJson("carts.json", {});
+    let cartsChanged = false;
+    for (const [cartId, cart] of Object.entries(carts)) {
+      const updatedAt = new Date(cart?.updatedAt || 0).getTime();
+      if (!updatedAt || now - updatedAt > cartTtlMs) {
+        delete carts[cartId];
+        cartsChanged = true;
+      }
+    }
+    if (cartsChanged) writeJson("carts.json", carts);
+
+    const outbox = readJson("email-outbox.json", []);
+    const outboxCutoff = now - OUTBOX_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    const liveOutbox = outbox.filter((entry) => new Date(entry?.createdAt || 0).getTime() >= outboxCutoff);
+    if (liveOutbox.length !== outbox.length) writeJson("email-outbox.json", liveOutbox);
+
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
+    let analyticsChanged = false;
+    const dayCutoff = new Date(now - ANALYTICS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    for (const day of Object.keys(analytics.byDay || {})) {
+      if (day < dayCutoff) {
+        delete analytics.byDay[day];
+        analyticsChanged = true;
+      }
+    }
+    const visitCutoff = now - 30 * 24 * 60 * 60 * 1000;
+    const recentVisits = (analytics.recentVisits || []).filter((visit) => new Date(visit?.at || 0).getTime() >= visitCutoff);
+    if (recentVisits.length !== (analytics.recentVisits || []).length) {
+      analytics.recentVisits = recentVisits;
+      analyticsChanged = true;
+    }
+    if (analyticsChanged) writeJson("analytics.json", analytics);
+  } catch (error) {
+    console.error("[maintenance]", error);
+  }
+}
+
+setInterval(runDataMaintenance, 1000 * 60 * 60).unref();
+
 // There was previously no backup of data/*.json at all - a bad write, a bug, or
 // deleting the wrong folder on the VPS would have taken every order/user/review
 // with it, with no way back. This keeps rolling local snapshots so a bad state
 // can be rolled back to a recent one. It does NOT protect against losing the
 // whole disk/server - that still needs an off-server backup, which this can't
 // set up on its own since it has no access to external storage.
-// Sibling of dataDir (not root) so this follows DATA_DIR when it's overridden -
-// otherwise an isolated/test DATA_DIR would still write backups into the real
-// project checkout instead of next to the data it's actually backing up.
-// Brand-suffixed for every brand except BeCa (kept as plain "backups" so an
-// already-configured external rsync/cron job pointed at that exact path keeps
-// working) - without this, a second brand using the default (non-overridden)
-// DATA_DIR would land its backups in BeCa's own "backups" folder.
-const backupsDir = path.join(dataDir, "..", BRAND_ID === "beca" ? "backups" : `backups-${BRAND_ID}`);
+// backupsDir is defined near the top (sibling of dataDir, brand-suffixed for
+// non-BeCa brands) because the storage layer needs it for corrupt-file
+// restoration as well.
 const MAX_BACKUPS = 14;
 
 function backupDataFiles() {
@@ -2158,23 +2747,44 @@ function resolveCoupon(rawCode, total) {
 
   const coupon = coupons[index];
   if (!coupon.active) return { error: "Codul de reducere nu mai este activ." };
-  if (coupon.expiresAt && Date.now() > new Date(coupon.expiresAt).getTime()) {
-    return { error: "Codul de reducere a expirat." };
-  }
-  if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
-    return { error: "Codul de reducere a fost folosit de maximum de ori." };
+  if (coupon.expiresAt) {
+    const expiresAtMs = new Date(coupon.expiresAt).getTime();
+    // An unparseable expiry date must fail closed, not act as "never expires".
+    if (!Number.isFinite(expiresAtMs) || Date.now() > expiresAtMs) {
+      return { error: "Codul de reducere a expirat." };
+    }
   }
 
+  if (coupon.maxUses) {
+    // usedCount only counts confirmed/paid orders; pending orders hold the
+    // coupon too, so count them as well - otherwise N parallel checkouts
+    // could all pass this check and push usage past maxUses on confirm.
+    const pendingHolds = readJson("orders.json", []).filter((order) =>
+      order.couponCode === code && order.status === "pending" && !order.couponConsumed).length;
+    if ((coupon.usedCount || 0) + pendingHolds >= coupon.maxUses) {
+      return { error: "Codul de reducere a fost folosit de maximum de ori." };
+    }
+  }
+
+  // Percent coupons are clamped to 0-100 even if legacy data holds a larger
+  // value; fixed coupons can never exceed the order total.
   const discount = coupon.type === "fixed"
-    ? Math.min(total, coupon.value)
-    : Math.round(total * (coupon.value / 100) * 100) / 100;
+    ? Math.min(total, Math.max(0, Number(coupon.value) || 0))
+    : Math.round(total * (Math.min(100, Math.max(0, Number(coupon.value) || 0)) / 100) * 100) / 100;
 
   return { coupon, discount };
 }
 
 function toCsvValue(value) {
-  const str = String(value ?? "");
-  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+  // Genuine numbers are safe and must stay numeric for spreadsheets.
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+
+  let str = String(value ?? "");
+  // Neutralize spreadsheet formula injection: a leading =, +, -, @, tab or
+  // carriage return would make Excel/Sheets evaluate the cell as a formula.
+  // A leading apostrophe forces text interpretation.
+  if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
+  if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
   return str;
 }
 
@@ -2206,17 +2816,21 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/content" && request.method === "GET") {
-    json(response, 200, readJson("content.json", { en: {}, ro: {}, branding: {} }));
+    json(response, 200, sanitizeContent(readJson("content.json", { en: {}, ro: {}, branding: {} })));
     return true;
   }
 
   if (pathname === "/api/admin/content" && request.method === "PUT") {
     const body = await readBody(request);
-    const current = readJson("content.json", { en: {}, ro: {}, branding: {} });
+    const current = sanitizeContent(readJson("content.json", { en: {}, ro: {}, branding: {} }));
+    // Incoming values are sanitized before merging: text becomes plain text
+    // (no tags, no event handlers), branding accepts only known record shapes
+    // with approved image URLs - arbitrary values are dropped.
+    const incoming = sanitizeContent(body);
     const next = {
-      en: { ...current.en, ...(body.en && typeof body.en === "object" ? body.en : {}) },
-      ro: { ...current.ro, ...(body.ro && typeof body.ro === "object" ? body.ro : {}) },
-      branding: { ...current.branding, ...(body.branding && typeof body.branding === "object" ? body.branding : {}) }
+      en: { ...current.en, ...incoming.en },
+      ro: { ...current.ro, ...incoming.ro },
+      branding: { ...current.branding, ...incoming.branding }
     };
     writeJson("content.json", next);
     json(response, 200, { ok: true, content: next });
@@ -2255,8 +2869,12 @@ async function handleAdminApi(request, response, pathname) {
       previewProducts: products.filter((product) => product.status === "preview").length,
       notifications: readJson("notifications.json", []).length,
       orders: orders.length,
-      revenue: orders.filter((order) => order.status !== "cancelled").reduce((total, order) => total + Number(order.total || 0), 0),
-      pageviewsToday: analytics.byDay[today] ? analytics.byDay[today].pageviews : 0
+      pendingOrders: orders.filter((order) => order.status === "pending").length,
+      // Revenue counts only paid orders - a pending, unpaid order request is
+      // not income.
+      revenue: orders.filter(orderCountsAsRevenue).reduce((total, order) => total + Number(order.total || 0), 0),
+      pageviewsToday: analytics.byDay[today] ? analytics.byDay[today].pageviews : 0,
+      legalPlaceholders: brandLegalPlaceholders()
     });
     return true;
   }
@@ -2486,6 +3104,16 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
+    if (type === "percent" && (value <= 0 || value > 100)) {
+      json(response, 400, { error: "Cuponul procentual trebuie sa fie intre 0 si 100." });
+      return true;
+    }
+
+    if (body.expiresAt && !Number.isFinite(new Date(body.expiresAt).getTime())) {
+      json(response, 400, { error: "Data de expirare este invalida." });
+      return true;
+    }
+
     const coupons = readJson("coupons.json", []);
     if (coupons.some((coupon) => coupon.code === code)) {
       json(response, 409, { error: "Exista deja un cupon cu acest cod." });
@@ -2534,7 +3162,7 @@ async function handleAdminApi(request, response, pathname) {
   if (pathname === "/api/admin/stats/revenue" && request.method === "GET") {
     const orders = readJson("orders.json", []);
     const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
-    const validOrders = orders.filter((order) => order.status !== "cancelled");
+    const validOrders = orders.filter(orderCountsAsRevenue);
     const totalRevenue = validOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
     const averageOrderValue = validOrders.length ? Math.round((totalRevenue / validOrders.length) * 100) / 100 : 0;
 
@@ -2572,7 +3200,7 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/stats/products" && request.method === "GET") {
-    const orders = readJson("orders.json", []).filter((order) => order.status !== "cancelled");
+    const orders = readJson("orders.json", []).filter(orderCountsAsRevenue);
     const totals = new Map();
 
     orders.forEach((order) => {
@@ -2863,6 +3491,11 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
+    if (body.paymentStatus !== undefined && !PAYMENT_STATUSES.includes(String(body.paymentStatus))) {
+      json(response, 400, { error: "Status de plata invalid." });
+      return true;
+    }
+
     // Phase 1 runs under the data lock so a second concurrent order update (another
     // admin, another tab, a double-click) can't read the same pre-update array and
     // overwrite this one's write. It only does synchronous JSON read/write - the slow
@@ -2879,6 +3512,12 @@ async function handleAdminApi(request, response, pathname) {
       const existing = orders[index];
       const previousStatus = existing.status;
       const existingFulfillment = existing.fulfillment || {};
+
+      // Enforce the order state machine: no resurrecting delivered/cancelled
+      // orders, no skipping forward outside the allowed flow.
+      if (!isAllowedOrderTransition(previousStatus, status)) {
+        return { error: `Tranzitie invalida: ${previousStatus} -> ${status}.`, status: 400 };
+      }
 
       const nextFulfillment = {
         courierName: body.courierName !== undefined ? String(body.courierName).trim().slice(0, 120) : (existingFulfillment.courierName || ""),
@@ -2900,7 +3539,7 @@ async function handleAdminApi(request, response, pathname) {
       const isTransition = previousStatus !== status;
       const now = new Date().toISOString();
 
-      const updatedOrder = {
+      let updatedOrder = {
         ...existing,
         status,
         fulfillment: nextFulfillment,
@@ -2912,10 +3551,49 @@ async function handleAdminApi(request, response, pathname) {
         cancelledAt: isTransition && status === "cancelled" ? now : existing.cancelledAt || null
       };
 
+      // Explicit payment updates from the admin ("mark as paid" etc.).
+      const previousPaymentStatus = existing.paymentStatus || "unpaid";
+      if (body.paymentStatus !== undefined && body.paymentStatus !== previousPaymentStatus) {
+        updatedOrder.paymentStatus = body.paymentStatus;
+        updatedOrder.paidAt = body.paymentStatus === "paid" ? now : existing.paidAt || null;
+        if (body.paymentStatus === "paid") {
+          updatedOrder = consumeOrderCoupon(updatedOrder);
+        }
+        updatedOrder.statusHistory = [...(updatedOrder.statusHistory || []), {
+          from: previousStatus,
+          to: status,
+          payment: { from: previousPaymentStatus, to: body.paymentStatus },
+          changedAt: now,
+          changedBy: session.user.email,
+          emailSent: false
+        }];
+      }
+
+      if (isTransition && status === "confirmed") {
+        // Manual confirmation turns the stock reservation into a sale and
+        // consumes the coupon (once).
+        updatedOrder = consumeOrderCoupon(updatedOrder);
+        updatedOrder.reservation = { ...(updatedOrder.reservation || {}), confirmedAt: now, expiresAt: null };
+      }
+
+      if (isTransition && status === "cancelled") {
+        // Idempotent restoration of stock, coupon usage and edition numbers.
+        updatedOrder = restoreOrderResources(updatedOrder, session.user.email);
+      }
+
+      // When a customer email will go out, rotate the guest access token so
+      // the link in that email works - only the hash is ever stored.
+      let accessToken = null;
+      if (isTransition && body.sendEmail !== false) {
+        const rotated = generateOrderAccessToken();
+        updatedOrder.publicAccessTokenHash = rotated.hash;
+        accessToken = rotated.token;
+      }
+
       orders[index] = updatedOrder;
       writeJson("orders.json", orders);
 
-      return { updatedOrder, isTransition, previousStatus, now };
+      return { updatedOrder, isTransition, previousStatus, now, accessToken };
     });
 
     if (phase1.error) {
@@ -2929,7 +3607,7 @@ async function handleAdminApi(request, response, pathname) {
     let emailResult = { ok: false };
 
     if (isTransition && sendEmailRequested) {
-      const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${updatedOrder.id}`;
+      const orderUrl = orderAccessUrl("thank-you.html", updatedOrder.id, phase1.accessToken);
 
       if (status === "processing") {
         attemptedEmail = true;
@@ -2988,15 +3666,25 @@ async function handleAdminApi(request, response, pathname) {
 
   const orderResendMatch = pathname.match(/^\/api\/admin\/orders\/([a-f0-9-]+)\/resend-email$/);
   if (orderResendMatch && request.method === "POST") {
-    const order = readJson("orders.json", []).find((item) => item.id === orderResendMatch[1]);
+    // Rotate the guest access token under the lock so the re-sent email
+    // carries a working link while only the hash is stored.
+    const rotated = generateOrderAccessToken();
+    const order = await withStockLock(() => {
+      const orders = readJson("orders.json", []);
+      const index = orders.findIndex((item) => item.id === orderResendMatch[1]);
+      if (index === -1) return null;
+      orders[index] = { ...orders[index], publicAccessTokenHash: rotated.hash };
+      writeJson("orders.json", orders);
+      return orders[index];
+    });
 
     if (!order) {
       json(response, 404, { error: "Comanda nu exista." });
       return true;
     }
 
-    const orderUrl = `${SITE_ORIGIN}/thank-you.html?order=${order.id}`;
-    const invoiceUrl = `${SITE_ORIGIN}/invoice.html?order=${order.id}`;
+    const orderUrl = orderAccessUrl("thank-you.html", order.id, rotated.token);
+    const invoiceUrl = orderAccessUrl("invoice.html", order.id, rotated.token);
     let emailResult;
 
     if (order.status === "processing") {
@@ -3009,8 +3697,11 @@ async function handleAdminApi(request, response, pathname) {
       emailResult = await email.sendOrderDeliveredEmail(order, orderUrl, reviewUrl);
     } else if (order.status === "cancelled") {
       emailResult = await email.sendOrderCancelledEmail(order, orderUrl);
-    } else {
+    } else if (order.status === "confirmed") {
       emailResult = await email.sendMail(email.buildOrderConfirmationEmail(order, orderUrl, invoiceUrl));
+    } else {
+      // pending: the order is only received, not confirmed - say exactly that.
+      emailResult = await email.sendMail(email.buildOrderReceivedEmail(order, orderUrl, invoiceUrl));
     }
 
     const historyEntry = {
@@ -3054,9 +3745,27 @@ async function handleAdminApi(request, response, pathname) {
 // shared project root for brand-neutral assets (UI chrome icons, 3D models,
 // favicon) that don't need a separate copy per brand. For BeCa, publicRoot IS
 // root, so this is a single lookup exactly as before.
+const dataDirResolved = path.resolve(dataDir);
+const backupsDirResolved = path.resolve(backupsDir);
+
+// Path-prefix check that can't be fooled by sibling folders sharing a prefix
+// (e.g. "/app/data-aether" vs "/app/data").
+function isInsideDir(candidate, dir) {
+  return candidate === dir || candidate.startsWith(dir + path.sep);
+}
+
+// Never serve anything that lives inside the data or backups directories,
+// wherever DATA_DIR points (it may be outside the project root or - worse -
+// inside the public folder on a misconfigured deploy).
+function isProtectedRealPath(resolvedPath) {
+  return isInsideDir(resolvedPath, dataDirResolved) || isInsideDir(resolvedPath, backupsDirResolved);
+}
+
 function resolveStaticFilePath(safePath) {
+  if (isBlockedStaticPath(safePath)) return null;
+
   const brandPath = path.resolve(publicRoot, safePath);
-  if (brandPath.startsWith(publicRootResolved)) {
+  if (isInsideDir(brandPath, publicRootResolved) && !isProtectedRealPath(brandPath)) {
     try {
       if (fs.statSync(brandPath).isFile()) return brandPath;
     } catch {
@@ -3066,7 +3775,7 @@ function resolveStaticFilePath(safePath) {
 
   if (publicRootResolved !== rootResolved) {
     const sharedPath = path.resolve(root, safePath);
-    if (sharedPath.startsWith(rootResolved)) {
+    if (isInsideDir(sharedPath, rootResolved) && !isProtectedRealPath(sharedPath)) {
       try {
         if (fs.statSync(sharedPath).isFile()) return sharedPath;
       } catch {
@@ -3247,8 +3956,49 @@ function serveUploadedProductFile(response, pathname) {
   return true;
 }
 
+// Production misconfigurations that must stop the process before it serves a
+// single request; in development they only warn.
+function validateStartupConfig() {
+  const isProduction = process.env.NODE_ENV === "production";
+  const problems = [];
+
+  if (isProduction) {
+    if (!process.env.ADMIN_PASSWORD) {
+      problems.push("ADMIN_PASSWORD nu este setat. In productie parola de admin trebuie setata explicit prin environment.");
+    }
+
+    const origin = String(process.env.SITE_ORIGIN || BRAND.siteOrigin || "").trim();
+    if (!origin || /example|localhost|127\.0\.0\.1|\[COMPLET/i.test(origin)) {
+      problems.push(`SITE_ORIGIN este placeholder sau lipseste ("${origin}"). Seteaza SITE_ORIGIN la domeniul real (https://...).`);
+    }
+
+    // The whole project root is servable as static fallback, so data must
+    // live outside it in production (e.g. a persistent disk mount).
+    if (isInsideDir(dataDirResolved, publicRootResolved) || isInsideDir(dataDirResolved, rootResolved)) {
+      problems.push(`DATA_DIR (${dataDirResolved}) se afla in directorul public/servabil. In productie seteaza DATA_DIR in afara proiectului (ex. /var/data/${BRAND_ID}).`);
+    }
+  }
+
+  const legalMissing = brandLegalPlaceholders();
+  if (legalMissing.length) {
+    const message = `[config] ATENTIE (critic pentru functionare legala): datele de firma lipsesc sau sunt placeholder in config/brands/${BRAND_ID}.json: ${legalMissing.join(", ")}.`;
+    console.warn(message);
+  }
+
+  if (problems.length) {
+    const error = new Error(`Configuratie de productie invalida:\n- ${problems.join("\n- ")}`);
+    error.code = "INVALID_PRODUCTION_CONFIG";
+    throw error;
+  }
+}
+
 function start() {
+  validateStartupConfig();
+  // One process per DATA_DIR: refuse to start if another live process
+  // already writes these data files.
+  storage.acquireProcessLock();
   ensureDataFiles();
+  runDataMaintenance();
   backupDataFiles();
   setInterval(backupDataFiles, 1000 * 60 * 60 * 6).unref();
 
@@ -3333,5 +4083,15 @@ module.exports = {
   productBelongsToOpenChapter,
   productCanBePurchased,
   canAccessFile,
-  clientIp
+  isBlockedStaticPath,
+  clientIp,
+  anonymizeIp,
+  passwordPolicyError,
+  stripHtmlToText,
+  isApprovedImageUrl,
+  sanitizeContent,
+  hashOrderToken,
+  isAllowedOrderTransition,
+  toCsvValue,
+  resolveCoupon
 };

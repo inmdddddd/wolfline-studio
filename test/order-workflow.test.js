@@ -181,15 +181,29 @@ test("confirmed -> processing sets processedAt, records statusHistory, and does 
 });
 
 test("shipped is rejected without courier and tracking details", async () => {
-  const order = seedOrder();
+  // Orders must be "processing" first - the state machine no longer allows
+  // jumping confirmed -> shipped directly.
+  const order = seedOrder({ status: "processing" });
   const { status, payload } = await putOrderStatus(order.id, { status: "shipped" });
   assert.equal(status, 400);
   assert.match(payload.error, /curier|tracking/i);
+  assert.equal(getOrder(order.id).status, "processing");
+});
+
+test("confirmed -> shipped (skipping processing) is rejected by the state machine", async () => {
+  const order = seedOrder();
+  const { status, payload } = await putOrderStatus(order.id, {
+    status: "shipped",
+    courierName: "Sameday",
+    trackingNumber: "AWB123456"
+  });
+  assert.equal(status, 400);
+  assert.match(payload.error, /Tranzitie invalida/);
   assert.equal(getOrder(order.id).status, "confirmed");
 });
 
 test("shipped succeeds with courier/tracking, sets shippedAt, and the email includes the tracking link", async () => {
-  const order = seedOrder();
+  const order = seedOrder({ status: "processing" });
   const { status, payload } = await putOrderStatus(order.id, {
     status: "shipped",
     courierName: "Sameday",

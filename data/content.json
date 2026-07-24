@@ -65,7 +65,7 @@
     "story.cta": "Read the full story",
     "trust.shipping": "Ships in 2–5 business days",
     "trust.returns": "Easy 14-day returns",
-    "trust.payment": "100% secure payment",
+    "trust.payment": "Order verified & confirmed by our team",
     "contact.kicker": "Don't miss it",
     "contact.title": "First access. Capped numbers. No restocks.",
     "contact.button": "Get early access",
@@ -190,11 +190,11 @@
     "privacy.s1.title": "1. Who is the data controller",
     "privacy.s1.body": "[COMPLETE] Ltd, a company registered in the United Kingdom, Companies House number [COMPLETE], registered address at [COMPLETE address], is the controller of your personal data collected through this site. For any question about your data, you can write to us at contact@beca-wlf.com.",
     "privacy.s2.title": "2. What data we collect",
-    "privacy.s2.body": "Account data (name, email, encrypted password), order data (name, email, phone, delivery address) and payment data (processed directly by Stripe; we do not store card numbers).",
+    "privacy.s2.body": "Account data (name, email, password stored as a secure hash), order data (name, email, phone, delivery address) and technical traffic data (anonymized IP address, page visited, time of visit). No card details are collected on this site.",
     "privacy.s3.title": "3. Why we collect this data",
     "privacy.s3.body": "We use your data exclusively to process orders, manage your account, respond to support requests and comply with legal obligations (accounting, returns). We do not sell or rent your data to third parties for marketing purposes.",
     "privacy.s4.title": "4. Who we share data with",
-    "privacy.s4.body": "Payment data is processed by Stripe, under Stripe's own privacy policy. Delivery data may be passed to the chosen courier to complete delivery. We do not share data with other third parties beyond what is strictly necessary to deliver your order and process payment.",
+    "privacy.s4.body": "Delivery data may be passed to the chosen courier to complete delivery. We do not share data with other third parties beyond what is strictly necessary to deliver your order. No card payments are processed on this site.",
     "privacy.s5.title": "5. How long we keep data",
     "privacy.s5.body": "Account data is kept for as long as your account is active. Order data is kept in line with legal accounting archival obligations. You can request account deletion at any time, except for data we are legally required to keep.",
     "privacy.s6.title": "6. Your rights",
@@ -212,7 +212,7 @@
     "product.materials.fitValue": "Oversized, boxy cut. True to size — size down for a tighter fit.",
     "product.materials.careLabel": "Care",
     "product.materials.careValue": "Machine wash cold, inside out. No bleach. Low-heat iron only.",
-    "checkout.trustNote": "Your details are encrypted and used only to process this order."
+    "checkout.trustNote": "Orders are recorded in GBP; prices shown in other currencies are indicative. Your details are used only to process this order."
   },
   "ro": {
     "nav.drop": "Drop",
@@ -280,7 +280,7 @@
     "story.cta": "Citeste povestea completa",
     "trust.shipping": "Livrare in 2-5 zile lucratoare",
     "trust.returns": "Retur usor in 14 zile",
-    "trust.payment": "Plata 100% securizata",
+    "trust.payment": "Comanda verificata si confirmata de echipa noastra",
     "contact.kicker": "Nu rata",
     "contact.title": "Acces devreme. Numere limitate. Fara restock.",
     "contact.button": "Acces devreme",
@@ -405,11 +405,11 @@
     "privacy.s1.title": "1. Cine este operatorul datelor",
     "privacy.s1.body": "[COMPLETEAZA] Ltd, societate inregistrata in Marea Britanie, numar de inregistrare Companies House [COMPLETEAZA], cu sediul la [COMPLETEAZA adresa], este operatorul datelor tale personale colectate prin acest site. Pentru orice intrebare legata de datele tale, ne poti scrie la contact@beca-wlf.com.",
     "privacy.s2.title": "2. Ce date colectam",
-    "privacy.s2.body": "Date de cont (nume, email, parola criptata), date de comanda (nume, email, telefon, adresa de livrare) si date de plata (procesate direct de Stripe; noi nu stocam numere de card).",
+    "privacy.s2.body": "Date de cont (nume, email, parola stocata sub forma de hash securizat), date de comanda (nume, email, telefon, adresa de livrare) si date tehnice de trafic (adresa IP anonimizata, pagina accesata, ora vizitei). Pe acest site nu se colecteaza date de card.",
     "privacy.s3.title": "3. De ce colectam aceste date",
     "privacy.s3.body": "Folosim datele tale exclusiv pentru a procesa comenzi, a-ti gestiona contul, a raspunde solicitarilor de suport si a respecta obligatii legale (contabilitate, retururi). Nu vindem si nu inchiriem datele tale catre terti in scop de marketing.",
     "privacy.s4.title": "4. Cu cine impartasim datele",
-    "privacy.s4.body": "Datele de plata sunt procesate de Stripe, conform politicii proprii de confidentialitate a Stripe. Datele de livrare pot fi transmise curierului ales pentru finalizarea livrarii. Nu impartasim date cu alti terti in afara celor strict necesare pentru livrarea comenzii si procesarea platii.",
+    "privacy.s4.body": "Datele de livrare pot fi transmise curierului ales pentru finalizarea livrarii. Nu impartasim date cu alti terti in afara celor strict necesare pentru livrarea comenzii. Pe acest site nu se proceseaza plati cu cardul.",
     "privacy.s5.title": "5. Cat timp pastram datele",
     "privacy.s5.body": "Datele de cont sunt pastrate cat timp contul tau este activ. Datele de comanda sunt pastrate conform obligatiilor legale de arhivare contabila. Poti solicita oricand stergerea contului, cu exceptia datelor pe care suntem obligati legal sa le pastram.",
     "privacy.s6.title": "6. Drepturile tale",
@@ -427,7 +427,7 @@
     "product.materials.fitValue": "Oversized, croiala boxy. Marimea normala — ia o marime mai mica pentru un fit mai strans.",
     "product.materials.careLabel": "Ingrijire",
     "product.materials.careValue": "Spala la masina, apa rece, pe dos. Fara inalbitor. Calca la temperatura joasa.",
-    "checkout.trustNote": "Datele tale sunt criptate si folosite doar pentru procesarea acestei comenzi."
+    "checkout.trustNote": "Comanda se inregistreaza in GBP; preturile afisate in alte monede sunt orientative. Datele tale sunt folosite doar pentru procesarea acestei comenzi."
   },
   "branding": {
     "logoUrl": "/assets/beca-logo.png?v=2",

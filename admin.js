@@ -29,6 +29,7 @@ function productImageSrc(product) {
 }
 
 function renderSummary(summary) {
+  renderLegalWarning(summary.legalPlaceholders || []);
   document.querySelector("[data-summary-users]").textContent = summary.users;
   document.querySelector("[data-summary-products]").textContent = summary.products;
   document.querySelector("[data-summary-live]").textContent = summary.liveProducts;
@@ -36,6 +37,24 @@ function renderSummary(summary) {
   document.querySelector("[data-summary-notifications]").textContent = summary.notifications || 0;
   document.querySelector("[data-summary-orders]").textContent = summary.orders;
   document.querySelector("[data-summary-pageviews]").textContent = summary.pageviewsToday || 0;
+}
+
+// Admin-only banner: the brand config still holds legal placeholders
+// ([COMPLETE...]), so public legal pages are incomplete.
+function renderLegalWarning(fields) {
+  let banner = document.querySelector("[data-legal-warning]");
+  if (!fields.length) {
+    if (banner) banner.remove();
+    return;
+  }
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.dataset.legalWarning = "";
+    banner.style.cssText = "margin:12px 0;padding:12px 16px;border:1px solid #b4884b;border-radius:10px;background:rgba(180,136,75,.12);color:#e0c88c;font-size:13px;line-height:1.5;";
+    const main = document.querySelector("main") || document.body;
+    main.insertBefore(banner, main.firstChild);
+  }
+  banner.textContent = `Atentie: datele legale ale firmei lipsesc sau sunt placeholder (${fields.join(", ")}). Completeaza config/brands/<brand>.json inainte de lansare - paginile legale publice sunt incomplete.`;
 }
 
 function renderAnalytics(analytics) {
@@ -607,6 +626,16 @@ function renderNotifications(notifications) {
 
 const ORDER_STATUSES = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
 const ORDER_STATUS_FLOW = ["confirmed", "processing", "shipped", "delivered"];
+// Mirrors the server-side state machine - the select only offers reachable states.
+const ORDER_ALLOWED_TRANSITIONS = {
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["processing", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped: ["delivered"],
+  delivered: [],
+  cancelled: []
+};
+const PAYMENT_STATUSES = ["unpaid", "paid", "refunded", "failed"];
 const orderExpandedState = new Set();
 
 function orderFieldsVisibleFor(status) {
@@ -662,7 +691,8 @@ function createOrderDetailPanel(order) {
   const statusSelect = document.createElement("select");
   statusSelect.name = "status";
   statusSelect.dataset.orderStatusSelect = order.id;
-  ORDER_STATUSES.forEach((value) => {
+  const reachableStatuses = [order.status, ...(ORDER_ALLOWED_TRANSITIONS[order.status] || ORDER_STATUSES)];
+  ORDER_STATUSES.filter((value) => reachableStatuses.includes(value)).forEach((value) => {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = value;
@@ -671,6 +701,19 @@ function createOrderDetailPanel(order) {
   });
   statusLabel.textContent = "New status";
   statusLabel.appendChild(statusSelect);
+
+  const paymentLabel = document.createElement("label");
+  const paymentSelect = document.createElement("select");
+  paymentSelect.name = "paymentStatus";
+  PAYMENT_STATUSES.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value === "paid" ? "paid (platita)" : value;
+    option.selected = (order.paymentStatus || "unpaid") === value;
+    paymentSelect.appendChild(option);
+  });
+  paymentLabel.textContent = "Payment status";
+  paymentLabel.appendChild(paymentSelect);
 
   const noteLabel = document.createElement("label");
   const noteInput = document.createElement("textarea");
@@ -725,7 +768,7 @@ function createOrderDetailPanel(order) {
   message.className = "form-message";
   message.dataset.orderFormMessage = order.id;
 
-  form.append(statusLabel, noteLabel, shippedFields, cancelledFields, warning, sendEmailLabel, actions, message);
+  form.append(statusLabel, paymentLabel, noteLabel, shippedFields, cancelledFields, warning, sendEmailLabel, actions, message);
 
   const timeline = document.createElement("div");
   timeline.className = "order-timeline";
@@ -788,7 +831,7 @@ function renderOrders(orders) {
     total.textContent = money(order);
     statusBadge.className = "order-status-badge";
     statusBadge.dataset.status = order.status;
-    statusBadge.textContent = order.status;
+    statusBadge.textContent = `${order.status} · ${order.paymentStatus || "unpaid"}`;
 
     expandButton.type = "button";
     expandButton.dataset.orderExpandToggle = order.id;
@@ -1319,6 +1362,7 @@ document.addEventListener("submit", async (event) => {
     customerNote: formData.get("customerNote") || "",
     sendEmail: formData.get("sendEmail") === "on"
   };
+  if (formData.has("paymentStatus")) payload.paymentStatus = formData.get("paymentStatus");
   if (formData.has("courierName")) payload.courierName = formData.get("courierName");
   if (formData.has("trackingNumber")) payload.trackingNumber = formData.get("trackingNumber");
   if (formData.has("trackingUrl")) payload.trackingUrl = formData.get("trackingUrl");

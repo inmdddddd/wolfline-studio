@@ -324,3 +324,72 @@ test("parseMultipart splits fields and files from a multipart buffer", () => {
 test("parseMultipart throws when the boundary is missing", () => {
   assert.throws(() => server.parseMultipart(Buffer.from(""), "multipart/form-data"), /boundary/i);
 });
+
+test("anonymizeIp strips the IPv4 last octet and truncates IPv6 to its prefix", () => {
+  assert.equal(server.anonymizeIp("203.0.113.66"), "203.0.113.0");
+  assert.equal(server.anonymizeIp("::ffff:203.0.113.66"), "203.0.113.0");
+  assert.equal(server.anonymizeIp("2001:db8:abcd:12:3456:789a:bcde:f012"), "2001:db8:abcd::");
+  assert.equal(server.anonymizeIp(""), "unknown");
+  assert.equal(server.anonymizeIp("unknown"), "unknown");
+});
+
+test("toCsvValue neutralizes leading formula characters but keeps real numbers numeric", () => {
+  assert.equal(server.toCsvValue("=SUM(A1)"), "'=SUM(A1)");
+  assert.equal(server.toCsvValue("+40712345678"), "'+40712345678");
+  assert.equal(server.toCsvValue("-5 discount"), "'-5 discount");
+  assert.equal(server.toCsvValue("@evil"), "'@evil");
+  assert.equal(server.toCsvValue("\tX"), "'\tX");
+  assert.equal(server.toCsvValue(-5), "-5", "numbers stay numeric");
+  assert.equal(server.toCsvValue("normal"), "normal");
+});
+
+test("isBlockedStaticPath blocks data/backups/tmp/.env variants on normalized segments", () => {
+  assert.equal(server.isBlockedStaticPath("data/users.json"), true);
+  assert.equal(server.isBlockedStaticPath("data-aether/users.json"), true);
+  assert.equal(server.isBlockedStaticPath("backups/2026/users.json"), true);
+  assert.equal(server.isBlockedStaticPath("backups-aether/x"), true);
+  assert.equal(server.isBlockedStaticPath("tmp/cache.txt"), true);
+  assert.equal(server.isBlockedStaticPath(".env"), true);
+  assert.equal(server.isBlockedStaticPath(".env.production"), true);
+  assert.equal(server.isBlockedStaticPath("nested\\data\\x.json"), true);
+  assert.equal(server.isBlockedStaticPath("assets/logo.png"), false);
+  assert.equal(server.isBlockedStaticPath("index.html"), false);
+});
+
+test("passwordPolicyError enforces the 10-char minimum and rejects trivially weak choices", () => {
+  assert.ok(server.passwordPolicyError("short"));
+  assert.ok(server.passwordPolicyError("aaaaaaaaaa"));
+  assert.ok(server.passwordPolicyError("1234567890"));
+  assert.ok(server.passwordPolicyError("password123"));
+  assert.equal(server.passwordPolicyError("good-pass-2026"), null);
+});
+
+test("isAllowedOrderTransition implements the order state machine", () => {
+  assert.equal(server.isAllowedOrderTransition("pending", "confirmed"), true);
+  assert.equal(server.isAllowedOrderTransition("pending", "cancelled"), true);
+  assert.equal(server.isAllowedOrderTransition("confirmed", "processing"), true);
+  assert.equal(server.isAllowedOrderTransition("processing", "shipped"), true);
+  assert.equal(server.isAllowedOrderTransition("shipped", "delivered"), true);
+  assert.equal(server.isAllowedOrderTransition("delivered", "pending"), false);
+  assert.equal(server.isAllowedOrderTransition("cancelled", "shipped"), false);
+  assert.equal(server.isAllowedOrderTransition("delivered", "cancelled"), false);
+  assert.equal(server.isAllowedOrderTransition("confirmed", "shipped"), false);
+  assert.equal(server.isAllowedOrderTransition("pending", "pending"), true, "same-status saves stay allowed");
+});
+
+test("isApprovedImageUrl allows local approved paths and https, rejects everything else", () => {
+  assert.equal(server.isApprovedImageUrl("assets/products/x.png"), true);
+  assert.equal(server.isApprovedImageUrl("/assets/logo.png?v=2"), true);
+  assert.equal(server.isApprovedImageUrl("https://cdn.example.com/x.png"), true);
+  assert.equal(server.isApprovedImageUrl("javascript:alert(1)"), false);
+  assert.equal(server.isApprovedImageUrl("data:image/png;base64,AAAA"), false);
+  assert.equal(server.isApprovedImageUrl("../data/users.json"), false);
+  assert.equal(server.isApprovedImageUrl("http://insecure.example/x.png"), false);
+});
+
+test("stripHtmlToText removes tags, keeps line breaks and decodes basic entities", () => {
+  assert.equal(server.stripHtmlToText("<script>alert(1)</script>hi"), "alert(1)hi");
+  assert.equal(server.stripHtmlToText("line1<br>line2"), "line1\nline2");
+  assert.equal(server.stripHtmlToText("<img src=x onerror=alert(1)>text"), "text");
+  assert.equal(server.stripHtmlToText("a &amp; b"), "a & b");
+});

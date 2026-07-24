@@ -63,14 +63,25 @@ function loadRegion({ languages = ["en-GB"], storage = {}, timeZone = "America/N
   return sandbox.window.BecaRegion;
 }
 
-test("detect returns a Romanian profile for ro browser languages", () => {
+test("detect returns a Romanian profile for ro browser languages once a rate is configured", () => {
   const region = loadRegion({ languages: ["ro-RO", "en-US"] });
+  region.setRates({ gbpToRon: 5.85, gbpToRonUpdatedAt: "2026-07-20" });
   const profile = region.detect();
 
   assert.equal(profile.country, "RO");
   assert.equal(profile.language, "ro");
   assert.equal(profile.currency, "RON");
   assert.equal(profile.rateFromGBP, 5.85);
+});
+
+test("without a configured rate, Romanian visitors see the original currency (GBP)", () => {
+  const region = loadRegion({ languages: ["ro-RO"] });
+  const profile = region.detect();
+
+  assert.equal(profile.country, "RO");
+  assert.equal(profile.language, "ro");
+  assert.equal(profile.currency, "GBP", "no configured rate => show the original order currency");
+  assert.equal(region.convert(10, "GBP"), 10, "no approximate conversion without a rate");
 });
 
 test("detect falls back to the UK/GBP profile for non-RO languages", () => {
@@ -121,12 +132,14 @@ test("translateCategory maps known categories and passes others through", () => 
   assert.equal(en.translateCategory(""), "Piece");
 });
 
-test("convert applies the GBP<->RON rate based on the active profile", () => {
+test("convert applies the configured GBP<->RON rate based on the active profile", () => {
   const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setRates({ gbpToRon: 5.85 });
   assert.equal(ro.convert(10, "GBP"), 58.5);
   assert.equal(ro.convert(10, "RON"), 10, "same currency is returned unchanged");
 
   const uk = loadRegion({ languages: ["en-GB"] });
+  uk.setRates({ gbpToRon: 5.85 });
   assert.equal(uk.convert(5.85, "RON"), 1);
   assert.equal(uk.convert(20, "GBP"), 20);
 });
@@ -137,6 +150,7 @@ test("money formats the converted amount with the profile currency", () => {
   assert.match(formatted, /£\s?20\.00/);
 
   const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setRates({ gbpToRon: 5.85 });
   const roFormatted = ro.money(10, "GBP");
   // RON uses 0 fraction digits, so no decimals should appear
   assert.doesNotMatch(roFormatted, /[.,]\d{2}/);

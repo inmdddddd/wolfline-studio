@@ -1,5 +1,32 @@
 (function () {
-  const GBP_TO_RON = 5.85;
+  /* Display-currency conversion. Orders are always recorded in the product
+     currency (GBP); RON is only an indicative display conversion. The rate
+     is no longer hardcoded: it comes from the server (/api/region-config,
+     backed by the GBP_TO_RON_RATE env var). Until a rate is loaded - or when
+     none is configured - prices are shown in the original currency. */
+  let gbpToRonRate = null;
+  let gbpToRonUpdatedAt = null;
+
+  function setRates(rates) {
+    const value = Number(rates && rates.gbpToRon);
+    gbpToRonRate = Number.isFinite(value) && value > 0 ? value : null;
+    gbpToRonUpdatedAt = (rates && rates.gbpToRonUpdatedAt) || null;
+  }
+
+  function loadRates() {
+    if (typeof fetch !== "function") return;
+    fetch("/api/region-config", { headers: { Accept: "application/json" } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((config) => {
+        if (!config) return;
+        setRates(config);
+        if (typeof document !== "undefined" && typeof CustomEvent === "function") {
+          document.dispatchEvent(new CustomEvent("beca:rates-loaded"));
+        }
+      })
+      .catch(() => {});
+  }
+
   const LANGUAGE_KEY = "beca-language";
   const LANGUAGE_SOURCE_KEY = "beca-language-source";
 
@@ -166,12 +193,14 @@
     const browserIsRomanian = languages.some((language) => language.toLowerCase().startsWith("ro"));
 
     if (timeZone === "Europe/Bucharest" || browserIsRomanian) {
+      // Without a configured, up-to-date rate the original currency (GBP)
+      // is displayed instead of an approximated RON value.
       return {
         country: "RO",
         language: "ro",
-        currency: "RON",
+        currency: gbpToRonRate ? "RON" : "GBP",
         locale: "ro-RO",
-        rateFromGBP: GBP_TO_RON
+        rateFromGBP: gbpToRonRate || 1
       };
     }
 
@@ -293,8 +322,8 @@
     const source = String(fromCurrency || "GBP").toUpperCase();
 
     if (profile.currency === source) return amount;
-    if (source === "GBP" && profile.currency === "RON") return amount * profile.rateFromGBP;
-    if (source === "RON" && profile.currency === "GBP") return amount / GBP_TO_RON;
+    if (source === "GBP" && profile.currency === "RON" && gbpToRonRate) return amount * gbpToRonRate;
+    if (source === "RON" && profile.currency === "GBP" && gbpToRonRate) return amount / gbpToRonRate;
     return amount;
   }
 
@@ -318,6 +347,10 @@
     translateCategory,
     displayProduct,
     stockText,
-    countText
+    countText,
+    setRates,
+    getRates: () => ({ gbpToRon: gbpToRonRate, gbpToRonUpdatedAt })
   };
+
+  loadRates();
 })();
