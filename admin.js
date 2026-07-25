@@ -50,7 +50,7 @@ function renderLegalWarning(fields) {
   if (!banner) {
     banner = document.createElement("div");
     banner.dataset.legalWarning = "";
-    banner.style.cssText = "margin:12px 0;padding:12px 16px;border:1px solid #b4884b;border-radius:10px;background:rgba(180,136,75,.12);color:#e0c88c;font-size:13px;line-height:1.5;";
+    banner.style.cssText = "grid-column:1/-1;margin:12px 0;padding:12px 16px;border:1px solid #b4884b;border-radius:10px;background:rgba(180,136,75,.12);color:#e0c88c;font-size:13px;line-height:1.5;";
     const main = document.querySelector("main") || document.body;
     main.insertBefore(banner, main.firstChild);
   }
