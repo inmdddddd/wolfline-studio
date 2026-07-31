@@ -1603,7 +1603,7 @@ function buildCartPayload(cart) {
         size,
         product: publicProduct(product),
         qty: safeQty,
-        subtotal: Number(product.price || 0) * safeQty
+        subtotal: (Number(product.price) || 0) * safeQty
       };
     })
     .filter(Boolean);
@@ -1646,17 +1646,23 @@ function isBlockedStaticPath(requestedPath) {
     || segment.endsWith(".tmp"));
 }
 
+// Only the three gated pages below need a session, so `session` may also be a
+// resolver function. Static assets - by far the bulk of requests - then never
+// pay for the two full JSON reads getSession does.
 function canAccessFile(requestedPath, session) {
   if (isBlockedStaticPath(requestedPath)) {
     return false;
   }
 
+  const resolveSession = () => (typeof session === "function" ? session() : session);
+
   if (requestedPath === "account.html" || requestedPath === "orders.html") {
-    return Boolean(session);
+    return Boolean(resolveSession());
   }
 
   if (requestedPath === "admin/dashboard.html") {
-    return Boolean(session && session.user.role === "admin");
+    const active = resolveSession();
+    return Boolean(active && active.user.role === "admin");
   }
 
   return true;
@@ -2577,7 +2583,7 @@ async function handleShopApi(request, response, pathname) {
       cart.items = {};
       cart.reminderSentAt = null;
       saveCart(cartId, cart, carts);
-      return { order, publicAccessToken: accessToken.token };
+      return { order, publicAccessToken: accessToken.token, cart };
     });
 
     if (outcome.error) {
@@ -2590,13 +2596,15 @@ async function handleShopApi(request, response, pathname) {
     const invoiceUrl = orderAccessUrl("invoice.html", outcome.order.id, outcome.publicAccessToken);
     email.sendMail(email.buildOrderReceivedEmail(outcome.order, orderUrl, invoiceUrl)).catch(() => {});
 
-    const { cart } = getCart(request, response, session);
+    // The cart was emptied and saved inside the lock above, so re-reading
+    // carts.json here would parse the whole file again to learn what this
+    // closure already holds.
     // The plain token is returned exactly once, here; only its hash is stored.
     json(response, 200, {
       ok: true,
       order: publicOrder(outcome.order),
       publicAccessToken: outcome.publicAccessToken,
-      cart: buildCartPayload(cart)
+      cart: buildCartPayload(outcome.cart)
     });
     return true;
   }
@@ -2745,6 +2753,9 @@ function expireStaleReservations() {
       for (let index = 0; index < orders.length; index += 1) {
         const order = orders[index];
         if (order.status !== "pending" || order.paymentStatus === "paid") continue;
+        // Same gate the admin path uses, rather than a second inline copy of
+        // the rule, so this can't drift from ORDER_TRANSITIONS later.
+        if (!isAllowedOrderTransition(order.status, "cancelled")) continue;
         const expiresAt = order.reservation?.expiresAt ? new Date(order.reservation.expiresAt).getTime() : NaN;
         if (!Number.isFinite(expiresAt) || now < expiresAt) continue;
 
@@ -3017,7 +3028,7 @@ async function handleAdminApi(request, response, pathname) {
       pendingOrders: orders.filter((order) => order.status === "pending").length,
       // Revenue counts only paid orders - a pending, unpaid order request is
       // not income.
-      revenue: orders.filter(orderCountsAsRevenue).reduce((total, order) => total + Number(order.total || 0), 0),
+      revenue: orders.filter(orderCountsAsRevenue).reduce((total, order) => total + (Number(order.total) || 0), 0),
       pageviewsToday: analytics.byDay[today] ? analytics.byDay[today].pageviews : 0,
       legalPlaceholders: brandLegalPlaceholders()
     });
@@ -3261,47 +3272,65 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    const coupons = readJson("coupons.json", []);
-    if (coupons.some((coupon) => coupon.code === code)) {
+    // Shares the lock every other coupon writer uses, so a duplicate-code
+    // check can't be overtaken by a concurrent create between read and write.
+    const outcome = await withStockLock(() => {
+      const coupons = readJson("coupons.json", []);
+      if (coupons.some((existing) => existing.code === code)) return { conflict: true };
+
+      const coupon = {
+        id: crypto.randomUUID(),
+        code,
+        type,
+        value,
+        maxUses: body.maxUses ? Math.max(1, Math.floor(Number(body.maxUses))) : null,
+        usedCount: 0,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt).toISOString() : null,
+        active: true,
+        createdAt: new Date().toISOString()
+      };
+      coupons.unshift(coupon);
+      writeJson("coupons.json", coupons);
+      return { coupon };
+    });
+
+    if (outcome.conflict) {
       json(response, 409, { error: "Exista deja un cupon cu acest cod." });
       return true;
     }
 
-    const coupon = {
-      id: crypto.randomUUID(),
-      code,
-      type,
-      value,
-      maxUses: body.maxUses ? Math.max(1, Math.floor(Number(body.maxUses))) : null,
-      usedCount: 0,
-      expiresAt: body.expiresAt ? new Date(body.expiresAt).toISOString() : null,
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-    coupons.unshift(coupon);
-    writeJson("coupons.json", coupons);
-    json(response, 200, { ok: true, coupon });
+    json(response, 200, { ok: true, coupon: outcome.coupon });
     return true;
   }
 
   const couponMatch = pathname.match(/^\/api\/admin\/coupons\/([a-f0-9-]+)$/);
   if (couponMatch && request.method === "PUT") {
     const body = await readBody(request);
-    const coupons = readJson("coupons.json", []);
-    const index = coupons.findIndex((coupon) => coupon.id === couponMatch[1]);
-    if (index === -1) {
+    const updated = await withStockLock(() => {
+      const coupons = readJson("coupons.json", []);
+      const index = coupons.findIndex((coupon) => coupon.id === couponMatch[1]);
+      if (index === -1) return null;
+      // Only the active flag is editable here; spreading the stored record
+      // keeps usedCount intact even if a checkout just incremented it.
+      coupons[index] = { ...coupons[index], active: Boolean(body.active) };
+      writeJson("coupons.json", coupons);
+      return coupons[index];
+    });
+
+    if (!updated) {
       json(response, 404, { error: "Cuponul nu exista." });
       return true;
     }
-    coupons[index] = { ...coupons[index], active: Boolean(body.active) };
-    writeJson("coupons.json", coupons);
-    json(response, 200, { ok: true, coupon: coupons[index] });
+
+    json(response, 200, { ok: true, coupon: updated });
     return true;
   }
 
   if (couponMatch && request.method === "DELETE") {
-    const coupons = readJson("coupons.json", []);
-    writeJson("coupons.json", coupons.filter((coupon) => coupon.id !== couponMatch[1]));
+    await withStockLock(() => {
+      const coupons = readJson("coupons.json", []);
+      writeJson("coupons.json", coupons.filter((coupon) => coupon.id !== couponMatch[1]));
+    });
     json(response, 200, { ok: true });
     return true;
   }
@@ -3310,14 +3339,14 @@ async function handleAdminApi(request, response, pathname) {
     const orders = readJson("orders.json", []);
     const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
     const validOrders = orders.filter(orderCountsAsRevenue);
-    const totalRevenue = validOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const totalRevenue = validOrders.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
     const averageOrderValue = validOrders.length ? Math.round((totalRevenue / validOrders.length) * 100) / 100 : 0;
 
     const byDay = {};
     validOrders.forEach((order) => {
       const day = String(order.createdAt || "").slice(0, 10);
       if (!day) return;
-      byDay[day] = (byDay[day] || 0) + Number(order.total || 0);
+      byDay[day] = (byDay[day] || 0) + (Number(order.total) || 0);
     });
 
     const days = [];
@@ -3354,8 +3383,8 @@ async function handleAdminApi(request, response, pathname) {
       (order.items || []).forEach((item) => {
         const key = `${item.productId || item.name}::${item.size || ""}`;
         const current = totals.get(key) || { productId: item.productId, name: item.name, size: item.size || "", qty: 0, revenue: 0 };
-        current.qty += Number(item.qty || 0);
-        current.revenue += Number(item.subtotal || 0);
+        current.qty += (Number(item.qty) || 0);
+        current.revenue += (Number(item.subtotal) || 0);
         totals.set(key, current);
       });
     });
@@ -3935,12 +3964,22 @@ function resolveStaticFilePath(safePath) {
 }
 
 function serveFile(request, response, pathname) {
-  const session = getSession(request);
+  // Resolved at most once per request, and only if a gated page asks for it.
+  let cachedSession = null;
+  let sessionResolved = false;
+  const sessionOnce = () => {
+    if (!sessionResolved) {
+      cachedSession = getSession(request);
+      sessionResolved = true;
+    }
+    return cachedSession;
+  };
+
   const requestedPath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const safePath = path.normalize(requestedPath).replace(/^(\.\.[/\\])+/, "");
   const publicPath = safePath.replace(/\\/g, "/");
 
-  if (!canAccessFile(publicPath, session)) {
+  if (!canAccessFile(publicPath, sessionOnce)) {
     if (publicPath === "account.html" || publicPath === "orders.html") {
       redirect(response, "/login.html");
       return;
@@ -4146,6 +4185,10 @@ function start() {
   storage.acquireProcessLock();
   ensureDataFiles();
   runDataMaintenance();
+  // The 15-minute timer only starts ticking now, so without this a restart
+  // leaves already-expired reservations holding stock (and a coupon slot) for
+  // up to another full interval.
+  expireStaleReservations();
   backupDataFiles();
   setInterval(backupDataFiles, 1000 * 60 * 60 * 6).unref();
 
@@ -4225,6 +4268,9 @@ module.exports = {
   parseCookies,
   parseMultipart,
   detectImageType,
+  // Lets maintenance scripts resolve the same directories the server uses
+  // instead of re-deriving the brand/env rules and drifting from them.
+  dataPaths: () => ({ dataDir, uploadDir: uploadDirResolved, publicRoot: publicRootResolved }),
   fileToImageDataUrl,
   saveDataUrlImage,
   safePublicUser,
