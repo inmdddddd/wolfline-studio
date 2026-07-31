@@ -462,22 +462,66 @@ function isTrackablePageRequest(pathname) {
   return extension === "" || extension === ".html";
 }
 
+// Pageviews are buffered in memory and flushed on a timer rather than written
+// per request: writeJson is synchronous through fsync, so a read-modify-write
+// of analytics.json on every HTML hit let an unauthenticated request flood
+// stall the whole process. Buffering costs at most PAGEVIEW_FLUSH_MS of
+// analytics on an unclean kill; admin reads flush first, so the dashboard
+// never shows stale numbers.
+const PAGEVIEW_FLUSH_MS = 10000;
+const PAGEVIEW_BUFFER_LIMIT = 200;
+let pendingPageviews = [];
+
+function flushPageviews() {
+  if (!pendingPageviews.length) return;
+  // Swap first: a throw below must not replay this batch on the next flush.
+  const batch = pendingPageviews;
+  pendingPageviews = [];
+
+  try {
+    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {}, recentVisits: [] });
+    analytics.byDay = analytics.byDay || {};
+    analytics.recentVisits = analytics.recentVisits || [];
+
+    batch.forEach((visit) => {
+      analytics.totalPageviews = (analytics.totalPageviews || 0) + 1;
+
+      if (!analytics.byDay[visit.day]) {
+        analytics.byDay[visit.day] = { pageviews: 0, paths: {}, referrers: {}, hours: new Array(24).fill(0), locales: {} };
+      }
+      const dayEntry = analytics.byDay[visit.day];
+      dayEntry.pageviews += 1;
+      dayEntry.paths[visit.path] = (dayEntry.paths[visit.path] || 0) + 1;
+      dayEntry.hours = dayEntry.hours || new Array(24).fill(0);
+      dayEntry.hours[visit.hour] = (dayEntry.hours[visit.hour] || 0) + 1;
+      dayEntry.referrers = dayEntry.referrers || {};
+      dayEntry.referrers[visit.referrer] = (dayEntry.referrers[visit.referrer] || 0) + 1;
+      dayEntry.locales = dayEntry.locales || {};
+      dayEntry.locales[visit.locale] = (dayEntry.locales[visit.locale] || 0) + 1;
+
+      analytics.recentVisits.unshift({
+        path: visit.path,
+        ip: visit.ip,
+        referrer: visit.referrer,
+        locale: visit.locale,
+        hour: visit.hour,
+        at: visit.at
+      });
+    });
+
+    analytics.recentVisits = analytics.recentVisits.slice(0, 300);
+    writeJson("analytics.json", analytics);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+setInterval(flushPageviews, PAGEVIEW_FLUSH_MS).unref();
+process.once("exit", flushPageviews);
+
 function trackPageview(pathname, request) {
   try {
     const now = new Date();
-    const day = now.toISOString().slice(0, 10);
-    const hour = now.getHours();
-    const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {}, recentVisits: [] });
-    analytics.totalPageviews = (analytics.totalPageviews || 0) + 1;
-
-    if (!analytics.byDay[day]) {
-      analytics.byDay[day] = { pageviews: 0, paths: {}, referrers: {}, hours: new Array(24).fill(0), locales: {} };
-    }
-    const dayEntry = analytics.byDay[day];
-    dayEntry.pageviews += 1;
-    dayEntry.paths[pathname] = (dayEntry.paths[pathname] || 0) + 1;
-    dayEntry.hours = dayEntry.hours || new Array(24).fill(0);
-    dayEntry.hours[hour] = (dayEntry.hours[hour] || 0) + 1;
 
     const referrerHeader = String(request?.headers?.referer || request?.headers?.referrer || "").trim();
     let referrerSource = "direct";
@@ -488,25 +532,20 @@ function trackPageview(pathname, request) {
         referrerSource = "direct";
       }
     }
-    dayEntry.referrers = dayEntry.referrers || {};
-    dayEntry.referrers[referrerSource] = (dayEntry.referrers[referrerSource] || 0) + 1;
 
-    const localeHint = String(request?.headers?.["accept-language"] || "").split(",")[0].trim() || "necunoscut";
-    dayEntry.locales = dayEntry.locales || {};
-    dayEntry.locales[localeHint] = (dayEntry.locales[localeHint] || 0) + 1;
-
-    analytics.recentVisits = analytics.recentVisits || [];
-    analytics.recentVisits.unshift({
+    pendingPageviews.push({
       path: pathname,
-      ip: request ? anonymizeIp(clientIp(request)) : "unknown",
+      day: now.toISOString().slice(0, 10),
+      hour: now.getHours(),
       referrer: referrerSource,
-      locale: localeHint,
-      hour,
+      locale: String(request?.headers?.["accept-language"] || "").split(",")[0].trim() || "necunoscut",
+      ip: request ? anonymizeIp(clientIp(request)) : "unknown",
       at: now.toISOString()
     });
-    analytics.recentVisits = analytics.recentVisits.slice(0, 300);
 
-    writeJson("analytics.json", analytics);
+    // Sustained traffic flushes on size instead of waiting for the timer, so
+    // the buffer can't grow without bound between ticks.
+    if (pendingPageviews.length >= PAGEVIEW_BUFFER_LIMIT) flushPageviews();
   } catch (error) {
     console.error(error);
   }
@@ -707,40 +746,53 @@ function parseMultipart(buffer, contentType) {
   }, { fields: {}, files: {} });
 }
 
+// The multipart Content-Type header is attacker-controlled, so it can't decide
+// what we store: a forged part could claim "image/png" over arbitrary bytes.
+// Identify the format from the file's own signature instead and ignore the
+// declared type entirely.
+const IMAGE_SIGNATURES = [
+  { mime: "image/png", extension: ".png", test: (b) => b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
+  { mime: "image/jpeg", extension: ".jpg", test: (b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { mime: "image/gif", extension: ".gif", test: (b) => b.length >= 6 && (b.subarray(0, 6).toString("latin1") === "GIF87a" || b.subarray(0, 6).toString("latin1") === "GIF89a") },
+  { mime: "image/webp", extension: ".webp", test: (b) => b.length >= 12 && b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP" }
+];
+
+function detectImageType(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) return null;
+  return IMAGE_SIGNATURES.find((signature) => signature.test(buffer)) || null;
+}
+
 function saveProductImage(file) {
   if (!file || !file.body || file.body.length === 0) return "";
 
-  const allowed = {
-    "image/png": ".png",
-    "image/jpeg": ".jpg",
-    "image/webp": ".webp",
-    "image/gif": ".gif"
-  };
-  const extension = allowed[file.mime];
+  const detected = detectImageType(file.body);
 
-  if (!extension) {
+  if (!detected) {
     const error = new Error("Imagine invalida. Foloseste PNG, JPG, WEBP sau GIF.");
     error.statusCode = 400;
     throw error;
   }
 
   fs.mkdirSync(uploadDirResolved, { recursive: true });
-  const fileName = `${crypto.randomUUID()}${extension}`;
+  const fileName = `${crypto.randomUUID()}${detected.extension}`;
   fs.writeFileSync(path.join(uploadDirResolved, fileName), file.body);
   return `${uploadPublicBase}/${fileName}`;
 }
 
 function fileToImageDataUrl(file) {
-  if (!file || !file.body || file.body.length === 0 || !file.mime) return "";
-  if (!/^image\/(png|jpeg|webp|gif)$/i.test(file.mime)) return "";
-  return `data:${file.mime};base64,${file.body.toString("base64")}`;
+  if (!file || !file.body || file.body.length === 0) return "";
+  // Same rule as saveProductImage: the bytes decide, not the declared mime -
+  // otherwise a forged part could smuggle a non-image into a data: URL that
+  // then gets stored as page content.
+  const detected = detectImageType(file.body);
+  if (!detected) return "";
+  return `data:${detected.mime};base64,${file.body.toString("base64")}`;
 }
 
 function saveDataUrlImage(dataUrl, prefix = "studio") {
   const match = String(dataUrl || "").match(/^data:image\/(png|jpeg|webp);base64,([a-z0-9+/=]+)$/i);
   if (!match) return "";
 
-  const extension = match[1].toLowerCase() === "jpeg" ? ".jpg" : `.${match[1].toLowerCase()}`;
   const buffer = Buffer.from(match[2], "base64");
 
   if (!buffer.length || buffer.length > 20 * 1024 * 1024) {
@@ -749,8 +801,17 @@ function saveDataUrlImage(dataUrl, prefix = "studio") {
     throw error;
   }
 
+  // The data: prefix is just as forgeable as a multipart header, so the
+  // stored extension comes from the decoded bytes, not from what the URL says.
+  const detected = detectImageType(buffer);
+  if (!detected) {
+    const error = new Error("Imagine invalida. Foloseste PNG, JPG sau WEBP.");
+    error.statusCode = 400;
+    throw error;
+  }
+
   fs.mkdirSync(uploadDirResolved, { recursive: true });
-  const fileName = `${prefix}-${crypto.randomUUID()}${extension}`;
+  const fileName = `${prefix}-${crypto.randomUUID()}${detected.extension}`;
   fs.writeFileSync(path.join(uploadDirResolved, fileName), buffer);
   return `${uploadPublicBase}/${fileName}`;
 }
@@ -770,14 +831,75 @@ async function readProductPayload(request, existing = {}) {
   return readBody(request);
 }
 
-// TODO(security, etapa 2): script-src 'unsafe-inline' is needed because a handful of pages
-// have small inline <script> blocks (Safari sniffing, the file:// redirect guard, the
-// three.js importmap on admin/dashboard.html) and no nonce/hash pipeline exists yet since
-// there's no build step. Move those blocks into external files (or add a per-request nonce)
-// and drop 'unsafe-inline' from script-src once that's done.
+// script-src used to carry 'unsafe-inline' because ~17 small inline <script>
+// blocks are spread across the brand's pages (Safari sniffing, the file://
+// redirect guard, the verify-email/reset-password handlers, and the three.js
+// importmap on the admin dashboards) and there is no build step to strip them.
+// Instead of rewriting every page, each block's exact body is hashed at
+// startup and the hashes go into the policy: those specific scripts keep
+// running, anything injected does not. Note CSP ignores 'unsafe-inline' as
+// soon as a hash is present, so this list has to be complete - a page whose
+// inline script is missing here has that script blocked.
+//
+// The importmap has to stay inline (browsers do not load external import
+// maps), which is what makes hashing the right tool here rather than
+// externalising the blocks.
+//
+// Operationally: hashes are collected once at startup, so editing an inline
+// <script> in any .html requires a restart before that page works again -
+// deploys already restart, but a hand-edit on a running server would not.
+function collectInlineScriptHashes() {
+  const hashes = new Set();
+  const seenFiles = new Set();
+  const searchRoots = [...new Set([publicRootResolved, rootResolved])];
+  const skipDirs = new Set(["node_modules", ".git", "data", "backups", "tmp", "assets", "test", "scripts"]);
+
+  const walk = (dir, depth) => {
+    if (depth > 4) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (skipDirs.has(entry.name) || entry.name.startsWith("data-") || entry.name.startsWith("backups-")) continue;
+        walk(full, depth + 1);
+        continue;
+      }
+      if (!entry.name.endsWith(".html") || seenFiles.has(full)) continue;
+      seenFiles.add(full);
+      let html;
+      try {
+        html = fs.readFileSync(full, "utf8");
+      } catch {
+        continue;
+      }
+      // Only blocks without src= are inline. The hash has to be taken over
+      // what the HTML parser ends up with, not the raw file bytes: the parser
+      // normalises CRLF (and lone CR) to LF while preprocessing the input
+      // stream, so on CRLF checkouts hashing the file verbatim yields a digest
+      // that never matches and silently blocks the script.
+      const pattern = /<script(?![^>]*\ssrc=)([^>]*)>([\s\S]*?)<\/script>/gi;
+      let match;
+      while ((match = pattern.exec(html)) !== null) {
+        const body = match[2].replace(/\r\n?/g, "\n");
+        hashes.add(`'sha256-${crypto.createHash("sha256").update(body, "utf8").digest("base64")}'`);
+      }
+    }
+  };
+
+  searchRoots.forEach((dir) => walk(dir, 0));
+  return [...hashes];
+}
+
+const INLINE_SCRIPT_HASHES = collectInlineScriptHashes();
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://unpkg.com",
+  `script-src 'self' ${INLINE_SCRIPT_HASHES.join(" ")} https://unpkg.com`.replace(/\s+/g, " "),
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
@@ -850,16 +972,27 @@ function getCartId(request, response) {
   return cartId;
 }
 
+// Reading a cart must not write to disk. GET /api/cart runs on nearly every
+// page load, and writeJson is synchronous down to fsync, so persisting here
+// let any unauthenticated request flood (each cookie-less GET mints a fresh
+// cart) block the single-threaded process for every other visitor. A brand-new
+// empty cart is never persisted - callers that actually mutate the cart call
+// saveCart(), which is what puts it on disk.
 function getCart(request, response, session = null) {
   const carts = readJson("carts.json", {});
   const cartId = getCartId(request, response);
-  const cart = carts[cartId] || { items: {}, updatedAt: new Date().toISOString() };
+  const existing = carts[cartId];
+  const cart = existing || { items: {}, updatedAt: new Date().toISOString() };
+  let claimedByUser = false;
   if (session && session.user && !cart.userId) {
     cart.userId = session.user.id;
     cart.email = session.user.email;
+    claimedByUser = true;
   }
   carts[cartId] = cart;
-  writeJson("carts.json", carts);
+  // Only an already-stored cart gaining its owner is worth a write of its own;
+  // for a new cart this same data lands with the first saveCart().
+  if (existing && claimedByUser) writeJson("carts.json", carts);
   return { cartId, cart, carts };
 }
 
@@ -2165,6 +2298,12 @@ async function handleShopApi(request, response, pathname) {
   }
 
   if (pathname === "/api/cart" && request.method === "GET") {
+    // Runs on every shop page load and still reads carts.json off disk, so it
+    // carries the same per-IP ceiling as the pages that call it.
+    if (isRateLimited(`cart-read:${clientIp(request)}`, 90, 60000)) {
+      json(response, 429, { error: "Prea multe cereri. Mai asteapta putin." });
+      return true;
+    }
     const cartSession = getSession(request);
     const { cart } = getCart(request, response, cartSession);
     json(response, 200, { cart: buildCartPayload(cart) });
@@ -2643,6 +2782,11 @@ setInterval(expireStaleReservations, 1000 * 60 * 15).unref();
 // personal data or dead entries forever.
 function runDataMaintenance() {
   try {
+    // Land buffered pageviews before the retention pass below prunes
+    // analytics.json, so maintenance and the next flush don't write over
+    // each other's view of the file.
+    flushPageviews();
+
     const now = Date.now();
 
     const sessions = readJson("sessions.json", {});
@@ -2856,6 +3000,7 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/summary" && request.method === "GET") {
+    flushPageviews();
     const users = readJson("users.json", []);
     const products = readJson("products.json", []);
     const orders = readJson("orders.json", []);
@@ -2880,6 +3025,7 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/analytics" && request.method === "GET") {
+    flushPageviews();
     const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
     const days = [];
     const pathTotals = {};
@@ -2917,6 +3063,7 @@ async function handleAdminApi(request, response, pathname) {
   // holds the per-path counts. Views are tracked by pathname only, so
   // /product.html here means every product, not one slug.
   if (pathname === "/api/admin/analytics/page" && request.method === "GET") {
+    flushPageviews();
     const target = new URL(request.url, `http://${request.headers.host}`).searchParams.get("path") || "/";
     const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
     const today = new Date();
@@ -4007,6 +4154,14 @@ function start() {
     const pathname = decodeURIComponent(url.pathname);
 
     if (request.method === "GET" && isTrackablePageRequest(pathname)) {
+      // Page loads are the one thing anyone can trigger without a session, so
+      // they get the same per-IP guard as login/checkout. The ceiling sits far
+      // above human browsing (3/s sustained) - it exists to stop a flood
+      // monopolising the event loop, not to police normal visitors.
+      if (isRateLimited(`page:${clientIp(request)}`, 180, 60000)) {
+        send(response, 429, "Prea multe cereri. Incearca din nou intr-un minut.");
+        return;
+      }
       trackPageview(pathname, request);
     }
 
@@ -4069,6 +4224,7 @@ module.exports = {
   createUserRecord,
   parseCookies,
   parseMultipart,
+  detectImageType,
   fileToImageDataUrl,
   saveDataUrlImage,
   safePublicUser,

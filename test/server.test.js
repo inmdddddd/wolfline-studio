@@ -282,10 +282,40 @@ test("canAccessFile blocks data/tmp paths and gates protected pages", () => {
   assert.equal(server.canAccessFile("index.html", null), true);
 });
 
-test("fileToImageDataUrl builds a data url for allowed images and rejects others", () => {
-  const png = { mime: "image/png", body: Buffer.from("abc") };
-  assert.equal(server.fileToImageDataUrl(png), `data:image/png;base64,${Buffer.from("abc").toString("base64")}`);
+// Real file signatures - the multipart mime header is attacker-controlled and
+// must not be what decides whether something is an image.
+const PNG_BYTES = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from("body")]);
+const JPEG_BYTES = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from("body")]);
+const GIF_BYTES = Buffer.concat([Buffer.from("GIF89a"), Buffer.from("body")]);
+const WEBP_BYTES = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WEBP"), Buffer.from("body")]);
 
+test("detectImageType identifies formats from their signature, not a declared type", () => {
+  assert.equal(server.detectImageType(PNG_BYTES).extension, ".png");
+  assert.equal(server.detectImageType(JPEG_BYTES).extension, ".jpg");
+  assert.equal(server.detectImageType(GIF_BYTES).extension, ".gif");
+  assert.equal(server.detectImageType(WEBP_BYTES).extension, ".webp");
+
+  assert.equal(server.detectImageType(Buffer.from("<?php echo 1; ?>")), null, "script content is not an image");
+  assert.equal(server.detectImageType(Buffer.from("GIF89")), null, "truncated signature is rejected");
+  assert.equal(server.detectImageType(Buffer.alloc(0)), null);
+  assert.equal(server.detectImageType(null), null);
+});
+
+test("fileToImageDataUrl trusts the bytes, not the client-supplied mime", () => {
+  assert.equal(
+    server.fileToImageDataUrl({ mime: "image/png", body: PNG_BYTES }),
+    `data:image/png;base64,${PNG_BYTES.toString("base64")}`
+  );
+
+  // A real JPEG mislabelled as PNG is stored under what it actually is.
+  assert.equal(
+    server.fileToImageDataUrl({ mime: "image/png", body: JPEG_BYTES }),
+    `data:image/jpeg;base64,${JPEG_BYTES.toString("base64")}`
+  );
+
+  // The attack the old mime-only check allowed: arbitrary bytes wearing an
+  // image content-type.
+  assert.equal(server.fileToImageDataUrl({ mime: "image/png", body: Buffer.from("<?php echo 1; ?>") }), "");
   assert.equal(server.fileToImageDataUrl({ mime: "text/plain", body: Buffer.from("x") }), "");
   assert.equal(server.fileToImageDataUrl({ mime: "image/png", body: Buffer.alloc(0) }), "");
   assert.equal(server.fileToImageDataUrl(null), "");
@@ -295,6 +325,11 @@ test("saveDataUrlImage returns empty string for non-matching data urls", () => {
   assert.equal(server.saveDataUrlImage(""), "");
   assert.equal(server.saveDataUrlImage("data:text/plain;base64,AAAA"), "");
   assert.equal(server.saveDataUrlImage(null), "");
+});
+
+test("saveDataUrlImage rejects a well-formed data url whose payload isn't an image", () => {
+  const forged = `data:image/png;base64,${Buffer.from("<?php echo 1; ?>").toString("base64")}`;
+  assert.throws(() => server.saveDataUrlImage(forged), /Imagine invalida/);
 });
 
 test("parseMultipart splits fields and files from a multipart buffer", () => {
