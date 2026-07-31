@@ -28,14 +28,22 @@ function productImageSrc(product) {
   return product.imageUrl || "";
 }
 
+// Writes text into a slot if the page has it. This file is shared by both
+// brands' dashboards, so a slot missing from one copy of the HTML must not
+// throw and abort the rest of the render.
+function setSlotText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
+}
+
 function renderSummary(summary) {
-  document.querySelector("[data-summary-users]").textContent = summary.users;
-  document.querySelector("[data-summary-products]").textContent = summary.products;
-  document.querySelector("[data-summary-live]").textContent = summary.liveProducts;
-  document.querySelector("[data-summary-preview]").textContent = summary.previewProducts || 0;
-  document.querySelector("[data-summary-notifications]").textContent = summary.notifications || 0;
-  document.querySelector("[data-summary-orders]").textContent = summary.orders;
-  document.querySelector("[data-summary-pageviews]").textContent = summary.pageviewsToday || 0;
+  setSlotText("[data-summary-users]", summary.users);
+  setSlotText("[data-summary-products]", summary.products);
+  setSlotText("[data-summary-live]", summary.liveProducts);
+  setSlotText("[data-summary-preview]", summary.previewProducts || 0);
+  setSlotText("[data-summary-notifications]", summary.notifications || 0);
+  setSlotText("[data-summary-orders]", summary.orders);
+  setSlotText("[data-summary-pageviews]", summary.pageviewsToday || 0);
 }
 
 function renderAnalytics(analytics) {
@@ -77,10 +85,10 @@ function renderStats(revenue, topProducts, traffic) {
   const revenueEl = document.querySelector("[data-stats-revenue]");
   if (!revenueEl) return;
 
-  document.querySelector("[data-stats-revenue]").textContent = revenue.totalRevenue;
-  document.querySelector("[data-stats-aov]").textContent = revenue.averageOrderValue;
-  document.querySelector("[data-stats-orders]").textContent = revenue.totalOrders;
-  document.querySelector("[data-stats-conversion]").textContent = `${revenue.conversionRate}%`;
+  setSlotText("[data-stats-revenue]", revenue.totalRevenue);
+  setSlotText("[data-stats-aov]", revenue.averageOrderValue);
+  setSlotText("[data-stats-orders]", revenue.totalOrders);
+  setSlotText("[data-stats-conversion]", `${revenue.conversionRate}%`);
 
   const dayFormatter = new Intl.DateTimeFormat("ro-RO", { day: "2-digit", month: "2-digit" });
   renderStatRows(

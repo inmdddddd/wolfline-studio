@@ -9,13 +9,17 @@
 (() => {
   "use strict";
 
+  function hardenLink(link) {
+    const rel = (link.getAttribute("rel") || "").split(/\s+/).filter(Boolean);
+    if (rel.includes("noopener") && rel.includes("noreferrer")) return;
+    if (!rel.includes("noopener")) rel.push("noopener");
+    if (!rel.includes("noreferrer")) rel.push("noreferrer");
+    link.setAttribute("rel", rel.join(" "));
+  }
+
   function hardenExternalLinks(root) {
-    root.querySelectorAll('a[target="_blank"]').forEach((link) => {
-      const rel = (link.getAttribute("rel") || "").split(/\s+/).filter(Boolean);
-      if (!rel.includes("noopener")) rel.push("noopener");
-      if (!rel.includes("noreferrer")) rel.push("noreferrer");
-      link.setAttribute("rel", rel.join(" "));
-    });
+    if (root.nodeType === 1 && root.matches('a[target="_blank"]')) hardenLink(root);
+    root.querySelectorAll('a[target="_blank"]').forEach(hardenLink);
   }
 
   function stripAccessTokenFromUrl() {
@@ -35,7 +39,16 @@
     // at parse time; this runs afterwards, so removal is safe.
     stripAccessTokenFromUrl();
 
-    const observer = new MutationObserver(() => hardenExternalLinks(document));
+    // Only walk what actually changed. Rescanning the whole document on every
+    // mutation meant the admin dashboard's render bursts re-swept every link
+    // on the page hundreds of times for no benefit.
+    const observer = new MutationObserver((records) => {
+      records.forEach((record) => {
+        record.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) hardenExternalLinks(node);
+        });
+      });
+    });
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 

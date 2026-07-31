@@ -760,7 +760,12 @@ document.querySelectorAll("[data-mobile-menu-close], [data-mobile-menu-link]").f
 });
 
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") setMobileMenu(false);
+  if (event.key !== "Escape") return;
+  setMobileMenu(false);
+  // The hero login/register panel opens over the page like the menu does, so
+  // Escape should dismiss it too rather than leaving it as the one overlay
+  // that can only be closed by clicking.
+  closeHeroAuth();
 });
 
 if (location.hash === "#login" || location.hash === "#register") {

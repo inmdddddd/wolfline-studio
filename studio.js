@@ -538,7 +538,8 @@ document.querySelector("[data-studio-reset]")?.addEventListener("click", () => {
   state.textureDataUrl = "";
   state.textureReadPromise = null;
   if (printMesh) printMesh.visible = false;
-  document.querySelector("[data-studio-print]").value = "";
+  const printInput = document.querySelector("[data-studio-print]");
+  if (printInput) printInput.value = "";
   drawTexture();
   applyTexture(shirtTexture);
 });
