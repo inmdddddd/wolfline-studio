@@ -295,6 +295,8 @@ function renderProducts(products) {
     stock.textContent = `${product.stock} stock / ${product.status}${sizeBreakdown ? ` / ${sizeBreakdown}` : (product.sizes?.length ? ` / ${product.sizes.join(", ")}` : "")}`;
     deleteButton.type = "button";
     deleteButton.dataset.delete = product.id;
+    // Carried so the confirmation can name the exact piece being removed.
+    deleteButton.dataset.deleteName = product.name || "";
     deleteButton.textContent = "Delete";
     saveButton.type = "submit";
     saveButton.textContent = "Save changes";
@@ -1188,8 +1190,29 @@ document.addEventListener("click", async (event) => {
   const deleteButton = event.target.closest("[data-delete]");
   if (!deleteButton) return;
 
-  await requestJson(`/api/admin/products/${deleteButton.dataset.delete}`, { method: "DELETE" });
-  await loadDashboard();
+  // Deleting a product is irreversible and the button sits right next to the
+  // edit form, so it asks first. If the browser has suppressed dialogs,
+  // confirm() returns false and nothing is deleted - the safe direction.
+  const name = deleteButton.dataset.deleteName;
+  const confirmed = window.confirm(
+    `Stergi definitiv ${name ? `"${name}"` : "acest produs"}?\n\nActiunea nu poate fi anulata.`
+  );
+  if (!confirmed) return;
+
+  const originalLabel = deleteButton.textContent;
+  deleteButton.disabled = true;
+  deleteButton.textContent = "Se sterge...";
+
+  try {
+    await requestJson(`/api/admin/products/${deleteButton.dataset.delete}`, { method: "DELETE" });
+    await loadDashboard();
+  } catch (error) {
+    // The row survives a failed delete, so put the button back rather than
+    // leaving a dead control behind.
+    deleteButton.disabled = false;
+    deleteButton.textContent = originalLabel;
+    window.alert(`Produsul nu a putut fi sters: ${error.message}`);
+  }
 });
 
 document.addEventListener("click", async (event) => {
