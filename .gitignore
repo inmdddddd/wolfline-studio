@@ -18,6 +18,14 @@ data/email-verifications.json
 data/wishlists.json
 data/reviews.json
 data/coupons.json
+# Both of these are live state, not source: content.json is rewritten by the
+# admin's inline editor and products.json changes on every stock movement, so
+# tracking them made a deploy after any edit or order fail on a merge conflict.
+# The server seeds both when missing (ensureDataFiles), and the shipped copy of
+# the text lives in script.js's defaultCopy.
+data/content.json
+data/products.json
+data/editions.json
 
 # Other brand instances (e.g. AETHER STUDIO) keep their own data directory,
 # named data-<brandId>/ per config/brands/<brandId>.json - none of it belongs
