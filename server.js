@@ -120,19 +120,32 @@ function sortGenealogyProducts(a, b) {
 const publicRoot = path.resolve(root, BRAND.publicDir || ".");
 const publicRootResolved = path.resolve(publicRoot);
 
-const dataDir = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
+// Brands share one .env on a single-host deploy, but several settings must not
+// be shared: pointing two brands at one DATA_DIR means the second one serves
+// the first one's products and orders. A `<KEY>_<BRAND>` variable therefore
+// wins over the plain `<KEY>`, so `DATA_DIR_AETHER=/var/data/aether` can sit
+// next to BeCa's `DATA_DIR` in the same file.
+const BRAND_ENV_SUFFIX = BRAND_ID.toUpperCase().replace(/[^A-Z0-9]/g, "_");
+
+function brandEnv(key) {
+  const scoped = process.env[`${key}_${BRAND_ENV_SUFFIX}`];
+  if (typeof scoped === "string" && scoped.trim() !== "") return scoped;
+  return process.env[key];
+}
+
+const dataDir = brandEnv("DATA_DIR")
+  ? path.resolve(brandEnv("DATA_DIR"))
   : path.join(root, BRAND_ID === "beca" ? "data" : `data-${BRAND_ID}`);
 // Rolling local snapshots of dataDir (see backupDataFiles below). Sibling of
 // dataDir so it follows DATA_DIR overrides; brand-suffixed for every brand
 // except BeCa so two brands with default DATA_DIRs never share a folder.
 const backupsDir = path.join(dataDir, "..", BRAND_ID === "beca" ? "backups" : `backups-${BRAND_ID}`);
 const storage = createStorage({ dataDir, backupsDir });
-const uploadDir = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.join(publicRoot, "assets", "products");
+const uploadDir = brandEnv("UPLOAD_DIR") ? path.resolve(brandEnv("UPLOAD_DIR")) : path.join(publicRoot, "assets", "products");
 const uploadDirResolved = path.resolve(uploadDir);
-const uploadPublicBase = (process.env.UPLOAD_PUBLIC_BASE || "assets/products").replace(/^\/+|\/+$/g, "");
+const uploadPublicBase = (brandEnv("UPLOAD_PUBLIC_BASE") || "assets/products").replace(/^\/+|\/+$/g, "");
 const uploadRoutePrefix = `/${uploadPublicBase}/`;
-const port = Number(process.env.PORT || 4188);
+const port = Number(brandEnv("PORT") || 4188);
 const host = process.env.HOST || "0.0.0.0";
 const sessionCookie = "beca_session";
 const cartCookie = "beca_cart";
@@ -176,9 +189,9 @@ function ensureDataFiles() {
 
   const existingUsers = readJson("users.json", []);
   if (!Array.isArray(existingUsers) || existingUsers.length === 0) {
-    const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL || primaryAdminEmail);
-    const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(12).toString("base64url");
-    if (!process.env.ADMIN_PASSWORD) {
+    const adminEmail = normalizeEmail(brandEnv("ADMIN_EMAIL") || primaryAdminEmail);
+    const adminPassword = brandEnv("ADMIN_PASSWORD") || crypto.randomBytes(12).toString("base64url");
+    if (!brandEnv("ADMIN_PASSWORD")) {
       generatedAdminPassword = adminPassword;
       generatedAdminEmail = adminEmail;
     }
@@ -4088,7 +4101,7 @@ function serveFile(request, response, pathname) {
   });
 }
 
-const SITE_ORIGIN = process.env.SITE_ORIGIN || BRAND.siteOrigin;
+const SITE_ORIGIN = brandEnv("SITE_ORIGIN") || BRAND.siteOrigin;
 
 function serveSitemap(response) {
   const products = readJson("products.json", []);
@@ -4149,11 +4162,11 @@ function validateStartupConfig() {
   const problems = [];
 
   if (isProduction) {
-    if (!process.env.ADMIN_PASSWORD) {
+    if (!brandEnv("ADMIN_PASSWORD")) {
       problems.push("ADMIN_PASSWORD nu este setat. In productie parola de admin trebuie setata explicit prin environment.");
     }
 
-    const origin = String(process.env.SITE_ORIGIN || BRAND.siteOrigin || "").trim();
+    const origin = String(brandEnv("SITE_ORIGIN") || BRAND.siteOrigin || "").trim();
     if (!origin || /example|localhost|127\.0\.0\.1|\[COMPLET/i.test(origin)) {
       problems.push(`SITE_ORIGIN este placeholder sau lipseste ("${origin}"). Seteaza SITE_ORIGIN la domeniul real (https://...).`);
     }
@@ -4178,8 +4191,37 @@ function validateStartupConfig() {
   }
 }
 
+// A data directory belongs to exactly one brand. The process lock only catches
+// two brands running at once; this catches the quieter case where one is
+// stopped and the other boots onto its DATA_DIR - which would silently serve
+// the wrong brand's products and orders under this brand's name.
+function assertDataDirBelongsToBrand() {
+  fs.mkdirSync(dataDir, { recursive: true });
+  const markerPath = path.join(dataDir, ".brand");
+
+  let owner = "";
+  try {
+    owner = fs.readFileSync(markerPath, "utf8").trim().toLowerCase();
+  } catch {
+    owner = "";
+  }
+
+  if (owner && owner !== BRAND_ID) {
+    const error = new Error(
+      `DATA_DIR (${dataDir}) contine datele brandului "${owner}", nu "${BRAND_ID}". `
+      + `Seteaza DATA_DIR_${BRAND_ENV_SUFFIX} catre directorul propriu al acestui brand.`
+    );
+    error.code = "DATA_DIR_BRAND_MISMATCH";
+    throw error;
+  }
+
+  // Unmarked directory: adopt it (existing installs predate this check).
+  if (!owner) fs.writeFileSync(markerPath, BRAND_ID);
+}
+
 function start() {
   validateStartupConfig();
+  assertDataDirBelongsToBrand();
   // One process per DATA_DIR: refuse to start if another live process
   // already writes these data files.
   storage.acquireProcessLock();

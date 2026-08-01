@@ -584,3 +584,52 @@ test("aether: static blocking, pending checkout and guest token access", async (
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Suite 5: a DATA_DIR belongs to one brand, and per-brand env overrides.
+// Brands share one .env on a single-host deploy, so nothing may let a second
+// brand boot onto the first one's data and serve its products as its own.
+// ---------------------------------------------------------------------------
+
+test("a brand refuses to start on another brand's DATA_DIR, and _<BRAND> vars win", async (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "brand-scope-test-"));
+  const shared = path.join(tempRoot, "shared-data");
+  const aetherOwn = path.join(tempRoot, "aether-data");
+
+  try {
+    await t.test("first brand to use a directory claims it", async () => {
+      const { httpServer } = await startServer({ DATA_DIR: shared });
+      stopServer(httpServer);
+      assert.equal(fs.readFileSync(path.join(shared, ".brand"), "utf8").trim(), "beca");
+    });
+
+    await t.test("a different brand on that same directory refuses to start", () => {
+      freshEnv({ BRAND: "aether", DATA_DIR: shared });
+      const server = requireFreshServer();
+      assert.throws(() => server.start(), (error) => {
+        assert.equal(error.code, "DATA_DIR_BRAND_MISMATCH");
+        assert.match(error.message, /beca/);
+        return true;
+      });
+      stopServer(null);
+    });
+
+    await t.test("DATA_DIR_<BRAND> overrides the shared DATA_DIR", async () => {
+      freshEnv({ BRAND: "aether", DATA_DIR: shared, DATA_DIR_AETHER: aetherOwn });
+      const server = requireFreshServer();
+      const httpServer = server.start();
+      await new Promise((resolve) => httpServer.once("listening", resolve));
+
+      assert.equal(server.dataPaths().dataDir, aetherOwn, "aether must use its own directory");
+      assert.equal(fs.readFileSync(path.join(aetherOwn, ".brand"), "utf8").trim(), "aether");
+      // The shared directory is untouched and still belongs to beca.
+      assert.equal(fs.readFileSync(path.join(shared, ".brand"), "utf8").trim(), "beca");
+
+      stopServer(httpServer);
+      delete process.env.DATA_DIR_AETHER;
+    });
+  } finally {
+    delete process.env.DATA_DIR_AETHER;
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
