@@ -208,6 +208,36 @@ test("migrate() imports users, products (sized + sizeless), orders, editions, an
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test("migrate() resolves duplicate product slugs (real-world data bug) by renaming the older copy, keeping both rows", () => {
+  const dir = tempDataDir();
+  const fixtures = adversarialFixtures();
+  const olderId = crypto.randomUUID();
+  const newerId = crypto.randomUUID();
+  // Mirrors the real shape found in production: a double-submit creates two
+  // drafts with the same name/slug, seconds apart.
+  fixtures.products.push(
+    { id: olderId, slug: "double-submit", name: "Double Submit", status: "draft", price: 10, currency: "GBP", stock: 0, createdAt: "2026-07-17T09:45:08.091Z" },
+    { id: newerId, slug: "double-submit", name: "Double Submit", status: "draft", price: 10, currency: "GBP", stock: 0, createdAt: "2026-07-17T09:45:19.536Z" }
+  );
+  seedDataDir(dir, fixtures);
+
+  const { migrate } = freshMigrator(dir);
+  const report = migrate({ dryRun: false });
+
+  assert.equal(report.slugCollisionsResolved.length, 1);
+  assert.equal(report.slugCollisionsResolved[0].id, olderId, "the OLDER copy (by createdAt) must be the one renamed");
+  assert.equal(report.slugCollisionsResolved[0].oldSlug, "double-submit");
+
+  const db = createDb({ dbPath: path.join(dir, "beca.db") });
+  const newer = db.getProductById(newerId);
+  const older = db.getProductById(olderId);
+  assert.equal(newer.slug, "double-submit", "the newer copy keeps the original slug");
+  assert.equal(older.slug, "double-submit-dup2", "the older copy gets a unique, deterministic suffix");
+  assert.equal(db.raw.prepare("SELECT COUNT(*) AS n FROM products").get().n, fixtures.products.length, "no product is dropped");
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test("migrate() never touches the source JSON files - byte-identical before and after", () => {
   const dir = tempDataDir();
   const fixtures = adversarialFixtures();

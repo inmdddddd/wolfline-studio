@@ -86,12 +86,55 @@ function validate({ users, products, orders }) {
   }
 }
 
+// products.slug is UNIQUE in SQLite; nothing enforced that in JSON, and a
+// handful of real products.json files have accidental duplicate slugs
+// (usually a double-submit on product creation - same name, timestamps a
+// few seconds apart). Rather than fail the whole migration or silently drop
+// data, keep every product: for each slug collision, every copy except the
+// newest gets a deterministic, unique suffix appended to its slug. Nothing
+// is deleted - the admin can rename/remove the actual duplicates later, at
+// no urgency, since colliding products are draft-only in practice (a live
+// product's slug is public and would have been noticed already).
+function resolveDuplicateSlugs(products) {
+  const bySlug = new Map();
+  for (const product of products) {
+    const list = bySlug.get(product.slug) || [];
+    list.push(product);
+    bySlug.set(product.slug, list);
+  }
+
+  const usedSlugs = new Set(products.map((product) => product.slug));
+  const resolved = [];
+
+  for (const [slug, group] of bySlug) {
+    if (group.length < 2) continue;
+    const sorted = [...group].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    // Newest keeps the original slug; every older duplicate is renamed.
+    for (let i = 0; i < sorted.length - 1; i += 1) {
+      const product = sorted[i];
+      let suffix = 2;
+      let candidate = `${slug}-dup${suffix}`;
+      while (usedSlugs.has(candidate)) {
+        suffix += 1;
+        candidate = `${slug}-dup${suffix}`;
+      }
+      usedSlugs.add(candidate);
+      resolved.push({ id: product.id, name: product.name, oldSlug: slug, newSlug: candidate, createdAt: product.createdAt });
+      product.slug = candidate;
+    }
+  }
+
+  return { products, resolved };
+}
+
 function migrate({ dryRun: isDryRun = false } = {}) {
   const users = readJson("users.json", []);
-  const products = readJson("products.json", []);
+  const rawProducts = readJson("products.json", []);
   const orders = readJson("orders.json", []);
   const editions = readJson("editions.json", []);
   const sessions = readJson("sessions.json", {});
+
+  const { products, resolved: resolvedSlugCollisions } = resolveDuplicateSlugs(rawProducts);
 
   validate({ users, products, orders });
 
@@ -102,6 +145,7 @@ function migrate({ dryRun: isDryRun = false } = {}) {
   const report = {
     users: 0,
     products: 0,
+    slugCollisionsResolved: resolvedSlugCollisions,
     orders: 0,
     editions: 0,
     sessionsImported: 0,
@@ -206,6 +250,12 @@ function printReport(report, isDryRun) {
     `  sessions skipped (expired):    ${report.sessionsSkippedExpired}`,
     `  sessions skipped (orphaned):   ${report.sessionsSkippedOrphaned}`
   ];
+  if (report.slugCollisionsResolved && report.slugCollisionsResolved.length) {
+    lines.push(`  NOTE: ${report.slugCollisionsResolved.length} product(s) had a duplicate slug (older copy renamed, nothing lost):`);
+    for (const item of report.slugCollisionsResolved) {
+      lines.push(`    - "${item.name}" (${item.id}, created ${item.createdAt}): ${item.oldSlug} -> ${item.newSlug}`);
+    }
+  }
   if (report.productRefsDroppedInItems) {
     lines.push(`  NOTE: ${report.productRefsDroppedInItems} order item(s) referenced a since-deleted product - imported with product_id=NULL (expected/harmless).`);
   }
