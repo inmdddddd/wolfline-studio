@@ -1,5 +1,17 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+// This file only ever calls server.js's exported pure functions (never
+// .start()), but simply requiring the module still runs its top-level
+// setup, including opening a SQLite connection at whatever DATA_DIR
+// resolves to. Set our own tempdir explicitly, same as every other test
+// file - relying on the module-level default (or BECA_TEST_MODE's absence
+// of a real .env fallback) here would be the difference between "creates a
+// throwaway file in os.tmpdir()" and "creates one inside the repo".
+process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "beca-server-unit-test-"));
 
 const server = require("../server.js");
 

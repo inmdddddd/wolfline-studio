@@ -6,7 +6,20 @@ const path = require("path");
 // Minimal local-only .env loader (no npm dependency). Real hosting env vars
 // (e.g. Render's Environment Variables panel) are set before the process
 // starts and always take precedence over .env - this only fills gaps.
+//
+// BECA_TEST_MODE (set once, process-wide, by test/setup-env.js - every test
+// file requires that as a --require preload before its own code runs) skips
+// this file entirely. Without that guard, running the suite from inside an
+// actual deployment - where a real .env with real secrets sits right next to
+// this file - lets any test that clears a var (most do, between scenarios,
+// via `delete process.env.X` + a fresh require) silently pull the real value
+// back in on its next require("./server.js"), no matter what that test set
+// via its own overrides. This is a hard stop, not a per-key allowlist,
+// because the failure mode here is "a real secret leaked into a test",
+// which a missed key in an allowlist would reproduce just as easily as
+// having no guard at all.
 (function loadDotEnv() {
+  if (process.env.BECA_TEST_MODE) return;
   const envPath = path.join(__dirname, ".env");
   if (!fs.existsSync(envPath)) return;
 

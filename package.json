@@ -8,8 +8,8 @@
     "start": "node server.js",
     "migrate:genealogy": "node scripts/migrate-genealogy.js --brand=aether",
     "migrate:sqlite": "node scripts/migrate-to-sqlite.js",
-    "test": "node --test",
-    "test:coverage": "node --test --experimental-test-coverage"
+    "test": "node --require ./test/setup-env.js --test",
+    "test:coverage": "node --require ./test/setup-env.js --test --experimental-test-coverage"
   },
   "engines": {
     "node": ">=22.13"
