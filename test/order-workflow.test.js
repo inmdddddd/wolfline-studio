@@ -5,6 +5,8 @@ const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
 
+const { createDb } = require("../lib/db");
+
 const ADMIN_EMAIL = "admin@order-workflow-test.local";
 const ADMIN_PASSWORD = "admintestpass123";
 
@@ -13,16 +15,17 @@ let httpServer;
 let baseUrl;
 let adminCookie;
 
-function ordersFilePath() {
-  return path.join(tempDir, "orders.json");
-}
-
-function readOrders() {
-  return JSON.parse(fs.readFileSync(ordersFilePath(), "utf8"));
-}
-
-function writeOrders(orders) {
-  fs.writeFileSync(ordersFilePath(), JSON.stringify(orders, null, 2));
+// Orders live in beca.db now, not orders.json. WAL mode lets this throwaway
+// connection read/write alongside the server's own long-lived one; each
+// helper opens, does its one thing, and closes rather than holding a second
+// connection open for the whole test file.
+function withDb(fn) {
+  const db = createDb({ dbPath: path.join(tempDir, "beca.db") });
+  try {
+    return fn(db);
+  } finally {
+    db.close();
+  }
 }
 
 function readOutbox() {
@@ -42,39 +45,50 @@ function countOutboxEntriesFor(email) {
 }
 
 function seedOrder(overrides = {}) {
-  const orders = readOrders();
-  const order = {
-    id: crypto.randomUUID(),
-    number: `BC-TEST-${orders.length + 1}`,
-    userId: null,
-    customerName: "Test Buyer",
-    customerEmail: `buyer-${crypto.randomUUID()}@example.com`,
-    customerPhone: "0700000000",
-    customerAddress: "Str. Test 1, Iasi",
-    notes: "",
-    status: "confirmed",
-    currency: "GBP",
-    total: 59,
-    discount: 0,
-    couponCode: null,
-    items: [{ productId: "test-product", name: "Test Tee", size: "M", price: 59, currency: "GBP", qty: 1, subtotal: 59 }],
-    processedAt: null,
-    shippedAt: null,
-    deliveredAt: null,
-    cancelledAt: null,
-    fulfillment: { courierName: "", trackingNumber: "", trackingUrl: "", estimatedDeliveryDate: "", customerNote: "", internalNote: "" },
-    cancellationReason: "",
-    statusHistory: [{ from: null, to: "confirmed", changedAt: new Date().toISOString(), changedBy: null, emailSent: true }],
-    createdAt: new Date().toISOString(),
-    ...overrides
-  };
-  orders.unshift(order);
-  writeOrders(orders);
-  return order;
+  return withDb((db) => {
+    const order = {
+      id: crypto.randomUUID(),
+      number: db.getNextOrderNumber(),
+      userId: null,
+      customerName: "Test Buyer",
+      customerEmail: `buyer-${crypto.randomUUID()}@example.com`,
+      customerPhone: "0700000000",
+      customerAddress: "Str. Test 1, Iasi",
+      notes: "",
+      status: "confirmed",
+      paymentStatus: "unpaid",
+      paymentMethod: "manual",
+      paidAt: null,
+      publicAccessTokenHash: crypto.randomBytes(16).toString("hex"),
+      reservation: { expiresAt: null, confirmedAt: null },
+      stockRestored: false,
+      couponConsumed: false,
+      couponRestored: false,
+      editionsCancelled: false,
+      currency: "GBP",
+      total: 59,
+      discount: 0,
+      couponCode: null,
+      // productId left null: these tests exercise admin status transitions,
+      // not product/stock linkage (that's checkout's own test coverage) -
+      // order_items.product_id's FK would otherwise require a real product.
+      items: [{ productId: null, name: "Test Tee", size: "M", price: 59, currency: "GBP", qty: 1, subtotal: 59, editionNumbers: [], editionTotal: null }],
+      processedAt: null,
+      shippedAt: null,
+      deliveredAt: null,
+      cancelledAt: null,
+      fulfillment: { courierName: "", trackingNumber: "", trackingUrl: "", estimatedDeliveryDate: "", customerNote: "", internalNote: "" },
+      cancellationReason: "",
+      statusHistory: [{ from: null, to: "confirmed", changedAt: new Date().toISOString(), changedBy: null, emailSent: true }],
+      createdAt: new Date().toISOString(),
+      ...overrides
+    };
+    return db.createOrderWithItemsAndEditions(order, []);
+  });
 }
 
 function getOrder(id) {
-  return readOrders().find((order) => order.id === id);
+  return withDb((db) => db.getOrderById(id));
 }
 
 async function putOrderStatus(id, body, cookie = adminCookie) {
@@ -129,6 +143,7 @@ test.before(async () => {
 });
 
 test.after(() => {
+  require("../server.js").stop();
   httpServer?.close();
   delete require.cache[require.resolve("../lib/email.js")];
   delete require.cache[require.resolve("../server.js")];

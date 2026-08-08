@@ -29,6 +29,7 @@ const path = require("path");
 
 const email = require("./lib/email");
 const { createStorage } = require("./lib/storage");
+const { createDb } = require("./lib/db");
 
 // White-label support: this whole codebase (engine, data model, admin, email
 // logic) is shared across brands. What differs per brand is: which JSON config
@@ -141,6 +142,10 @@ const dataDir = brandEnv("DATA_DIR")
 // except BeCa so two brands with default DATA_DIRs never share a folder.
 const backupsDir = path.join(dataDir, "..", BRAND_ID === "beca" ? "backups" : `backups-${BRAND_ID}`);
 const storage = createStorage({ dataDir, backupsDir });
+// users, sessions, products, orders (+items/history/editions/payments/email_logs)
+// live in here now - everything else stays on storage's JSON files, above.
+const dbPath = path.join(dataDir, `${BRAND_ID}.db`);
+const db = createDb({ dbPath });
 const uploadDir = brandEnv("UPLOAD_DIR") ? path.resolve(brandEnv("UPLOAD_DIR")) : path.join(publicRoot, "assets", "products");
 const uploadDirResolved = path.resolve(uploadDir);
 const uploadPublicBase = (brandEnv("UPLOAD_PUBLIC_BASE") || "assets/products").replace(/^\/+|\/+$/g, "");
@@ -187,8 +192,7 @@ function ensureDataFiles() {
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(uploadDirResolved, { recursive: true });
 
-  const existingUsers = readJson("users.json", []);
-  if (!Array.isArray(existingUsers) || existingUsers.length === 0) {
+  if (db.countUsers().total === 0) {
     const adminEmail = normalizeEmail(brandEnv("ADMIN_EMAIL") || primaryAdminEmail);
     const adminPassword = brandEnv("ADMIN_PASSWORD") || crypto.randomBytes(12).toString("base64url");
     if (!brandEnv("ADMIN_PASSWORD")) {
@@ -204,21 +208,40 @@ function ensureDataFiles() {
       emailVerified: true,
       isPrimaryAdmin: true
     });
-    writeJson("users.json", [admin]);
+    db.insertUser(admin);
   }
 
-  if (!fs.existsSync(path.join(dataDir, "products.json"))) {
-    writeJson("products.json", [
-      {
-        id: crypto.randomUUID(),
-        ...BRAND.seedProduct,
-        createdAt: new Date().toISOString()
-      }
-    ]);
-  }
-
-  if (!fs.existsSync(path.join(dataDir, "orders.json"))) {
-    writeJson("orders.json", []);
+  if (db.countProducts().total === 0) {
+    // Not run through sanitizeProduct(): that function enforces the
+    // admin-submission rule that a genealogy brand's new product must name a
+    // chapter explicitly. The seed product predates any chapter choice by
+    // design, so - like every other legacy/system-generated product -
+    // defaults to "origin" via productChapterId()'s own fallback, the same
+    // default migrateGenealogyData() used to backfill for it.
+    const seed = BRAND.seedProduct;
+    const seedSizes = Array.isArray(seed.sizes) ? seed.sizes : [];
+    const now = new Date().toISOString();
+    db.upsertProduct({
+      id: crypto.randomUUID(),
+      slug: toSlug(seed.name),
+      name: String(seed.name || ""),
+      nameRo: seed.nameRo || "",
+      nameEn: seed.nameEn || "",
+      category: seed.category || "",
+      status: seed.status || "draft",
+      price: Number(seed.price) || 0,
+      currency: seed.currency || "GBP",
+      stock: Number(seed.stock) || 0,
+      sizeStock: seedSizes.length ? distributeStockAcrossSizes(Math.max(0, Math.floor(Number(seed.stock) || 0)), seedSizes) : undefined,
+      sizes: seedSizes,
+      imageUrl: seed.imageUrl || "",
+      color: seed.color || "",
+      description: seed.description || "",
+      chapterId: "origin",
+      chapterProductOrder: 999,
+      createdAt: now,
+      updatedAt: now
+    });
   }
 
   if (!fs.existsSync(path.join(dataDir, "notifications.json"))) {
@@ -227,10 +250,6 @@ function ensureDataFiles() {
 
   if (!fs.existsSync(path.join(dataDir, "carts.json"))) {
     writeJson("carts.json", {});
-  }
-
-  if (!fs.existsSync(path.join(dataDir, "sessions.json"))) {
-    writeJson("sessions.json", {});
   }
 
   if (!fs.existsSync(path.join(dataDir, "content.json"))) {
@@ -265,87 +284,15 @@ function ensureDataFiles() {
     writeJson("coupons.json", []);
   }
 
-  // Per-unit edition records: one entry per physical piece sold, assigned
-  // at checkout. Records are append-only - the archive is a permanent
-  // ledger, entries are never renumbered or deleted.
-  if (!fs.existsSync(path.join(dataDir, "editions.json"))) {
-    writeJson("editions.json", []);
-  }
-
-  const products = readJson("products.json", []);
-  let migrated = false;
-  const migratedProducts = products.map((product) => {
-    if (!Array.isArray(product.sizes) || !product.sizes.length || product.sizeStock) return product;
-    migrated = true;
-    return { ...product, sizeStock: distributeStockAcrossSizes(Math.max(0, Math.floor(Number(product.stock) || 0)), product.sizes) };
-  });
-  if (migrated) writeJson("products.json", migratedProducts);
-
-  migrateGenealogyData();
+  // products.json's sizeStock backfill was removed here: products are
+  // SQLite-native now (upsertProduct always computes sizeStock at write
+  // time), so the JSON shape this pass repaired can no longer exist.
   migrateLegacyContentClaims();
 
-  const orders = readJson("orders.json", []);
-  let migratedOrders = false;
-  const migratedOrdersList = orders.map((order) => {
-    let next = order;
-    if (next.status === "completed") {
-      migratedOrders = true;
-      next = { ...next, status: "delivered" };
-    }
-    // Payment-field migration for orders created before paymentStatus existed.
-    // Legacy checkout marked orders "confirmed" without payment, so to keep
-    // historical revenue unchanged those orders count as manually paid; only
-    // orders created after this change start as unpaid requests.
-    if (next.paymentStatus === undefined) {
-      migratedOrders = true;
-      const legacyPaid = ["confirmed", "processing", "shipped", "delivered"].includes(next.status);
-      next = {
-        ...next,
-        paymentStatus: legacyPaid ? "paid" : "unpaid",
-        paymentMethod: next.paymentMethod || "manual",
-        paidAt: next.paidAt || (legacyPaid ? next.createdAt || null : null),
-        // Legacy cancelled orders never had stock restored - don't restore
-        // retroactively; legacy coupons were consumed at checkout.
-        stockRestored: next.status === "cancelled",
-        couponConsumed: Boolean(next.couponCode) && next.status !== "cancelled",
-        couponRestored: false,
-        editionsCancelled: next.status === "cancelled"
-      };
-    }
-    if (!next.fulfillment || !Array.isArray(next.statusHistory)) {
-      migratedOrders = true;
-      next = {
-        ...next,
-        processedAt: next.processedAt || null,
-        shippedAt: next.shippedAt || null,
-        deliveredAt: next.deliveredAt || null,
-        cancelledAt: next.cancelledAt || null,
-        fulfillment: next.fulfillment || {
-          courierName: "",
-          trackingNumber: "",
-          trackingUrl: "",
-          estimatedDeliveryDate: "",
-          customerNote: "",
-          internalNote: ""
-        },
-        cancellationReason: next.cancellationReason || "",
-        statusHistory: Array.isArray(next.statusHistory) ? next.statusHistory : [
-          { from: null, to: next.status, changedAt: next.createdAt || new Date().toISOString(), changedBy: null, emailSent: true }
-        ]
-      };
-    }
-    return next;
-  });
-  if (migratedOrders) writeJson("orders.json", migratedOrdersList);
-
-  const users = readJson("users.json", []);
-  let migratedUsers = false;
-  const migratedUsersList = users.map((user) => {
-    if (typeof user.emailVerified === "boolean") return user;
-    migratedUsers = true;
-    return { ...user, emailVerified: true };
-  });
-  if (migratedUsers) writeJson("users.json", migratedUsersList);
+  // orders.json's legacy-shape migration (completed->delivered rename,
+  // paymentStatus/fulfillment/statusHistory backfill) was removed here for
+  // the same reason as products' above: orders are SQLite-native now, and
+  // the schema's NOT NULL columns make the shape it repaired impossible.
 
   // The "primary admin" gate used to compare user.email against a hardcoded
   // "admin@beca.local" string. Once that account's email is changed (e.g. to
@@ -353,17 +300,9 @@ function ensureDataFiles() {
   // role management becomes unusable. Back it with a persistent flag instead,
   // assigned once here to whichever admin account is oldest if nothing already
   // holds it - this covers accounts created before this flag existed.
-  const usersForPrimaryFlag = readJson("users.json", []);
-  if (usersForPrimaryFlag.length && !usersForPrimaryFlag.some((user) => user.isPrimaryAdmin)) {
-    const admins = usersForPrimaryFlag
-      .filter((user) => user.role === "admin")
-      .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-    const primary = admins[0];
-    if (primary) {
-      writeJson("users.json", usersForPrimaryFlag.map((user) => (
-        user.id === primary.id ? { ...user, isPrimaryAdmin: true } : user
-      )));
-    }
+  if (db.countUsers().total > 0 && !db.anyAdminHasPrimaryFlag()) {
+    const primary = db.oldestAdminUser();
+    if (primary) db.updateUser(primary.id, { isPrimaryAdmin: true });
   }
 }
 
@@ -627,15 +566,7 @@ function passwordPolicyError(password) {
 // Removes every other session belonging to the user; the current session id
 // (when given) survives. Used after password changes/resets.
 function invalidateUserSessions(userId, keepSessionId = null) {
-  const sessions = readJson("sessions.json", {});
-  let changed = false;
-  for (const [sessionId, session] of Object.entries(sessions)) {
-    if (session.userId === userId && sessionId !== keepSessionId) {
-      delete sessions[sessionId];
-      changed = true;
-    }
-  }
-  if (changed) writeJson("sessions.json", sessions);
+  db.deleteOtherSessionsForUser(userId, keepSessionId);
 }
 
 function createUserRecord({ email, name, password, role, emailVerified = false, isPrimaryAdmin = false }) {
@@ -1020,42 +951,18 @@ function saveCart(cartId, cart, carts) {
 function getSession(request) {
   const sessionId = parseCookies(request)[sessionCookie];
   if (!sessionId) return null;
-
-  const sessions = readJson("sessions.json", {});
-  const session = sessions[sessionId];
-
-  if (!session || Date.now() > session.expiresAt) {
-    delete sessions[sessionId];
-    writeJson("sessions.json", sessions);
-    return null;
-  }
-
-  const users = readJson("users.json", []);
-  const user = users.find((item) => item.id === session.userId);
-  if (!user) return null;
-
-  return { id: sessionId, user };
+  return db.getSessionWithUser(sessionId);
 }
 
 function createSession(request, response, user) {
-  const sessions = readJson("sessions.json", {});
   const sessionId = crypto.randomBytes(32).toString("hex");
-
-  sessions[sessionId] = {
-    userId: user.id,
-    expiresAt: Date.now() + sessionTtlMs,
-    createdAt: new Date().toISOString()
-  };
-
-  writeJson("sessions.json", sessions);
+  db.insertSession(sessionId, user.id, Date.now() + sessionTtlMs, new Date().toISOString());
   setSessionCookie(request, response, sessionId);
 }
 
 function destroySession(request, response) {
   const sessionId = parseCookies(request)[sessionCookie];
-  const sessions = readJson("sessions.json", {});
-  delete sessions[sessionId];
-  writeJson("sessions.json", sessions);
+  if (sessionId) db.deleteSession(sessionId);
   clearSessionCookie(response);
 }
 
@@ -1206,27 +1113,22 @@ function restoreOrderResources(order, changedBy) {
   const now = new Date().toISOString();
 
   if (!order.stockRestored) {
-    const products = readJson("products.json", []);
-    let productsChanged = false;
     for (const item of order.items || []) {
-      const index = products.findIndex((product) => product.id === item.productId);
-      if (index === -1) continue;
-      const current = products[index];
+      const current = item.productId ? db.getProductById(item.productId) : null;
+      if (!current) continue;
       const qty = Math.max(0, Math.floor(Number(item.qty) || 0));
       const nextSizeStock = current.sizeStock && item.size
         ? { ...current.sizeStock, [item.size]: Math.max(0, Math.floor(Number(current.sizeStock[item.size]) || 0)) + qty }
         : current.sizeStock;
       const nextStock = nextSizeStock ? totalStockFromSizeStock(nextSizeStock) : (Math.max(0, Math.floor(Number(current.stock) || 0)) + qty);
-      products[index] = {
+      db.upsertProduct({
         ...current,
         stock: nextStock,
         sizeStock: nextSizeStock,
         status: current.status === "sold-out" && nextStock > 0 ? "live" : current.status,
         updatedAt: now
-      };
-      productsChanged = true;
+      });
     }
-    if (productsChanged) writeJson("products.json", products);
     order.stockRestored = true;
     order.stockRestoredAt = now;
   }
@@ -1242,16 +1144,9 @@ function restoreOrderResources(order, changedBy) {
   }
 
   // Edition numbers are a permanent ledger: never renumbered or reused.
-  // Cancelled pieces stay in the file, flagged, and leave the public archive.
+  // Cancelled pieces stay in the table, flagged, and leave the public archive.
   if (!order.editionsCancelled) {
-    const editions = readJson("editions.json", []);
-    let editionsChanged = false;
-    const next = editions.map((record) => {
-      if (record.orderId !== order.id || record.status === "cancelled") return record;
-      editionsChanged = true;
-      return { ...record, status: "cancelled", cancelledAt: now, cancelledBy: changedBy || null };
-    });
-    if (editionsChanged) writeJson("editions.json", next);
+    db.cancelEditionsForOrder(order.id, changedBy, now);
     order.editionsCancelled = true;
   }
 
@@ -1604,7 +1499,7 @@ function sanitizeProduct(input, existing = {}) {
 }
 
 function buildCartPayload(cart) {
-  const products = readJson("products.json", []);
+  const products = db.listProducts();
   const items = Object.entries(cart.items || {})
     .map(([key, qty]) => {
       const { productId, size } = parseCartKey(key);
@@ -1714,31 +1609,27 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
-    const users = readJson("users.json", []);
-    const userIndex = users.findIndex((user) => user.id === session.user.id);
-    if (userIndex === -1) {
+    const currentUser = db.getUserById(session.user.id);
+    if (!currentUser) {
       json(response, 404, { error: "Contul nu exista." });
       return true;
     }
 
-    if (users.some((user) => user.id !== session.user.id && user.email === nextEmail)) {
+    if (db.emailInUse(nextEmail, session.user.id)) {
       json(response, 409, { error: "Emailul este deja folosit." });
       return true;
     }
 
-    const emailChanged = users[userIndex].email !== nextEmail;
+    const emailChanged = currentUser.email !== nextEmail;
 
-    users[userIndex] = {
-      ...users[userIndex],
+    const updatedUser = db.updateUser(session.user.id, {
       name: nextName,
       email: nextEmail,
       // A new address is unverified until the owner confirms it. The primary
       // admin keeps its isPrimaryAdmin flag (role management is backed by the
       // flag, not the address), but must re-verify like anyone else.
-      emailVerified: emailChanged ? false : users[userIndex].emailVerified,
-      updatedAt: new Date().toISOString()
-    };
-    writeJson("users.json", users);
+      emailVerified: emailChanged ? false : currentUser.emailVerified
+    });
 
     if (emailChanged) {
       // Old verification links and password-reset tokens pointed at the old
@@ -1747,10 +1638,10 @@ async function handleAuth(request, response, pathname) {
       writeJson("email-verifications.json", verifications.filter((item) => item.userId !== session.user.id));
       const resets = readJson("password-resets.json", []);
       writeJson("password-resets.json", resets.filter((item) => item.userId !== session.user.id));
-      sendVerificationEmail(users[userIndex]);
+      sendVerificationEmail(updatedUser);
     }
 
-    json(response, 200, { ok: true, user: safePublicUser(users[userIndex]) });
+    json(response, 200, { ok: true, user: safePublicUser(updatedUser) });
     return true;
   }
 
@@ -1774,10 +1665,9 @@ async function handleAuth(request, response, pathname) {
     const body = await readBody(request);
     const currentPassword = String(body.currentPassword || "");
     const nextPassword = String(body.newPassword || "");
-    const users = readJson("users.json", []);
-    const userIndex = users.findIndex((user) => user.id === session.user.id);
+    const currentUser = db.getUserById(session.user.id);
 
-    if (userIndex === -1 || !verifyPassword(currentPassword, users[userIndex].passwordHash)) {
+    if (!currentUser || !verifyPassword(currentPassword, currentUser.passwordHash)) {
       json(response, 401, { error: "Parola actuala nu este corecta." });
       return true;
     }
@@ -1788,12 +1678,7 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
-    users[userIndex] = {
-      ...users[userIndex],
-      passwordHash: hashPassword(nextPassword),
-      updatedAt: new Date().toISOString()
-    };
-    writeJson("users.json", users);
+    db.updateUser(session.user.id, { passwordHash: hashPassword(nextPassword) });
 
     // Every other session of this account is logged out; only the session
     // that changed the password stays valid.
@@ -1821,8 +1706,7 @@ async function handleAuth(request, response, pathname) {
 
     const body = await readBody(request);
     const targetEmail = normalizeEmail(body.email);
-    const users = readJson("users.json", []);
-    const user = users.find((item) => item.email === targetEmail);
+    const user = db.getUserByEmail(targetEmail);
 
     if (user) {
       const resets = readJson("password-resets.json", []);
@@ -1871,26 +1755,20 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
-    const users = readJson("users.json", []);
-    const userIndex = users.findIndex((item) => item.id === entry.userId);
-    if (userIndex === -1) {
+    const resetUser = db.getUserById(entry.userId);
+    if (!resetUser) {
       json(response, 404, { error: "Contul nu mai exista." });
       return true;
     }
 
-    users[userIndex] = {
-      ...users[userIndex],
-      passwordHash: hashPassword(nextPassword),
-      updatedAt: new Date().toISOString()
-    };
-    writeJson("users.json", users);
+    db.updateUser(resetUser.id, { passwordHash: hashPassword(nextPassword) });
 
     entry.usedAt = new Date().toISOString();
     writeJson("password-resets.json", resets);
 
     // A reset from a link logs out every session - the user logs in again
     // with the new password.
-    invalidateUserSessions(users[userIndex].id, null);
+    invalidateUserSessions(resetUser.id, null);
 
     json(response, 200, { ok: true, redirect: "/login.html" });
     return true;
@@ -1916,15 +1794,13 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
-    const users = readJson("users.json", []);
-    const userIndex = users.findIndex((item) => item.id === entry.userId);
-    if (userIndex === -1) {
+    const verifyUser = db.getUserById(entry.userId);
+    if (!verifyUser) {
       json(response, 404, { error: "Contul nu mai exista." });
       return true;
     }
 
-    users[userIndex] = { ...users[userIndex], emailVerified: true, updatedAt: new Date().toISOString() };
-    writeJson("users.json", users);
+    db.updateUser(verifyUser.id, { emailVerified: true });
     writeJson("email-verifications.json", verifications.filter((item) => item.token !== token));
 
     json(response, 200, { ok: true });
@@ -1984,15 +1860,12 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
 
-    const users = readJson("users.json", []);
-    if (users.some((user) => user.email === email)) {
+    if (db.emailInUse(email)) {
       json(response, 409, { error: "Exista deja un cont cu emailul acesta." });
       return true;
     }
 
-    const user = createUserRecord({ email, name, password, role: "client" });
-    users.push(user);
-    writeJson("users.json", users);
+    const user = db.insertUser(createUserRecord({ email, name, password, role: "client" }));
     createSession(request, response, user);
     sendVerificationEmail(user);
     json(response, 200, { ok: true, user: safePublicUser(user), redirect: "/" });
@@ -2008,8 +1881,7 @@ async function handleAuth(request, response, pathname) {
     const body = await readBody(request);
     const email = normalizeEmail(body.email);
     const password = String(body.password || "");
-    const users = readJson("users.json", []);
-    const user = users.find((item) => item.email === email);
+    const user = db.getUserByEmail(email);
 
     if (!user || !verifyPassword(password, user.passwordHash)) {
       json(response, 401, { error: "Email sau parola gresita." });
@@ -2066,8 +1938,8 @@ async function handleShopApi(request, response, pathname) {
   }
 
   if (pathname === "/api/products" && request.method === "GET") {
-    const editions = readJson("editions.json", []);
-    const products = readJson("products.json", [])
+    const editions = db.listEditions();
+    const products = db.listProducts()
       .filter((product) => (product.status === "live" || product.status === "preview") && productBelongsToOpenChapter(product))
       .sort(sortGenealogyProducts)
       .map((product) => withEditionInfo(publicProduct(product), product, editions));
@@ -2079,16 +1951,14 @@ async function handleShopApi(request, response, pathname) {
   const productDetailMatch = pathname.match(/^\/api\/products\/([^/]+)$/);
   if (productDetailMatch && request.method === "GET") {
     const key = decodeURIComponent(productDetailMatch[1]);
-    const product = readJson("products.json", [])
-      .filter((item) => item.status === "live" || item.status === "preview")
-      .find((item) => item.id === key || (item.slug || toSlug(item.name)) === key);
+    const product = db.getProductBySlugOrId(key);
 
-    if (!product) {
+    if (!product || (product.status !== "live" && product.status !== "preview")) {
       json(response, 404, { error: "Produsul nu exista." });
       return true;
     }
 
-    const editions = readJson("editions.json", []);
+    const editions = db.listEditions();
     json(response, 200, { product: withEditionInfo(publicProduct(product), product, editions) });
     return true;
   }
@@ -2096,9 +1966,9 @@ async function handleShopApi(request, response, pathname) {
   // Public archive record: every numbered piece ever sold, without any
   // buyer-identifying data (order ids stay internal).
   if (pathname === "/api/archive" && request.method === "GET") {
-    const products = readJson("products.json", []);
+    const products = db.listProducts();
     const productById = new Map(products.map((product) => [product.id, product]));
-    const pieces = readJson("editions.json", [])
+    const pieces = db.listEditions()
       .filter((record) => record.status !== "cancelled")
       .map((record) => {
         const product = productById.get(record.productId);
@@ -2122,7 +1992,7 @@ async function handleShopApi(request, response, pathname) {
   const archiveDetailMatch = pathname.match(/^\/api\/archive\/(\d{1,6})$/);
   if (archiveDetailMatch && request.method === "GET") {
     const recordId = Number(archiveDetailMatch[1]);
-    const record = readJson("editions.json", []).find((item) => item.id === recordId);
+    const record = db.getEditionById(recordId);
     if (!record || record.status === "cancelled") {
       json(response, 404, { error: "This piece is not in the record." });
       return true;
@@ -2146,7 +2016,7 @@ async function handleShopApi(request, response, pathname) {
     const body = await readBody(request);
     const productId = String(body.productId || "");
     const preferredSize = String(body.preferredSize || "").trim().slice(0, 12);
-    const product = readJson("products.json", []).find((item) => item.id === productId);
+    const product = db.getProductById(productId);
 
     if (!product || (product.status !== "preview" && product.status !== "live") || !productBelongsToOpenChapter(product)) {
       json(response, 404, { error: "Produsul nu este disponibil pentru notificari." });
@@ -2185,7 +2055,7 @@ async function handleShopApi(request, response, pathname) {
     }
     const wishlists = readJson("wishlists.json", {});
     const productIds = wishlists[session.user.id] || [];
-    const products = readJson("products.json", [])
+    const products = db.listProducts()
       .filter((product) => productIds.includes(product.id))
       .map(publicProduct);
     json(response, 200, { products });
@@ -2205,7 +2075,7 @@ async function handleShopApi(request, response, pathname) {
 
     const body = await readBody(request);
     const productId = String(body.productId || "");
-    const product = readJson("products.json", []).find((item) => item.id === productId);
+    const product = db.getProductById(productId);
     if (!product) {
       json(response, 404, { error: "Produsul nu exista." });
       return true;
@@ -2246,7 +2116,7 @@ async function handleShopApi(request, response, pathname) {
   const reviewsMatch = pathname.match(/^\/api\/products\/([^/]+)\/reviews$/);
   if (reviewsMatch && request.method === "GET") {
     const key = decodeURIComponent(reviewsMatch[1]);
-    const product = readJson("products.json", []).find((item) => item.id === key || (item.slug || toSlug(item.name)) === key);
+    const product = db.getProductBySlugOrId(key);
     if (!product) {
       json(response, 404, { error: "Produsul nu exista." });
       return true;
@@ -2276,7 +2146,7 @@ async function handleShopApi(request, response, pathname) {
     }
 
     const key = decodeURIComponent(reviewsMatch[1]);
-    const product = readJson("products.json", []).find((item) => item.id === key || (item.slug || toSlug(item.name)) === key);
+    const product = db.getProductBySlugOrId(key);
     if (!product) {
       json(response, 404, { error: "Produsul nu exista." });
       return true;
@@ -2340,7 +2210,7 @@ async function handleShopApi(request, response, pathname) {
     const productId = String(body.productId || "");
     const size = String(body.size || "").trim();
     const qty = Math.max(1, Math.min(20, Math.floor(Number(body.qty) || 1)));
-    const product = readJson("products.json", []).find((item) => item.id === productId);
+    const product = db.getProductById(productId);
 
     if (!product || !productCanBePurchased(product)) {
       json(response, 404, { error: "Produsul nu este disponibil." });
@@ -2361,7 +2231,7 @@ async function handleShopApi(request, response, pathname) {
       const { cartId, cart, carts } = getCart(request, response, cartSession);
       const key = makeCartKey(productId, size);
       const currentQty = Number(cart.items[key] || 0);
-      const freshProduct = readJson("products.json", []).find((item) => item.id === productId);
+      const freshProduct = db.getProductById(productId);
       const cap = freshProduct ? availableStock(freshProduct, size) : availableStock(product, size);
       cart.items[key] = Math.min(cap, currentQty + qty);
       cart.reminderSentAt = null;
@@ -2395,7 +2265,7 @@ async function handleShopApi(request, response, pathname) {
         if (qty <= 0) {
           delete cart.items[key];
         } else {
-          const product = readJson("products.json", []).find((item) => item.id === productId);
+          const product = db.getProductById(productId);
           const cap = product ? availableStock(product, size) : qty;
           cart.items[key] = Math.min(cap, Math.max(1, qty));
           cart.reminderSentAt = null;
@@ -2456,27 +2326,23 @@ async function handleShopApi(request, response, pathname) {
 
       const finalTotal = Math.max(0, Math.round((payload.total - discount) * 100) / 100);
 
-      const products = readJson("products.json", []);
-      const productUpdates = [...products];
-
       // Per-unit edition numbering. Every physical piece sold gets the next
       // number in its product's fixed edition. The edition total is pinned
       // the first time a product sells: numbers already assigned + stock
       // still unsold - a quantity that stays constant afterwards, since
       // each sale moves exactly one unit from "unsold" to "assigned".
-      const editions = readJson("editions.json", []);
+      const productUpdates = [];
       const editionMeta = new Map();
       const itemEditions = new Map();
 
       for (const item of payload.items) {
-        const productIndex = productUpdates.findIndex((product) => product.id === item.product.id);
-        const current = productIndex !== -1 ? productUpdates[productIndex] : null;
+        const current = db.getProductById(item.product.id);
         if (!current || !productCanBePurchased(current) || availableStock(current, item.size) < item.qty) {
           return { error: `Stoc insuficient pentru ${item.product.name}.` };
         }
 
         if (!editionMeta.has(current.id)) {
-          const assigned = editions.filter((record) => record.productId === current.id).length;
+          const assigned = db.countEditionsForProduct(current.id);
           editionMeta.set(current.id, { assigned, total: assigned + current.stock });
         }
         const meta = editionMeta.get(current.id);
@@ -2492,22 +2358,21 @@ async function handleShopApi(request, response, pathname) {
           : current.sizeStock;
         const nextStock = nextSizeStock ? totalStockFromSizeStock(nextSizeStock) : current.stock - item.qty;
 
-        productUpdates[productIndex] = {
+        productUpdates.push({
           ...current,
           stock: nextStock,
           sizeStock: nextSizeStock,
           status: nextStock <= 0 ? "sold-out" : current.status,
           updatedAt: new Date().toISOString()
-        };
+        });
       }
 
-      const orders = readJson("orders.json", []);
       const createdAt = new Date().toISOString();
       const accessToken = generateOrderAccessToken();
       const paymentMethod = PAYMENT_METHODS.includes(body.paymentMethod) ? body.paymentMethod : "manual";
       const order = {
         id: crypto.randomUUID(),
-        number: `BC-${String(orders.length + 1).padStart(4, "0")}`,
+        number: db.getNextOrderNumber(),
         userId: session?.user.id || null,
         ...customer,
         // No payment processor is integrated yet: every checkout is an order
@@ -2562,14 +2427,17 @@ async function handleShopApi(request, response, pathname) {
       // Append one permanent record per physical piece. The record id is a
       // simple global sequence (records are never deleted or renumbered),
       // and doubles as the public certificate URL: /archive/<id>.
-      let recordSeq = editions.length;
+      const editionRecords = [];
+      let recordSeq = db.getMaxEditionId();
       for (const item of order.items) {
         for (const number of item.editionNumbers) {
           recordSeq += 1;
-          const chapter = genealogyChapter(productChapterId(productUpdates.find((product) => product.id === item.productId))) || genealogyChapter("origin");
-          editions.push({
+          const sourceProduct = productUpdates.find((product) => product.id === item.productId);
+          const chapter = genealogyChapter(productChapterId(sourceProduct)) || genealogyChapter("origin");
+          editionRecords.push({
             id: recordSeq,
             productId: item.productId,
+            orderId: order.id,
             productName: item.name,
             size: item.size,
             number,
@@ -2577,17 +2445,20 @@ async function handleShopApi(request, response, pathname) {
             chapter: Number(chapter?.number || 1),
             chapterId: chapter?.id || "origin",
             chapterName: chapter?.name || "ORIGIN",
-            chapterProductOrder: productChapterOrder(productUpdates.find((product) => product.id === item.productId)),
-            orderId: order.id,
+            chapterProductOrder: productChapterOrder(sourceProduct),
             assignedAt: createdAt
           });
         }
       }
 
-      orders.unshift(order);
-      writeJson("products.json", productUpdates);
-      writeJson("orders.json", orders);
-      writeJson("editions.json", editions);
+      // Products + order + order_items + statusHistory + editions all land in
+      // one SQL transaction - a crash partway through can no longer decrement
+      // stock with no order to show for it (the JSON-era failure mode this
+      // migration exists to close).
+      db.withTransaction(() => {
+        productUpdates.forEach((product) => db.upsertProduct(product));
+        db.insertOrderComplete(order, editionRecords);
+      });
 
       // The coupon's usedCount is only incremented when the order is actually
       // confirmed/paid (see the admin transition handler); pending orders hold
@@ -2629,9 +2500,7 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
-    const orders = readJson("orders.json", [])
-      .filter((order) => order.userId === session.user.id)
-      .map(publicOrder);
+    const orders = db.listOrdersForUser(session.user.id).map(publicOrder);
 
     json(response, 200, { orders });
     return true;
@@ -2644,7 +2513,7 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
-    const order = readJson("orders.json", []).find((item) => item.id === orderDetailMatch[1]);
+    const order = db.getOrderById(orderDetailMatch[1]);
     const session = getSession(request);
     const token = new URL(request.url, `http://${request.headers.host || "localhost"}`).searchParams.get("token") || "";
 
@@ -2760,12 +2629,9 @@ function expireStaleReservations() {
   return withStockLock(() => {
     try {
       const now = Date.now();
-      const orders = readJson("orders.json", []);
-      let changed = false;
+      const pendingOrders = db.listOrdersAdmin().filter((order) => order.status === "pending" && order.paymentStatus !== "paid");
 
-      for (let index = 0; index < orders.length; index += 1) {
-        const order = orders[index];
-        if (order.status !== "pending" || order.paymentStatus === "paid") continue;
+      for (const order of pendingOrders) {
         // Same gate the admin path uses, rather than a second inline copy of
         // the rule, so this can't drift from ORDER_TRANSITIONS later.
         if (!isAllowedOrderTransition(order.status, "cancelled")) continue;
@@ -2778,21 +2644,18 @@ function expireStaleReservations() {
           status: "cancelled",
           cancelledAt: stamp,
           cancellationReason: order.cancellationReason || "Rezervarea de stoc a expirat fara confirmare.",
-          updatedAt: stamp,
-          statusHistory: [...(order.statusHistory || []), {
-            from: "pending",
-            to: "cancelled",
-            changedAt: stamp,
-            changedBy: "system:reservation-expired",
-            emailSent: false
-          }]
+          updatedAt: stamp
         };
         cancelled = restoreOrderResources(cancelled, "system:reservation-expired");
-        orders[index] = cancelled;
-        changed = true;
+        db.updateOrder(order.id, cancelled);
+        db.appendOrderStatusHistory(order.id, {
+          from: "pending",
+          to: "cancelled",
+          changedAt: stamp,
+          changedBy: "system:reservation-expired",
+          emailSent: false
+        });
       }
-
-      if (changed) writeJson("orders.json", orders);
     } catch (error) {
       console.error("[reservations]", error);
     }
@@ -2813,15 +2676,7 @@ function runDataMaintenance() {
 
     const now = Date.now();
 
-    const sessions = readJson("sessions.json", {});
-    let sessionsChanged = false;
-    for (const [sessionId, session] of Object.entries(sessions)) {
-      if (!session || now > Number(session.expiresAt || 0)) {
-        delete sessions[sessionId];
-        sessionsChanged = true;
-      }
-    }
-    if (sessionsChanged) writeJson("sessions.json", sessions);
+    db.deleteExpiredSessions(now);
 
     const resets = readJson("password-resets.json", []);
     const liveResets = resets.filter((entry) => entry && !entry.usedAt && now <= Number(entry.expiresAt || 0));
@@ -2927,8 +2782,7 @@ function resolveCoupon(rawCode, total) {
     // usedCount only counts confirmed/paid orders; pending orders hold the
     // coupon too, so count them as well - otherwise N parallel checkouts
     // could all pass this check and push usage past maxUses on confirm.
-    const pendingHolds = readJson("orders.json", []).filter((order) =>
-      order.couponCode === code && order.status === "pending" && !order.couponConsumed).length;
+    const pendingHolds = db.countPendingCouponHolds(code);
     if ((coupon.usedCount || 0) + pendingHolds >= coupon.maxUses) {
       return { error: "Codul de reducere a fost folosit de maximum de ori." };
     }
@@ -3025,23 +2879,23 @@ async function handleAdminApi(request, response, pathname) {
 
   if (pathname === "/api/admin/summary" && request.method === "GET") {
     flushPageviews();
-    const users = readJson("users.json", []);
-    const products = readJson("products.json", []);
-    const orders = readJson("orders.json", []);
+    const userCounts = db.countUsers();
+    const productCounts = db.countProducts();
+    const orderSummary = db.getOrderSummary();
     const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
     const today = new Date().toISOString().slice(0, 10);
     json(response, 200, {
-      users: users.length,
-      clients: users.filter((user) => user.role === "client").length,
-      products: products.length,
-      liveProducts: products.filter((product) => product.status === "live").length,
-      previewProducts: products.filter((product) => product.status === "preview").length,
+      users: userCounts.total,
+      clients: userCounts.clients,
+      products: productCounts.total,
+      liveProducts: productCounts.live,
+      previewProducts: productCounts.preview,
       notifications: readJson("notifications.json", []).length,
-      orders: orders.length,
-      pendingOrders: orders.filter((order) => order.status === "pending").length,
+      orders: orderSummary.total,
+      pendingOrders: orderSummary.pending,
       // Revenue counts only paid orders - a pending, unpaid order request is
       // not income.
-      revenue: orders.filter(orderCountsAsRevenue).reduce((total, order) => total + (Number(order.total) || 0), 0),
+      revenue: orderSummary.revenue,
       pageviewsToday: analytics.byDay[today] ? analytics.byDay[today].pageviews : 0,
       legalPlaceholders: brandLegalPlaceholders()
     });
@@ -3154,7 +3008,7 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/users" && request.method === "GET") {
-    const users = readJson("users.json", []).map(safePublicUser);
+    const users = db.listUsers().map(safePublicUser);
     const { items, page, pageSize, total } = paginate(request, users);
     json(response, 200, {
       users: items,
@@ -3181,38 +3035,32 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    const users = readJson("users.json", []);
-    const index = users.findIndex((user) => user.id === userRoleMatch[1]);
+    const targetUser = db.getUserById(userRoleMatch[1]);
 
-    if (index === -1) {
+    if (!targetUser) {
       json(response, 404, { error: "Userul nu exista." });
       return true;
     }
 
-    if (users[index].isPrimaryAdmin && role !== "admin") {
+    if (targetUser.isPrimaryAdmin && role !== "admin") {
       json(response, 400, { error: "Admin-ul principal trebuie sa ramana admin." });
       return true;
     }
 
-    users[index] = {
-      ...users[index],
-      role,
-      updatedAt: new Date().toISOString()
-    };
-    writeJson("users.json", users);
-    json(response, 200, { ok: true, user: safePublicUser(users[index]) });
+    const updatedTarget = db.updateUser(targetUser.id, { role });
+    json(response, 200, { ok: true, user: safePublicUser(updatedTarget) });
     return true;
   }
 
   if (pathname === "/api/admin/products" && request.method === "GET") {
-    const products = readJson("products.json", []);
+    const products = db.listProducts();
     const { items, page, pageSize, total } = paginate(request, products);
     json(response, 200, { products: items, page, pageSize, total });
     return true;
   }
 
   if (pathname === "/api/admin/orders" && request.method === "GET") {
-    const orders = readJson("orders.json", []);
+    const orders = db.listOrdersAdmin();
     const { items, page, pageSize, total } = paginate(request, orders);
     json(response, 200, { orders: items, page, pageSize, total });
     return true;
@@ -3226,7 +3074,7 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/reviews" && request.method === "GET") {
-    const products = readJson("products.json", []);
+    const products = db.listProducts();
     const reviews = readJson("reviews.json", []).map((review) => ({
       ...review,
       productName: products.find((product) => product.id === review.productId)?.name || "Produs sters"
@@ -3349,9 +3197,8 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/stats/revenue" && request.method === "GET") {
-    const orders = readJson("orders.json", []);
     const analytics = readJson("analytics.json", { totalPageviews: 0, byDay: {} });
-    const validOrders = orders.filter(orderCountsAsRevenue);
+    const validOrders = db.listOrdersAdmin().filter(orderCountsAsRevenue);
     const totalRevenue = validOrders.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
     const averageOrderValue = validOrders.length ? Math.round((totalRevenue / validOrders.length) * 100) / 100 : 0;
 
@@ -3389,7 +3236,7 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/stats/products" && request.method === "GET") {
-    const orders = readJson("orders.json", []).filter(orderCountsAsRevenue);
+    const orders = db.listOrdersAdmin().filter(orderCountsAsRevenue);
     const totals = new Map();
 
     orders.forEach((order) => {
@@ -3442,7 +3289,7 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/export/orders.csv" && request.method === "GET") {
-    const orders = readJson("orders.json", []);
+    const orders = db.listOrdersAdmin();
     const csv = toCsv(orders, [
       { label: "Numar", value: (o) => o.number },
       { label: "Status", value: (o) => o.status },
@@ -3462,7 +3309,7 @@ async function handleAdminApi(request, response, pathname) {
   }
 
   if (pathname === "/api/admin/export/users.csv" && request.method === "GET") {
-    const users = readJson("users.json", []);
+    const users = db.listUsers();
     const csv = toCsv(users, [
       { label: "Nume", value: (u) => u.name },
       { label: "Email", value: (u) => u.email },
@@ -3497,9 +3344,7 @@ async function handleAdminApi(request, response, pathname) {
     }
 
     await withStockLock(() => {
-      const products = readJson("products.json", []);
-      products.unshift(product);
-      writeJson("products.json", products);
+      db.upsertProduct(product);
     });
     json(response, 200, { ok: true, product });
     return true;
@@ -3538,9 +3383,7 @@ async function handleAdminApi(request, response, pathname) {
     };
 
     await withStockLock(() => {
-      const products = readJson("products.json", []);
-      products.unshift(product);
-      writeJson("products.json", products);
+      db.upsertProduct(product);
     });
     json(response, 200, { ok: true, product });
     return true;
@@ -3560,35 +3403,24 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    const result = await withStockLock(() => {
-      const products = readJson("products.json", []);
-      const known = new Set(products.map((product) => product.id));
-      if (ids.some((id) => !known.has(id))) return null;
+    // reorderProducts is itself all-or-nothing (one SQL transaction); the
+    // withStockLock wrapper here only serializes it against other product
+    // writes in this process, same as every other product route.
+    const reordered = await withStockLock(() => db.reorderProducts(ids));
 
-      const now = new Date().toISOString();
-      ids.forEach((id, index) => {
-        const product = products.find((item) => item.id === id);
-        // 1-based: 0 would tie with a genuinely unset field in some sorts.
-        product.chapterProductOrder = index + 1;
-        product.updatedAt = now;
-      });
-      writeJson("products.json", products);
-      return ids.length;
-    });
-
-    if (result === null) {
+    if (!reordered) {
       json(response, 404, { error: "Un produs din lista nu exista." });
       return true;
     }
 
-    json(response, 200, { ok: true, reordered: result });
+    json(response, 200, { ok: true, reordered: ids.length });
     return true;
   }
 
   const productMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)$/);
   if (productMatch && request.method === "PUT") {
     const productId = productMatch[1];
-    const existingForBody = readJson("products.json", []).find((product) => product.id === productId);
+    const existingForBody = db.getProductById(productId);
 
     if (!existingForBody) {
       json(response, 404, { error: "Produsul nu exista." });
@@ -3596,19 +3428,17 @@ async function handleAdminApi(request, response, pathname) {
     }
 
     // Body reading (readProductPayload can wait on a slow multipart image upload) stays
-    // outside the lock; only the read-modify-write of products.json is serialized, so a
-    // slow upload doesn't stall checkout/other admin writes touching the same file.
+    // outside the lock; only the read-modify-write of the product row is serialized, so a
+    // slow upload doesn't stall checkout/other admin writes touching the same product.
     const body = await readProductPayload(request, existingForBody);
 
     const result = await withStockLock(() => {
-      const products = readJson("products.json", []);
-      const index = products.findIndex((product) => product.id === productId);
-      if (index === -1) return null;
+      const current = db.getProductById(productId);
+      if (!current) return null;
 
-      const previousStatus = products[index].status;
-      products[index] = sanitizeProduct(body, products[index]);
-      writeJson("products.json", products);
-      return { product: products[index], previousStatus };
+      const previousStatus = current.status;
+      const updated = db.upsertProduct(sanitizeProduct(body, current));
+      return { product: updated, previousStatus };
     });
 
     if (!result) {
@@ -3636,18 +3466,8 @@ async function handleAdminApi(request, response, pathname) {
     }
 
     const result = await withStockLock(() => {
-      const products = readJson("products.json", []);
-      const index = products.findIndex((product) => product.id === productId);
-      if (index === -1) return null;
-
-      products[index] = {
-        ...products[index],
-        imageUrl,
-        sceneImageUrl: imageUrl,
-        updatedAt: new Date().toISOString()
-      };
-      writeJson("products.json", products);
-      return products[index];
+      if (!db.getProductById(productId)) return null;
+      return db.updateProduct(productId, { imageUrl, sceneImageUrl: imageUrl });
     });
 
     if (!result) {
@@ -3662,8 +3482,7 @@ async function handleAdminApi(request, response, pathname) {
   if (productMatch && request.method === "DELETE") {
     const productId = productMatch[1];
     await withStockLock(() => {
-      const products = readJson("products.json", []);
-      writeJson("products.json", products.filter((product) => product.id !== productId));
+      db.deleteProduct(productId);
     });
     json(response, 200, { ok: true });
     return true;
@@ -3691,14 +3510,12 @@ async function handleAdminApi(request, response, pathname) {
     // part (sending the email, up to SMTP_TIMEOUT_MS) happens after the lock is
     // released, so a slow/down SMTP server doesn't stall every other order update.
     const phase1 = await withStockLock(() => {
-      const orders = readJson("orders.json", []);
-      const index = orders.findIndex((order) => order.id === orderMatch[1]);
+      const existing = db.getOrderById(orderMatch[1]);
 
-      if (index === -1) {
+      if (!existing) {
         return { error: "Comanda nu exista.", status: 404 };
       }
 
-      const existing = orders[index];
       const previousStatus = existing.status;
       const existingFulfillment = existing.fulfillment || {};
 
@@ -3740,7 +3557,10 @@ async function handleAdminApi(request, response, pathname) {
         cancelledAt: isTransition && status === "cancelled" ? now : existing.cancelledAt || null
       };
 
-      // Explicit payment updates from the admin ("mark as paid" etc.).
+      // Explicit payment updates from the admin ("mark as paid" etc.). This
+      // history entry is appended immediately (unlike the transition entry
+      // below, which waits on the email) since there's no async work gating it.
+      let paymentHistoryEntry = null;
       const previousPaymentStatus = existing.paymentStatus || "unpaid";
       if (body.paymentStatus !== undefined && body.paymentStatus !== previousPaymentStatus) {
         updatedOrder.paymentStatus = body.paymentStatus;
@@ -3748,14 +3568,14 @@ async function handleAdminApi(request, response, pathname) {
         if (body.paymentStatus === "paid") {
           updatedOrder = consumeOrderCoupon(updatedOrder);
         }
-        updatedOrder.statusHistory = [...(updatedOrder.statusHistory || []), {
+        paymentHistoryEntry = {
           from: previousStatus,
           to: status,
           payment: { from: previousPaymentStatus, to: body.paymentStatus },
           changedAt: now,
           changedBy: session.user.email,
           emailSent: false
-        }];
+        };
       }
 
       if (isTransition && status === "confirmed") {
@@ -3779,10 +3599,10 @@ async function handleAdminApi(request, response, pathname) {
         accessToken = rotated.token;
       }
 
-      orders[index] = updatedOrder;
-      writeJson("orders.json", orders);
+      db.updateOrder(existing.id, updatedOrder);
+      if (paymentHistoryEntry) db.appendOrderStatusHistory(existing.id, paymentHistoryEntry);
 
-      return { updatedOrder, isTransition, previousStatus, now, accessToken };
+      return { updatedOrder: db.getOrderById(existing.id), isTransition, previousStatus, now, accessToken };
     });
 
     if (phase1.error) {
@@ -3820,28 +3640,19 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
-    // Phase 2 re-reads under the lock again (rather than reusing the phase-1 array)
+    // Phase 2 re-reads under the lock again (rather than reusing the phase-1 object)
     // so it only ever appends onto whatever the freshest state is, even if another
     // request wrote in between while we were waiting on the email above.
     const finalOrder = await withStockLock(() => {
-      const historyEntry = {
+      if (!db.getOrderById(orderMatch[1])) return null;
+      db.appendOrderStatusHistory(orderMatch[1], {
         from: previousStatus,
         to: status,
         changedAt: now,
         changedBy: session.user.email,
         emailSent: attemptedEmail ? Boolean(emailResult.ok) : false
-      };
-
-      const orders = readJson("orders.json", []);
-      const index = orders.findIndex((order) => order.id === orderMatch[1]);
-      if (index === -1) return null;
-
-      orders[index] = {
-        ...orders[index],
-        statusHistory: [...(orders[index].statusHistory || []), historyEntry]
-      };
-      writeJson("orders.json", orders);
-      return orders[index];
+      });
+      return db.getOrderById(orderMatch[1]);
     });
 
     if (!finalOrder) {
@@ -3859,12 +3670,8 @@ async function handleAdminApi(request, response, pathname) {
     // carries a working link while only the hash is stored.
     const rotated = generateOrderAccessToken();
     const order = await withStockLock(() => {
-      const orders = readJson("orders.json", []);
-      const index = orders.findIndex((item) => item.id === orderResendMatch[1]);
-      if (index === -1) return null;
-      orders[index] = { ...orders[index], publicAccessTokenHash: rotated.hash };
-      writeJson("orders.json", orders);
-      return orders[index];
+      if (!db.getOrderById(orderResendMatch[1])) return null;
+      return db.updateOrder(orderResendMatch[1], { publicAccessTokenHash: rotated.hash });
     });
 
     if (!order) {
@@ -3906,16 +3713,9 @@ async function handleAdminApi(request, response, pathname) {
     // (potentially slow) email send above, so this only ever appends onto the
     // latest state instead of silently reverting a concurrent status change.
     const finalOrder = await withStockLock(() => {
-      const orders = readJson("orders.json", []);
-      const index = orders.findIndex((item) => item.id === orderResendMatch[1]);
-      if (index === -1) return null;
-
-      orders[index] = {
-        ...orders[index],
-        statusHistory: [...(orders[index].statusHistory || []), historyEntry]
-      };
-      writeJson("orders.json", orders);
-      return orders[index];
+      if (!db.getOrderById(orderResendMatch[1])) return null;
+      db.appendOrderStatusHistory(orderResendMatch[1], historyEntry);
+      return db.getOrderById(orderResendMatch[1]);
     });
 
     if (!finalOrder) {
@@ -4104,7 +3904,7 @@ function serveFile(request, response, pathname) {
 const SITE_ORIGIN = brandEnv("SITE_ORIGIN") || BRAND.siteOrigin;
 
 function serveSitemap(response) {
-  const products = readJson("products.json", []);
+  const products = db.listProducts();
   const staticEntries = [
     { path: "/", priority: "1.0" },
     { path: "/about.html", priority: "0.7" },
@@ -4297,12 +4097,23 @@ function start() {
   });
 }
 
+// Closes the SQLite connection. Unlike lib/storage.js's JSON reads/writes
+// (open-read/write-close per call, nothing persistent to release), node:sqlite
+// holds one open file handle for the process's lifetime - tests that spin up
+// a fresh server per tempDir must call this before removing that tempDir, or
+// the .db file can still be locked (Windows in particular fails to delete an
+// open file) when cleanup runs.
+function stop() {
+  db.close();
+}
+
 if (require.main === module) {
   start();
 }
 
 module.exports = {
   start,
+  stop,
   hashPassword,
   verifyPassword,
   normalizeEmail,

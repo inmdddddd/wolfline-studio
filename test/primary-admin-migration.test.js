@@ -10,26 +10,33 @@ const crypto = require("crypto");
 // live site's admin account had its email changed away from that default (to
 // receive real SMTP mail), which silently locked the only admin out of role
 // management. The fix backs that gate with a persistent isPrimaryAdmin flag,
-// migrated in-place on boot for accounts that predate the flag. This test
-// reproduces exactly that pre-existing-account shape: an admin user, already on
-// disk, with a non-default email and no isPrimaryAdmin field at all.
-test("ensureDataFiles migrates a pre-existing admin (non-default email, no flag) to isPrimaryAdmin", async () => {
+// migrated in-place on boot for accounts that predate the flag.
+//
+// Storage moved from users.json to SQLite (users table), but the scenario this
+// guards against is unchanged: an admin account that exists with
+// is_primary_admin=0 (the column's default - the SQLite-era equivalent of "the
+// JSON record has no isPrimaryAdmin field at all") and nothing else holding the
+// flag. Seed that row directly against the same beca.db file server.js will
+// open, bypassing the app entirely - exactly like a database migrated from a
+// pre-this-feature production JSON export would look on first boot.
+test("ensureDataFiles migrates a pre-existing admin (no isPrimaryAdmin flag set) to isPrimaryAdmin", async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "beca-primary-admin-migration-"));
   const legacyAdminId = crypto.randomUUID();
+  const dbPath = path.join(tempDir, "beca.db");
 
-  fs.writeFileSync(path.join(tempDir, "users.json"), JSON.stringify([
-    {
-      id: legacyAdminId,
-      email: "real-owner@example.com",
-      name: "Real Owner",
-      role: "admin",
-      passwordHash: "irrelevant:forThisTest",
-      emailVerified: true,
-      createdAt: "2026-01-01T00:00:00.000Z"
-      // no isPrimaryAdmin field - this is the shape of an account created
-      // before the flag existed, exactly like the live site's admin user.
-    }
-  ], null, 2));
+  const { createDb } = require("../lib/db");
+  const seedDb = createDb({ dbPath });
+  seedDb.insertUser({
+    id: legacyAdminId,
+    email: "real-owner@example.com",
+    name: "Real Owner",
+    role: "admin",
+    passwordHash: "irrelevant:forThisTest",
+    emailVerified: true,
+    isPrimaryAdmin: false,
+    createdAt: "2026-01-01T00:00:00.000Z"
+  });
+  seedDb.close();
 
   const originalEnv = {
     DATA_DIR: process.env.DATA_DIR,
@@ -59,7 +66,13 @@ test("ensureDataFiles migrates a pre-existing admin (non-default email, no flag)
   try {
     await new Promise((resolve) => httpServer.once("listening", resolve));
 
-    const usersAfterBoot = JSON.parse(fs.readFileSync(path.join(tempDir, "users.json"), "utf8"));
+    // WAL mode allows a second reader connection alongside the server's own -
+    // open one directly against the same file rather than exporting internal
+    // state from server.js just for this assertion.
+    const checkDb = createDb({ dbPath });
+    const usersAfterBoot = checkDb.listUsers();
+    checkDb.close();
+
     assert.equal(usersAfterBoot.length, 1, "boot must not create a second admin when one already exists");
 
     const migrated = usersAfterBoot.find((user) => user.id === legacyAdminId);
@@ -67,6 +80,7 @@ test("ensureDataFiles migrates a pre-existing admin (non-default email, no flag)
     assert.equal(migrated.email, "real-owner@example.com", "migration must not touch the account's email");
     assert.equal(migrated.isPrimaryAdmin, true, "the pre-existing admin must be backfilled as primary");
   } finally {
+    require("../server.js").stop();
     httpServer.close();
     delete require.cache[require.resolve("../lib/email.js")];
     delete require.cache[require.resolve("../server.js")];

@@ -39,6 +39,11 @@ async function startServer(env) {
 }
 
 function stopServer(httpServer) {
+  // Must run before the require.cache delete below - it needs the same
+  // cached module instance startServer() started, to close its actual open
+  // SQLite connection (node:sqlite holds a persistent handle, unlike the
+  // JSON files' open-read/write-close-per-call storage).
+  require("../server.js").stop();
   httpServer?.close();
   delete require.cache[require.resolve("../lib/email.js")];
   delete require.cache[require.resolve("../server.js")];
@@ -130,10 +135,18 @@ test("brand data directories never mix: writes under one brand are invisible to 
   session = await startServer({ BRAND: "aether", DATA_DIR: aetherDir });
   stopServer(session.httpServer);
 
-  const becaProducts = JSON.parse(fs.readFileSync(path.join(becaDir, "products.json"), "utf8"));
-  const aetherProducts = JSON.parse(fs.readFileSync(path.join(aetherDir, "products.json"), "utf8"));
-  const becaUsers = JSON.parse(fs.readFileSync(path.join(becaDir, "users.json"), "utf8"));
-  const aetherUsers = JSON.parse(fs.readFileSync(path.join(aetherDir, "users.json"), "utf8"));
+  // Products and users live in a per-brand SQLite file now (one .db per
+  // brand, same isolation model DATA_DIR always had) - confirm the two
+  // brands really got separate files, not a shared/leaked one.
+  const { createDb } = require("../lib/db");
+  const becaDb = createDb({ dbPath: path.join(becaDir, "beca.db") });
+  const aetherDb = createDb({ dbPath: path.join(aetherDir, "aether.db") });
+  const becaProducts = becaDb.listProducts();
+  const aetherProducts = aetherDb.listProducts();
+  const becaUsers = becaDb.listUsers();
+  const aetherUsers = aetherDb.listUsers();
+  becaDb.close();
+  aetherDb.close();
 
   assert.equal(becaProducts.length, 1);
   assert.equal(aetherProducts.length, 1);

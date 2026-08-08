@@ -7,10 +7,11 @@
   "scripts": {
     "start": "node server.js",
     "migrate:genealogy": "node scripts/migrate-genealogy.js --brand=aether",
+    "migrate:sqlite": "node scripts/migrate-to-sqlite.js",
     "test": "node --test",
     "test:coverage": "node --test --experimental-test-coverage"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   }
 }

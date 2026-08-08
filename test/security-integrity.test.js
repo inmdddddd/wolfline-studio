@@ -42,6 +42,11 @@ async function startServer(env) {
 }
 
 function stopServer(httpServer) {
+  // Must run before the require.cache delete below - it needs the same
+  // cached module instance startServer() started, to close its actual open
+  // SQLite connection (node:sqlite holds a persistent handle, unlike the
+  // JSON files' open-read/write-close-per-call storage).
+  require("../server.js").stop();
   httpServer?.close();
   delete require.cache[require.resolve("../lib/email.js")];
   delete require.cache[require.resolve("../server.js")];
@@ -146,7 +151,10 @@ test("beca: orders, checkout, coupons, content and static protections", async (t
       assert.equal(after.payload.products[0].stock, stockBefore - 1, "stock is reserved (decremented) at checkout");
 
       // Stored order keeps only the hash, never the plain token.
-      const stored = JSON.parse(fs.readFileSync(path.join(tempDir, "orders.json"), "utf8")).find((item) => item.id === order.id);
+      const { createDb } = require("../lib/db");
+      const checkDb = createDb({ dbPath: path.join(tempDir, "beca.db") });
+      const stored = checkDb.getOrderById(order.id);
+      checkDb.close();
       assert.ok(stored.publicAccessTokenHash, "hash stored");
       assert.notEqual(stored.publicAccessTokenHash, publicAccessToken, "plain token is not stored");
       assert.ok(stored.reservation?.expiresAt, "stock reservation carries an expiry");
@@ -256,7 +264,10 @@ test("beca: orders, checkout, coupons, content and static protections", async (t
       assert.equal(afterSecond.payload.products[0].stock, stockBefore, "no double restore");
 
       // Edition records for the cancelled order are flagged, never deleted.
-      const editions = JSON.parse(fs.readFileSync(path.join(tempDir, "editions.json"), "utf8"));
+      const { createDb } = require("../lib/db");
+      const checkDb = createDb({ dbPath: path.join(tempDir, "beca.db") });
+      const editions = checkDb.listEditions();
+      checkDb.close();
       const cancelledRecords = editions.filter((record) => record.orderId === checkout.order.id);
       assert.ok(cancelledRecords.length >= 1);
       assert.ok(cancelledRecords.every((record) => record.status === "cancelled"));
@@ -348,22 +359,42 @@ test("beca: orders, checkout, coupons, content and static protections", async (t
     });
 
     await t.test("CSV export neutralizes spreadsheet formulas", async () => {
-      const orders = JSON.parse(fs.readFileSync(path.join(tempDir, "orders.json"), "utf8"));
-      orders.unshift({
+      const { createDb } = require("../lib/db");
+      const seedDb = createDb({ dbPath: path.join(tempDir, "beca.db") });
+      seedDb.createOrderWithItemsAndEditions({
         id: "11111111-1111-4111-8111-111111111111",
         number: "BC-CSV",
+        userId: null,
         customerName: "=HYPERLINK(\"http://evil.example\",\"click\")",
         customerEmail: "csv@example.com",
         customerPhone: "+40700000000",
         customerAddress: "@SUM(1+1)",
+        notes: "",
         status: "pending",
         paymentStatus: "unpaid",
+        paymentMethod: "manual",
+        paidAt: null,
+        publicAccessTokenHash: "csv-test-hash",
+        reservation: { expiresAt: null, confirmedAt: null },
+        stockRestored: false,
+        couponConsumed: false,
+        couponRestored: false,
+        editionsCancelled: false,
         currency: "GBP",
         total: 1,
+        discount: 0,
+        couponCode: null,
         items: [],
+        processedAt: null,
+        shippedAt: null,
+        deliveredAt: null,
+        cancelledAt: null,
+        fulfillment: { courierName: "", trackingNumber: "", trackingUrl: "", estimatedDeliveryDate: "", customerNote: "", internalNote: "" },
+        cancellationReason: "",
+        statusHistory: [{ from: null, to: "pending", changedAt: new Date().toISOString(), changedBy: null, emailSent: true }],
         createdAt: new Date().toISOString()
-      });
-      fs.writeFileSync(path.join(tempDir, "orders.json"), JSON.stringify(orders, null, 2));
+      }, []);
+      seedDb.close();
 
       const response = await fetch(`${baseUrl}/api/admin/export/orders.csv`, { headers: { Cookie: adminCookie } });
       assert.equal(response.status, 200);
@@ -435,10 +466,11 @@ test("beca: account security - email change, password change, password policy", 
       const { cookie } = await registerUser(baseUrl, "verify-flow@example.com", "Verify Flow");
 
       // Simulate a verified account, with an old pending verification token.
-      let users = JSON.parse(fs.readFileSync(path.join(tempDir, "users.json"), "utf8"));
-      const userId = users.find((u) => u.email === "verify-flow@example.com").id;
-      users = users.map((u) => (u.id === userId ? { ...u, emailVerified: true } : u));
-      fs.writeFileSync(path.join(tempDir, "users.json"), JSON.stringify(users, null, 2));
+      const { createDb } = require("../lib/db");
+      const checkDb = createDb({ dbPath: path.join(tempDir, "beca.db") });
+      const userId = checkDb.getUserByEmail("verify-flow@example.com").id;
+      checkDb.updateUser(userId, { emailVerified: true });
+      checkDb.close();
 
       const change = await jsonRequest(baseUrl, "/api/profile", {
         method: "PUT",
@@ -504,32 +536,33 @@ test("beca: corrupt JSON is never replaced with an empty fallback", async (t) =>
 
   try {
     await t.test("with a valid backup: restore, preserving the corrupt file sideways", async () => {
-      const validUsers = fs.readFileSync(path.join(tempDir, "users.json"), "utf8");
-      fs.writeFileSync(path.join(tempDir, "users.json"), "{ this is not json !!!");
+      // users.json is gone (users live in beca.db now) - content.json is still
+      // JSON-backed and, like users.json before it, is read synchronously by a
+      // simple unauthenticated GET, so it exercises the exact same
+      // lib/storage.js corruption-recovery path this suite is testing.
+      const validContent = fs.readFileSync(path.join(tempDir, "content.json"), "utf8");
+      fs.writeFileSync(path.join(tempDir, "content.json"), "{ this is not json !!!");
 
-      const login = await jsonRequest(baseUrl, "/admin/login", {
-        method: "POST",
-        body: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }
-      });
-      assert.equal(login.status, 200, "login works because users.json was restored from backup");
+      const contentResponse = await jsonRequest(baseUrl, "/api/content", { method: "GET" });
+      assert.equal(contentResponse.status, 200, "request works because content.json was restored from backup");
 
-      const restored = fs.readFileSync(path.join(tempDir, "users.json"), "utf8");
-      assert.deepEqual(JSON.parse(restored), JSON.parse(validUsers), "restored content matches the backup");
+      const restored = fs.readFileSync(path.join(tempDir, "content.json"), "utf8");
+      assert.deepEqual(JSON.parse(restored), JSON.parse(validContent), "restored content matches the backup");
 
-      const corruptCopies = fs.readdirSync(tempDir).filter((name) => name.includes("users.json.corrupt-"));
+      const corruptCopies = fs.readdirSync(tempDir).filter((name) => name.includes("content.json.corrupt-"));
       assert.equal(corruptCopies.length, 1, "the corrupt file is preserved, not deleted");
     });
 
     await t.test("without any backup: the request fails with 500 and the file is untouched", async () => {
       fs.rmSync(backupsDir, { recursive: true, force: true });
       const corruptBody = "{ definitely not json ###";
-      fs.writeFileSync(path.join(tempDir, "orders.json"), corruptBody);
+      fs.writeFileSync(path.join(tempDir, "content.json"), corruptBody);
 
-      const response = await fetch(`${baseUrl}/api/orders/11111111-1111-4111-8111-111111111111`);
+      const response = await fetch(`${baseUrl}/api/content`);
       assert.equal(response.status, 500, "corrupt data file is a server error, not an empty fallback");
 
       assert.equal(
-        fs.readFileSync(path.join(tempDir, "orders.json"), "utf8"),
+        fs.readFileSync(path.join(tempDir, "content.json"), "utf8"),
         corruptBody,
         "the corrupt file must never be overwritten automatically"
       );

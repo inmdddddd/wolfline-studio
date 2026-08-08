@@ -35,6 +35,11 @@ async function startServer(env) {
 }
 
 function stopServer(httpServer) {
+  // Must run before the require.cache delete below - it needs the same
+  // cached module instance startServer() started, to close its actual open
+  // SQLite connection (node:sqlite holds a persistent handle, unlike the
+  // JSON files' open-read/write-close-per-call storage).
+  require("../server.js").stop();
   httpServer?.close();
   delete require.cache[require.resolve("../lib/email.js")];
   delete require.cache[require.resolve("../server.js")];
@@ -89,7 +94,10 @@ test("checkout assigns per-unit edition numbers and exposes the public archive r
     assert.equal(order.items[0].editionTotal, product.editionTotal);
 
     // The record is persisted, publicly listed, and carries no order id.
-    const editions = JSON.parse(fs.readFileSync(path.join(tempDir, "editions.json"), "utf8"));
+    const { createDb } = require("../lib/db");
+    const checkDb = createDb({ dbPath: path.join(tempDir, "aether.db") });
+    const editions = checkDb.listEditions();
+    checkDb.close();
     assert.equal(editions.length, 1);
     assert.equal(editions[0].orderId, order.id);
 

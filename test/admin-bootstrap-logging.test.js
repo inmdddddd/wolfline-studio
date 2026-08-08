@@ -54,6 +54,10 @@ function withIsolatedServer(setupFn, testFn) {
       await testFn({ tempDir, logLines });
     } finally {
       console.log = originalLog;
+      // Must run before the require.cache delete below - it needs the same
+      // cached module instance server.start() used, to close its actual open
+      // SQLite connection.
+      require("../server.js").stop();
       httpServer?.close();
       delete require.cache[require.resolve("../lib/email.js")];
       delete require.cache[require.resolve("../server.js")];
@@ -96,8 +100,12 @@ test(
       // The password must still exist (bootstrap isn't skipped) - it's just
       // not printed anywhere. Confirm it was actually generated and hashed
       // onto the admin user on disk, so this test can't pass by accident
-      // (e.g. bootstrap silently failing to create an admin at all).
-      const users = JSON.parse(fs.readFileSync(path.join(tempDir, "users.json"), "utf8"));
+      // (e.g. bootstrap silently failing to create an admin at all). WAL mode
+      // allows this second reader connection alongside the server's own.
+      const { createDb } = require("../lib/db");
+      const checkDb = createDb({ dbPath: path.join(tempDir, "beca.db") });
+      const users = checkDb.listUsers();
+      checkDb.close();
       assert.equal(users.length, 1);
       assert.equal(users[0].role, "admin");
       assert.ok(users[0].passwordHash, "admin must still have a real password, just not a logged one");
@@ -114,22 +122,29 @@ test(
   "an existing admin is never replaced or duplicated by the bootstrap, and nothing is logged for it",
   withIsolatedServer(
     (tempDir) => {
-      fs.writeFileSync(path.join(tempDir, "users.json"), JSON.stringify([
-        {
-          id: crypto.randomUUID(),
-          email: "real-owner@example.com",
-          name: "Real Owner",
-          role: "admin",
-          passwordHash: "salt:realhashvalue",
-          emailVerified: true,
-          isPrimaryAdmin: true,
-          createdAt: "2026-01-01T00:00:00.000Z"
-        }
-      ], null, 2));
+      // Seeded directly against the same beca.db file server.js will open -
+      // storage moved from users.json to SQLite, but the scenario (an admin
+      // that already exists before boot) is unchanged.
+      const { createDb } = require("../lib/db");
+      const seedDb = createDb({ dbPath: path.join(tempDir, "beca.db") });
+      seedDb.insertUser({
+        id: crypto.randomUUID(),
+        email: "real-owner@example.com",
+        name: "Real Owner",
+        role: "admin",
+        passwordHash: "salt:realhashvalue",
+        emailVerified: true,
+        isPrimaryAdmin: true,
+        createdAt: "2026-01-01T00:00:00.000Z"
+      });
+      seedDb.close();
       process.env.NODE_ENV = "development";
     },
     async ({ logLines, tempDir }) => {
-      const users = JSON.parse(fs.readFileSync(path.join(tempDir, "users.json"), "utf8"));
+      const { createDb } = require("../lib/db");
+      const checkDb = createDb({ dbPath: path.join(tempDir, "beca.db") });
+      const users = checkDb.listUsers();
+      checkDb.close();
       assert.equal(users.length, 1, "bootstrap must not add a second admin when one already exists");
       assert.equal(users[0].email, "real-owner@example.com");
       assert.equal(users[0].passwordHash, "salt:realhashvalue", "the existing admin's password must be untouched");
