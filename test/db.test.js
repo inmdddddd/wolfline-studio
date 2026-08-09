@@ -83,6 +83,155 @@ test("createDb applies schema and is safe to reopen (idempotent CREATE IF NOT EX
   third.close();
 });
 
+test("opening a pre-existing v1 database (payments has no kind column yet) migrates cleanly to v2 without losing data", () => {
+  const { DatabaseSync } = require("node:sqlite");
+  const dbPath = tempDbPath();
+
+  // Hand-build a COMPLETE v1-shaped file - what every real database
+  // (including the live VPS one) looks like today, before this schema
+  // version existed: every v1 table with its real column set (schema
+  // application below runs cross-table indexes like idx_orders_user that
+  // need the real columns to exist, not just a payments-shaped stub), only
+  // payments has no `kind` column, and user_version is still 1. Every other
+  // test in this suite only ever opens a FRESH file, which always gets the
+  // current schema inline and never actually exercises the upgrade path a
+  // real pre-existing database has to go through. This is SCHEMA_SQL as it
+  // was at CURRENT_SCHEMA_VERSION=1, verbatim.
+  const v1 = new DatabaseSync(dbPath);
+  v1.exec("PRAGMA journal_mode = WAL");
+  v1.exec(`
+    CREATE TABLE users (
+      id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('admin','client')), password_hash TEXT NOT NULL,
+      email_verified INTEGER NOT NULL DEFAULT 0, is_primary_admin INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL, updated_at TEXT
+    );
+    CREATE TABLE products (
+      id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, name_ro TEXT, name_en TEXT,
+      category TEXT, status TEXT NOT NULL CHECK (status IN ('draft','preview','live','sold-out')),
+      price REAL NOT NULL, currency TEXT NOT NULL, image_url TEXT, scene_image_url TEXT, color TEXT,
+      description TEXT, description_ro TEXT, description_en TEXT, chapter_id TEXT,
+      chapter_product_order INTEGER, studio_json TEXT, created_at TEXT NOT NULL, updated_at TEXT
+    );
+    CREATE TABLE product_variants (
+      id TEXT PRIMARY KEY, product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      size TEXT NOT NULL DEFAULT '', stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+      sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT,
+      UNIQUE(product_id, size)
+    );
+    CREATE INDEX idx_variants_product ON product_variants(product_id);
+    CREATE TABLE addresses (
+      id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), line1 TEXT NOT NULL, line2 TEXT,
+      city TEXT NOT NULL, region TEXT, postal_code TEXT, country TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE INDEX idx_addresses_user ON addresses(user_id);
+    CREATE TABLE orders (
+      id TEXT PRIMARY KEY, number TEXT NOT NULL UNIQUE, user_id TEXT REFERENCES users(id),
+      customer_name TEXT NOT NULL, customer_email TEXT NOT NULL, customer_phone TEXT, customer_address TEXT,
+      address_id TEXT REFERENCES addresses(id), notes TEXT, status TEXT NOT NULL, payment_status TEXT NOT NULL,
+      payment_method TEXT, paid_at TEXT, public_access_token_hash TEXT, reservation_expires_at TEXT,
+      reservation_confirmed_at TEXT, stock_restored INTEGER NOT NULL DEFAULT 0,
+      coupon_consumed INTEGER NOT NULL DEFAULT 0, coupon_restored INTEGER NOT NULL DEFAULT 0,
+      editions_cancelled INTEGER NOT NULL DEFAULT 0, currency TEXT NOT NULL, total REAL NOT NULL,
+      discount REAL NOT NULL DEFAULT 0, coupon_code TEXT, processed_at TEXT, shipped_at TEXT,
+      delivered_at TEXT, cancelled_at TEXT, fulfillment_courier_name TEXT, fulfillment_tracking_number TEXT,
+      fulfillment_tracking_url TEXT, fulfillment_estimated_delivery_date TEXT, fulfillment_customer_note TEXT,
+      fulfillment_internal_note TEXT, cancellation_reason TEXT, created_at TEXT NOT NULL, updated_at TEXT
+    );
+    CREATE INDEX idx_orders_user ON orders(user_id);
+    CREATE INDEX idx_orders_status ON orders(status);
+    CREATE INDEX idx_orders_created ON orders(created_at);
+    CREATE TABLE order_items (
+      id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_id TEXT REFERENCES products(id), variant_id TEXT REFERENCES product_variants(id),
+      name TEXT NOT NULL, size TEXT, price REAL NOT NULL, currency TEXT NOT NULL, qty INTEGER NOT NULL CHECK (qty > 0),
+      subtotal REAL NOT NULL, edition_numbers_json TEXT, edition_total INTEGER, sort_order INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX idx_order_items_order ON order_items(order_id);
+    CREATE TABLE order_status_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      from_status TEXT, to_status TEXT NOT NULL, payment_from TEXT, payment_to TEXT, changed_at TEXT NOT NULL,
+      changed_by TEXT, email_sent INTEGER NOT NULL DEFAULT 0, is_resend INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX idx_status_history_order ON order_status_history(order_id);
+    CREATE TABLE payments (
+      id TEXT PRIMARY KEY,
+      order_id TEXT NOT NULL REFERENCES orders(id),
+      provider TEXT NOT NULL,
+      provider_payment_id TEXT,
+      amount REAL NOT NULL,
+      currency TEXT NOT NULL,
+      status TEXT NOT NULL,
+      raw_response_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+    CREATE INDEX idx_payments_order ON payments(order_id);
+    CREATE TABLE email_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT REFERENCES orders(id), status TEXT NOT NULL,
+      sent_at TEXT NOT NULL, ok INTEGER NOT NULL, reason TEXT
+    );
+    CREATE INDEX idx_email_logs_order_status ON email_logs(order_id, status);
+    CREATE TABLE sessions (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE INDEX idx_sessions_expires ON sessions(expires_at);
+    CREATE INDEX idx_sessions_user ON sessions(user_id);
+    CREATE TABLE editions (
+      id INTEGER PRIMARY KEY, product_id TEXT REFERENCES products(id), order_id TEXT REFERENCES orders(id),
+      order_item_id TEXT REFERENCES order_items(id), product_name TEXT, size TEXT, number INTEGER, total INTEGER,
+      chapter TEXT, chapter_id TEXT, chapter_name TEXT, chapter_product_order INTEGER,
+      status TEXT NOT NULL DEFAULT 'active', assigned_at TEXT NOT NULL, cancelled_at TEXT, cancelled_by TEXT
+    );
+    CREATE INDEX idx_editions_order ON editions(order_id);
+    CREATE INDEX idx_editions_product ON editions(product_id);
+  `);
+  v1.exec("PRAGMA user_version = 1");
+  v1.prepare(
+    "INSERT INTO orders (id, number, customer_name, customer_email, status, payment_status, currency, total, created_at) VALUES (?,?,?,?,?,?,?,?,?)"
+  ).run("order-1", "BC-0001", "Test Buyer", "buyer@example.com", "confirmed", "paid", "GBP", 59, new Date().toISOString());
+  v1.prepare(
+    "INSERT INTO payments (id, order_id, provider, provider_payment_id, amount, currency, status, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  ).run("payment-1", "order-1", "manual", null, 59, "GBP", "completed", new Date().toISOString());
+  v1.close();
+
+  // The real migration: opening this same file through the current createDb().
+  const upgraded = createDb({ dbPath });
+
+  const columns = upgraded.raw.prepare("PRAGMA table_info(payments)").all().map((column) => column.name);
+  assert.ok(columns.includes("kind"), "kind column must exist after upgrading a v1 database");
+
+  const preExistingRow = upgraded.raw.prepare("SELECT * FROM payments WHERE id = ?").get("payment-1");
+  assert.equal(preExistingRow.kind, "charge", "pre-existing rows must default to kind='charge', not be dropped or nulled");
+  assert.equal(preExistingRow.amount, 59, "pre-existing data must survive the migration untouched");
+
+  const version = upgraded.raw.prepare("PRAGMA user_version").get().user_version;
+  assert.equal(version, 2);
+
+  const indexes = upgraded.raw.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map((row) => row.name);
+  assert.ok(indexes.includes("idx_payments_provider_payment_id"), "the new unique index must be created for an upgraded database too");
+
+  // A second brand-new insert with a real provider_payment_id must still be
+  // possible after the upgrade - proves the ALTER'd column and the new
+  // index both actually work, not just "exist".
+  upgraded.insertPayment({
+    id: "payment-2", orderId: "order-1", provider: "square", providerPaymentId: "sq-1",
+    kind: "charge", amount: 59, currency: "GBP", status: "completed", createdAt: new Date().toISOString()
+  });
+  assert.equal(upgraded.getPaymentByProviderPaymentId("sq-1").id, "payment-2");
+
+  upgraded.close();
+
+  // Re-opening a THIRD time (the migration having already run once) must
+  // still be a clean no-op, same guarantee the existing idempotent-reopen
+  // test above checks for the base schema.
+  const reopened = createDb({ dbPath });
+  const reopenedColumns = reopened.raw.prepare("PRAGMA table_info(payments)").all().map((column) => column.name);
+  assert.equal(reopenedColumns.filter((name) => name === "kind").length, 1, "re-running the migration must not add the column twice");
+  reopened.close();
+});
+
 test("PRAGMA quick_check passes on a freshly created db", () => {
   const db = createDb({ dbPath: tempDbPath() });
   const integrity = db.raw.prepare("PRAGMA quick_check").get();

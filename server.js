@@ -41,6 +41,7 @@ const path = require("path");
 })();
 
 const email = require("./lib/email");
+const square = require("./lib/square");
 const { createStorage } = require("./lib/storage");
 const { createDb } = require("./lib/db");
 
@@ -854,16 +855,28 @@ function collectInlineScriptHashes() {
 
 const INLINE_SCRIPT_HASHES = collectInlineScriptHashes();
 
+// Square Web Payments SDK domains, Sandbox only (matches SQUARE_ENVIRONMENT
+// scope right now - see server.js's own comment near squareEnvironment
+// below). Values are Square's own documented CSP recommendation for the
+// Web Payments SDK, not guessed: script/style/frame all load from
+// sandbox.web.squarecdn.com, the card iframe's tokenize call goes to the
+// separate PCI-scoped connect endpoint, and the SDK's own crash reporting
+// goes to its Sentry project - omitting that last one wouldn't break
+// checkout, just spam the browser console with blocked-request noise.
+const SQUARE_CSP_ORIGIN = "https://sandbox.web.squarecdn.com";
+const SQUARE_CSP_CONNECT = "https://pci-connect.squareupsandbox.com https://o160250.ingest.sentry.io";
+const SQUARE_CSP_FONTS = "https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net";
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  `script-src 'self' ${INLINE_SCRIPT_HASHES.join(" ")} https://unpkg.com`.replace(/\s+/g, " "),
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  `script-src 'self' ${INLINE_SCRIPT_HASHES.join(" ")} https://unpkg.com ${SQUARE_CSP_ORIGIN}`.replace(/\s+/g, " "),
+  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${SQUARE_CSP_ORIGIN}`,
+  `font-src 'self' https://fonts.gstatic.com ${SQUARE_CSP_FONTS}`,
   "img-src 'self' data: blob:",
-  "connect-src 'self' https://unpkg.com blob:",
+  `connect-src 'self' https://unpkg.com blob: ${SQUARE_CSP_CONNECT}`,
   "worker-src 'self' blob:",
   "media-src 'self'",
-  "frame-src 'none'",
+  `frame-src ${SQUARE_CSP_ORIGIN}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -1179,6 +1192,78 @@ function consumeOrderCoupon(order) {
   order.couponConsumed = true;
   order.couponRestored = false;
   return order;
+}
+
+// Idempotent settle step shared by the synchronous pay route and the Square
+// webhook - whichever one learns about a completed charge first "wins": it
+// inserts the payments row and drives the order forward; the other finds
+// payments.provider_payment_id already recorded (the unique index backs
+// this even under a true race) and returns alreadySettled instead of
+// duplicating the coupon consumption or the status-history entry.
+//
+// Entirely synchronous DB work under withStockLock, same boundary every
+// other stock/order mutation in this file uses - no network call belongs in
+// here (that already happened; the caller hands in Square's answer).
+function settlePaidSquarePayment({ orderId, providerPaymentId, amount, currency, rawResponse, changedBy }) {
+  return withStockLock(() => {
+    const order = db.getOrderById(orderId);
+    if (!order) return { error: "order-not-found" };
+
+    const already = db.getPaymentByProviderPaymentId(providerPaymentId);
+    if (already) return { order, alreadySettled: true, accessToken: null };
+
+    const now = new Date().toISOString();
+    const rotated = generateOrderAccessToken();
+    let updatedOrder = order;
+
+    db.withTransaction(() => {
+      db.insertPayment({
+        id: crypto.randomUUID(),
+        orderId,
+        provider: "square",
+        providerPaymentId,
+        kind: "charge",
+        amount,
+        currency,
+        status: "completed",
+        rawResponse,
+        createdAt: now
+      });
+
+      updatedOrder = {
+        ...order,
+        paymentStatus: "paid",
+        paidAt: order.paidAt || now,
+        paymentMethod: "card",
+        publicAccessTokenHash: rotated.hash,
+        updatedAt: now
+      };
+      updatedOrder = consumeOrderCoupon(updatedOrder);
+
+      // Only advances pending -> confirmed (the same transition a manual
+      // admin confirm makes). An order already further along (processing+)
+      // or cancelled keeps its status untouched - paymentStatus alone
+      // records the truth that money arrived; isAllowedOrderTransition
+      // already refuses anything the state machine doesn't allow, so a
+      // stray late webhook against a cancelled order can't resurrect it.
+      if (isAllowedOrderTransition(updatedOrder.status, "confirmed")) {
+        updatedOrder.status = "confirmed";
+        updatedOrder.reservation = { ...(updatedOrder.reservation || {}), confirmedAt: now, expiresAt: null };
+      }
+
+      db.updateOrder(order.id, updatedOrder);
+      db.appendOrderStatusHistory(order.id, {
+        from: order.status,
+        to: updatedOrder.status,
+        payment: { from: order.paymentStatus, to: "paid" },
+        changedAt: now,
+        changedBy: changedBy || "square",
+        emailSent: false
+      });
+    });
+
+    return { order: db.getOrderById(orderId), alreadySettled: false, accessToken: rotated.token };
+  });
 }
 
 function publicOrder(order) {
@@ -1941,6 +2026,23 @@ async function handleShopApi(request, response, pathname) {
     return true;
   }
 
+  // Non-secret client-side ids for the Square Web Payments SDK. The real
+  // access token/webhook key never leave lib/square.js. enabled=false lets
+  // the checkout page hide the card step entirely instead of rendering a
+  // broken SDK against empty ids - same graceful-degradation shape as
+  // /api/region-config above when GBP_TO_RON_RATE isn't set.
+  if (pathname === "/api/square-config" && request.method === "GET") {
+    const applicationId = brandEnv("SQUARE_APPLICATION_ID") || "";
+    const locationId = brandEnv("SQUARE_LOCATION_ID") || "";
+    json(response, 200, {
+      enabled: Boolean(applicationId && locationId && square.isConfigured()),
+      applicationId: applicationId || null,
+      locationId: locationId || null,
+      environment: String(brandEnv("SQUARE_ENVIRONMENT") || "sandbox").trim().toLowerCase()
+    });
+    return true;
+  }
+
   if (pathname === "/api/genealogy" && request.method === "GET") {
     json(response, 200, {
       enabled: Boolean(GENEALOGY),
@@ -2503,6 +2605,223 @@ async function handleShopApi(request, response, pathname) {
       publicAccessToken: outcome.publicAccessToken,
       cart: buildCartPayload(outcome.cart)
     });
+    return true;
+  }
+
+  const payMatch = pathname.match(/^\/api\/orders\/([0-9a-f-]{36})\/pay$/);
+  if (payMatch && request.method === "POST") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+    // Card-decline scripting/guessing target, same reasoning as checkout's
+    // own limit - tighter here since a real card auth is on the other end.
+    if (isRateLimited(`pay:${clientIp(request)}`, 5, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
+    const order = db.getOrderById(payMatch[1]);
+    const session = getSession(request);
+    const body = await readBody(request);
+    const token = String(body.token || "");
+
+    // Same 404-for-both-missing-and-forbidden shape as the order detail GET
+    // route, so an order id can't be probed for existence via this endpoint.
+    if (!order || !canViewOrder(order, session, token)) {
+      json(response, 404, { error: "Comanda nu exista." });
+      return true;
+    }
+
+    if (order.paymentStatus === "paid") {
+      json(response, 200, { ok: true, order: publicOrder(order), alreadyPaid: true });
+      return true;
+    }
+
+    if (order.status === "cancelled" || order.paymentStatus === "refunded") {
+      json(response, 409, { error: "Comanda nu mai poate fi platita." });
+      return true;
+    }
+
+    if (!square.isConfigured()) {
+      json(response, 503, { error: "Plata cu cardul nu este momentan disponibila." });
+      return true;
+    }
+
+    const sourceId = String(body.sourceId || "");
+    if (!sourceId) {
+      json(response, 400, { error: "Lipseste tokenul de plata." });
+      return true;
+    }
+
+    // Amount comes from the order already stored in our DB, never from the
+    // request body - the client only ever supplies the card token.
+    const amountMoney = { amount: Math.round(order.total * 100), currency: order.currency };
+    const pendingPaymentId = crypto.randomUUID();
+
+    // Audit row inserted BEFORE calling Square, so there is a local record of
+    // the attempt even if the call never returns at all (network death) -
+    // this row is never "completed" itself; settlePaidSquarePayment below
+    // inserts its own authoritative row once Square actually confirms.
+    await withStockLock(() => {
+      db.insertPayment({
+        id: pendingPaymentId, orderId: order.id, provider: "square", kind: "charge",
+        amount: order.total, currency: order.currency, status: "pending", createdAt: new Date().toISOString()
+      });
+    });
+
+    const result = await square.createPayment({
+      sourceId,
+      amountMoney,
+      idempotencyKey: pendingPaymentId,
+      referenceId: order.number
+    });
+
+    if (!result.ok) {
+      await withStockLock(() => {
+        db.updatePaymentStatus(pendingPaymentId, { status: result.ambiguous ? "unknown" : "failed", rawResponse: result });
+      });
+      if (result.ambiguous) {
+        json(response, 502, {
+          ambiguous: true,
+          error: "Nu am putut confirma plata din cauza unei erori de retea. Nu incerca imediat din nou - verifica peste cateva minute statusul comenzii inainte de a reincerca cardul."
+        });
+      } else {
+        json(response, 402, { error: result.errors?.[0]?.detail || result.errors?.[0]?.code || "Plata a fost refuzata." });
+      }
+      return true;
+    }
+
+    const settled = await settlePaidSquarePayment({
+      orderId: order.id,
+      providerPaymentId: result.paymentId,
+      amount: order.total,
+      currency: order.currency,
+      rawResponse: result.raw,
+      changedBy: session?.user.email || "guest:square-pay"
+    });
+
+    if (settled.error) {
+      json(response, 404, { error: "Comanda nu mai exista." });
+      return true;
+    }
+
+    if (!settled.alreadySettled && !db.getEmailLog(settled.order.id, "payment-confirmed")) {
+      const orderUrl = orderAccessUrl("thank-you.html", settled.order.id, settled.accessToken);
+      const invoiceUrl = orderAccessUrl("invoice.html", settled.order.id, settled.accessToken);
+      const emailResult = await email.sendPaymentConfirmedEmail(settled.order, orderUrl, invoiceUrl);
+      await withStockLock(() => {
+        db.insertEmailLog({
+          orderId: settled.order.id, status: "payment-confirmed", sentAt: new Date().toISOString(),
+          ok: emailResult.ok, reason: emailResult.reason || null
+        });
+      });
+    }
+
+    // settlePaidSquarePayment rotates the guest access token (see its own
+    // comment - the webhook path needs a fresh plaintext token too, and only
+    // one token is ever valid at a time). The token this request came in
+    // with is therefore already stale by the time we respond - hand back
+    // the new one (once, same as checkout does) so the browser's post-pay
+    // redirect and any later "view this order" call use a token that
+    // actually still works, instead of the one it just spent.
+    json(response, 200, {
+      ok: true,
+      order: publicOrder(settled.order),
+      publicAccessToken: settled.accessToken || undefined
+    });
+    return true;
+  }
+
+  if (pathname === "/api/webhooks/square" && request.method === "POST") {
+    // Square, not a browser, calls this - no Origin header will be present
+    // (sameOriginPost would pass trivially anyway) and no session exists.
+    // The HMAC signature below is the only authentication this route has.
+    const rawBody = await readBuffer(request);
+    const signatureHeader = request.headers["x-square-hmacsha256-signature"];
+    const notificationUrl = `${SITE_ORIGIN}/api/webhooks/square`;
+
+    if (!square.verifyWebhookSignature({ rawBody, signatureHeader, notificationUrl })) {
+      json(response, 401, { error: "invalid signature" });
+      return true;
+    }
+
+    let event = null;
+    try {
+      event = JSON.parse(rawBody.toString("utf8"));
+    } catch {
+      event = null;
+    }
+
+    // Once the signature checks out, always answer 200 - Square retries
+    // aggressively on non-2xx, and a retry storm doesn't fix a bug in this
+    // handler or an order we can't find. Errors are logged for manual
+    // reconciliation instead.
+    try {
+      if (event?.type === "payment.updated") {
+        const payment = event.data?.object?.payment;
+        if (payment?.status === "COMPLETED" && payment.reference_id) {
+          const order = db.getOrderByNumber(payment.reference_id);
+          if (!order) {
+            console.error("[square-webhook] payment.updated pentru o comanda necunoscuta:", payment.reference_id);
+          } else {
+            const settled = await settlePaidSquarePayment({
+              orderId: order.id,
+              providerPaymentId: payment.id,
+              amount: (payment.amount_money?.amount || 0) / 100,
+              currency: payment.amount_money?.currency || order.currency,
+              rawResponse: payment,
+              changedBy: "square:webhook"
+            });
+
+            if (!settled.error && !settled.alreadySettled && !db.getEmailLog(settled.order.id, "payment-confirmed")) {
+              const orderUrl = orderAccessUrl("thank-you.html", settled.order.id, settled.accessToken);
+              const invoiceUrl = orderAccessUrl("invoice.html", settled.order.id, settled.accessToken);
+              const emailResult = await email.sendPaymentConfirmedEmail(settled.order, orderUrl, invoiceUrl);
+              await withStockLock(() => {
+                db.insertEmailLog({
+                  orderId: settled.order.id, status: "payment-confirmed", sentAt: new Date().toISOString(),
+                  ok: emailResult.ok, reason: emailResult.reason || null
+                });
+              });
+            }
+          }
+        }
+      } else if (event?.type === "refund.updated") {
+        // Ledger-only: keeps the payments row's status in step with Square's
+        // side (RefundPayment's own sync response is typically PENDING, not
+        // COMPLETED - see the admin route). No email here; the refund-confirmed
+        // email already went out synchronously when the admin triggered it.
+        const refund = event.data?.object?.refund;
+        if (refund?.status === "COMPLETED" && refund.payment_id) {
+          await withStockLock(() => {
+            const existingRefundRow = db.getPaymentByProviderPaymentId(refund.id);
+            if (existingRefundRow) {
+              if (existingRefundRow.status !== "completed") {
+                db.updatePaymentStatus(existingRefundRow.id, { status: "completed", rawResponse: refund });
+              }
+              return;
+            }
+            // No local row yet (e.g. the refund was issued directly from the
+            // Square dashboard rather than through our admin UI) - the
+            // charge it refunds must still be one of ours, or this isn't
+            // a payment this app should record.
+            const chargePayment = db.getPaymentByProviderPaymentId(refund.payment_id);
+            if (!chargePayment) return;
+            db.insertPayment({
+              id: crypto.randomUUID(), orderId: chargePayment.orderId, provider: "square",
+              providerPaymentId: refund.id, kind: "refund",
+              amount: (refund.amount_money?.amount || 0) / 100, currency: refund.amount_money?.currency || chargePayment.currency,
+              status: "completed", rawResponse: refund, createdAt: new Date().toISOString()
+            });
+          });
+        }
+      }
+    } catch (error) {
+      console.error("[square-webhook]", error);
+    }
+
+    send(response, 200, "ok");
     return true;
   }
 
@@ -3517,6 +3836,44 @@ async function handleAdminApi(request, response, pathname) {
       return true;
     }
 
+    // A target of "refunded" against an order with a completed Square charge
+    // must actually call Square BEFORE anything is written - unlike every
+    // other paymentStatus value (an unverified admin label, same as today),
+    // this one moves real money and must not be set optimistically ahead of
+    // Square's answer. Runs here, outside any lock, since it's a network
+    // call; phase1 below only ever performs synchronous DB writes.
+    let squareRefundResult = null;
+    if (body.paymentStatus === "refunded") {
+      const existingForRefundCheck = db.getOrderById(orderMatch[1]);
+      if (existingForRefundCheck && existingForRefundCheck.paymentStatus !== "refunded") {
+        const chargePayment = db.listPaymentsForOrder(orderMatch[1])
+          .find((payment) => payment.kind === "charge" && payment.status === "completed" && payment.provider === "square");
+
+        if (chargePayment) {
+          if (!square.isConfigured()) {
+            json(response, 503, { error: "Square nu este configurat - nu pot procesa rambursarea." });
+            return true;
+          }
+          const refundResult = await square.refundPayment({
+            paymentId: chargePayment.providerPaymentId,
+            amountMoney: { amount: Math.round(chargePayment.amount * 100), currency: chargePayment.currency },
+            idempotencyKey: crypto.randomUUID(),
+            reason: body.cancellationReason ? String(body.cancellationReason).trim().slice(0, 190) : undefined
+          });
+
+          if (!refundResult.ok) {
+            json(response, refundResult.ambiguous ? 502 : 402, {
+              error: refundResult.ambiguous
+                ? "Nu am putut confirma rambursarea din cauza unei erori de retea. Verifica manual in Square inainte de a reincerca."
+                : (refundResult.errors?.[0]?.detail || refundResult.errors?.[0]?.code || "Rambursarea a fost refuzata de Square.")
+            });
+            return true;
+          }
+          squareRefundResult = { chargePayment, refund: refundResult };
+        }
+      }
+    }
+
     // Phase 1 runs under the data lock so a second concurrent order update (another
     // admin, another tab, a double-click) can't read the same pre-update array and
     // overwrite this one's write. It only does synchronous JSON read/write - the slow
@@ -3581,6 +3938,20 @@ async function handleAdminApi(request, response, pathname) {
         if (body.paymentStatus === "paid") {
           updatedOrder = consumeOrderCoupon(updatedOrder);
         }
+        if (squareRefundResult) {
+          db.insertPayment({
+            id: crypto.randomUUID(),
+            orderId: existing.id,
+            provider: "square",
+            providerPaymentId: squareRefundResult.refund.refundId,
+            kind: "refund",
+            amount: squareRefundResult.chargePayment.amount,
+            currency: squareRefundResult.chargePayment.currency,
+            status: squareRefundResult.refund.status === "COMPLETED" ? "completed" : "pending",
+            rawResponse: squareRefundResult.refund.raw,
+            createdAt: now
+          });
+        }
         paymentHistoryEntry = {
           from: previousStatus,
           to: status,
@@ -3604,9 +3975,13 @@ async function handleAdminApi(request, response, pathname) {
       }
 
       // When a customer email will go out, rotate the guest access token so
-      // the link in that email works - only the hash is ever stored.
+      // the link in that email works - only the hash is ever stored. Needed
+      // whenever EITHER a status-transition email OR the refund email below
+      // will be sent - the refund case is intentionally independent of
+      // isTransition (a refund on an already-delivered order usually leaves
+      // status unchanged, so isTransition alone would miss it).
       let accessToken = null;
-      if (isTransition && body.sendEmail !== false) {
+      if ((isTransition || squareRefundResult) && body.sendEmail !== false) {
         const rotated = generateOrderAccessToken();
         updatedOrder.publicAccessTokenHash = rotated.hash;
         accessToken = rotated.token;
@@ -3646,6 +4021,15 @@ async function handleAdminApi(request, response, pathname) {
         attemptedEmail = true;
         emailResult = await email.sendOrderCancelledEmail(updatedOrder, orderUrl);
       }
+    }
+
+    // Independent of isTransition (status itself usually doesn't change on a
+    // refund - only paymentStatus does) and fire-and-forget like checkout's
+    // "received" email: the payment-history entry inserted in phase1 above is
+    // the authoritative record of the refund, this is only a courtesy notice.
+    if (squareRefundResult && sendEmailRequested) {
+      const refundOrderUrl = orderAccessUrl("thank-you.html", updatedOrder.id, phase1.accessToken);
+      email.sendRefundConfirmedEmail(updatedOrder, squareRefundResult.chargePayment.amount, refundOrderUrl).catch(() => {});
     }
 
     if (!isTransition) {
@@ -3988,6 +4372,23 @@ function validateStartupConfig() {
     // live outside it in production (e.g. a persistent disk mount).
     if (isInsideDir(dataDirResolved, publicRootResolved) || isInsideDir(dataDirResolved, rootResolved)) {
       problems.push(`DATA_DIR (${dataDirResolved}) se afla in directorul public/servabil. In productie seteaza DATA_DIR in afara proiectului (ex. /var/data/${BRAND_ID}).`);
+    }
+
+    // Square is opt-in (most deploys of this codebase won't set it at all),
+    // but once SQUARE_ACCESS_TOKEN is present, charging real cards without a
+    // way to verify webhooks, or against the wrong environment, is exactly
+    // the kind of silent misconfiguration this function exists to catch
+    // before the process ever starts accepting requests.
+    if (brandEnv("SQUARE_ACCESS_TOKEN")) {
+      if (!brandEnv("SQUARE_WEBHOOK_SIGNATURE_KEY")) {
+        problems.push("SQUARE_ACCESS_TOKEN este setat dar SQUARE_WEBHOOK_SIGNATURE_KEY lipseste - webhook-urile Square nu pot fi verificate.");
+      }
+      if (!brandEnv("SQUARE_LOCATION_ID")) {
+        problems.push("SQUARE_ACCESS_TOKEN este setat dar SQUARE_LOCATION_ID lipseste.");
+      }
+      if (String(brandEnv("SQUARE_ENVIRONMENT") || "").trim().toLowerCase() !== "production") {
+        problems.push("SQUARE_ACCESS_TOKEN este setat in productie dar SQUARE_ENVIRONMENT nu este \"production\" - risc sa ruleze plati reale impotriva Sandbox sau invers.");
+      }
     }
   }
 

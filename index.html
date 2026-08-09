@@ -30,6 +30,7 @@
     }
   </script>
   <script type="module" src="https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js"></script>
+  <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
 </head>
 <body class="beca-minimal">
   <svg class="glass-filter" width="0" height="0" aria-hidden="true" focusable="false">
@@ -178,6 +179,19 @@
         </ul>
         <span class="form-message" data-checkout-message></span>
       </form>
+      <div class="checkout-form payment-form" data-payment-form data-payment-panel hidden>
+        <button class="checkout-back" type="button" data-payment-later data-i18n="cart.payLater">I'll pay later</button>
+        <p class="payment-order-summary" data-payment-summary></p>
+        <label><span data-i18n="cart.cardDetails">Card details</span><div class="square-card-container" data-square-card></div></label>
+        <button type="button" data-payment-submit data-i18n="cart.payNow">Pay now</button>
+        <p class="checkout-trust-note" data-i18n="checkout.paymentTrustNote">Card details are entered directly with Square and never reach our servers.</p>
+        <ul class="trust-strip" aria-label="Why shop with us">
+          <li data-i18n="trust.shipping">Ships in 2–5 business days</li>
+          <li data-i18n="trust.returns">Easy 14-day returns</li>
+          <li data-i18n="trust.payment">Order verified &amp; confirmed by our team</li>
+        </ul>
+        <span class="form-message" data-payment-message></span>
+      </div>
     </aside>
   </div>
 

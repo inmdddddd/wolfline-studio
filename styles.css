@@ -3700,8 +3700,23 @@ body.beca-minimal {
 }
 
 .cart-drawer[data-cart-mode="checkout"] .cart-items,
-.cart-drawer[data-cart-mode="checkout"] .cart-actions {
+.cart-drawer[data-cart-mode="checkout"] .cart-actions,
+.cart-drawer[data-cart-mode="payment"] .cart-items,
+.cart-drawer[data-cart-mode="payment"] .cart-actions {
   display: none;
+}
+
+.square-card-container {
+  min-height: 90px;
+  padding: 10px;
+  border: 1px solid rgba(232, 184, 75, 0.32);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.payment-order-summary {
+  color: rgba(242, 242, 236, 0.78);
+  font-size: 0.85rem;
 }
 
 .cart-actions {

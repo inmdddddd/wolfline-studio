@@ -322,14 +322,15 @@ function renderCart(cart) {
 function setCartMode(mode = "cart") {
   const drawer = document.querySelector("[data-cart-drawer]");
   const checkoutPanel = document.querySelector("[data-checkout-panel]");
+  const paymentPanel = document.querySelector("[data-payment-panel]");
   const cartActions = document.querySelector("[data-cart-actions]");
   if (!drawer) return;
 
-  const isCheckout = mode === "checkout";
   const hasItems = Number(window.__BECA_LAST_CART_COUNT__ || 0) > 0;
-  drawer.dataset.cartMode = isCheckout ? "checkout" : "cart";
-  if (checkoutPanel) checkoutPanel.hidden = !isCheckout;
-  if (cartActions) cartActions.hidden = isCheckout || !hasItems;
+  drawer.dataset.cartMode = mode;
+  if (checkoutPanel) checkoutPanel.hidden = mode !== "checkout";
+  if (paymentPanel) paymentPanel.hidden = mode !== "payment";
+  if (cartActions) cartActions.hidden = mode !== "cart" || !hasItems;
 }
 
 function setCartDrawer(open) {
@@ -412,6 +413,7 @@ document.addEventListener("click", async (event) => {
   const cartClose = event.target.closest("[data-cart-close]");
   const checkoutOpen = event.target.closest("[data-checkout-open]");
   const checkoutBack = event.target.closest("[data-checkout-back]");
+  const paymentLater = event.target.closest("[data-payment-later]");
 
   try {
     if (cartToggle) {
@@ -429,6 +431,15 @@ document.addEventListener("click", async (event) => {
 
     if (checkoutBack) {
       setCartMode("cart");
+    }
+
+    if (paymentLater) {
+      // The order already exists server-side by this point (created when the
+      // checkout form was submitted) - there is nothing to "go back" to edit.
+      // Closing just leaves it pending/unpaid; the received email already
+      // sent has a link back to it, and the usual stock-reservation sweep
+      // cancels it automatically if it's genuinely abandoned.
+      setCartDrawer(false);
     }
 
     if (addButton) {
@@ -494,11 +505,59 @@ document.addEventListener("change", async (event) => {
   renderCart(cart);
 });
 
+// Lazily initialized once per page load and reused across a single checkout -
+// Square's card element is expensive to (re)attach and this page only ever
+// needs one. currentPayOrder holds what the payment-submit handler below
+// needs (order id + its guest access token); null whenever the payment
+// panel isn't the active step.
+let squareCardInstance = null;
+let currentPayOrder = null;
+
+async function ensureSquareCard() {
+  if (squareCardInstance) return squareCardInstance;
+  if (!window.Square) return null;
+
+  const config = await shopRequest("/api/square-config");
+  if (!config.enabled) return null;
+
+  const payments = window.Square.payments(config.applicationId, config.locationId);
+  const card = await payments.card();
+  await card.attach("[data-square-card]");
+  squareCardInstance = card;
+  return card;
+}
+
+// Returns true if the payment panel was actually shown (Square is configured
+// and the SDK initialized). false means the caller should fall back to the
+// pre-Square behavior (redirect straight to thank-you; the order stays
+// pending/unpaid for manual confirmation) - keeps checkout working exactly
+// as it does today on any deploy that hasn't set up Square yet.
+async function enterPaymentStep(order, token) {
+  let card = null;
+  try {
+    card = await ensureSquareCard();
+  } catch (error) {
+    card = null;
+  }
+  if (!card) return false;
+
+  currentPayOrder = { id: order.id, token };
+  const summary = document.querySelector("[data-payment-summary]");
+  if (summary) summary.textContent = shopText("payAmountDue", "Amount due: ") + shopMoney(order.total, order.currency);
+  const message = document.querySelector("[data-payment-message]");
+  if (message) {
+    message.dataset.type = "";
+    message.textContent = "";
+  }
+  setCartMode("payment");
+  return true;
+}
+
 document.querySelector("[data-checkout-form]")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const message = form.querySelector("[data-checkout-message]");
-  const button = form.querySelector("button");
+  const button = form.querySelector("button[type=submit]");
   const data = Object.fromEntries(new FormData(form).entries());
 
   message.dataset.type = "info";
@@ -510,12 +569,50 @@ document.querySelector("[data-checkout-form]")?.addEventListener("submit", async
       method: "POST",
       body: JSON.stringify(data)
     });
-    const tokenPart = publicAccessToken ? `&token=${encodeURIComponent(publicAccessToken)}` : "";
-    window.location.href = `/thank-you.html?order=${encodeURIComponent(order.id)}${tokenPart}`;
+
+    const enteredPayment = await enterPaymentStep(order, publicAccessToken);
+    if (!enteredPayment) {
+      const tokenPart = publicAccessToken ? `&token=${encodeURIComponent(publicAccessToken)}` : "";
+      window.location.href = `/thank-you.html?order=${encodeURIComponent(order.id)}${tokenPart}`;
+    }
   } catch (error) {
     message.dataset.type = "";
     message.textContent = error.message;
   } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector("[data-payment-submit]")?.addEventListener("click", async () => {
+  if (!currentPayOrder || !squareCardInstance) return;
+  const message = document.querySelector("[data-payment-message]");
+  const button = document.querySelector("[data-payment-submit]");
+
+  message.dataset.type = "info";
+  message.textContent = shopText("processingPayment", "Processing payment...");
+  button.disabled = true;
+
+  try {
+    const tokenResult = await squareCardInstance.tokenize();
+    if (tokenResult.status !== "OK") {
+      throw new Error(tokenResult.errors?.[0]?.message || shopText("cardDeclined", "Card was declined."));
+    }
+
+    const { order, publicAccessToken } = await shopRequest(`/api/orders/${encodeURIComponent(currentPayOrder.id)}/pay`, {
+      method: "POST",
+      body: JSON.stringify({ sourceId: tokenResult.token, token: currentPayOrder.token })
+    });
+
+    // The server rotates the guest access token on a real settlement, so the
+    // token this request was sent with is already stale by now - use the
+    // fresh one the response just handed back (falling back to the original
+    // only for the alreadyPaid/no-op case, where nothing was rotated).
+    const redirectToken = publicAccessToken || currentPayOrder.token;
+    const tokenPart = redirectToken ? `&token=${encodeURIComponent(redirectToken)}` : "";
+    window.location.href = `/thank-you.html?order=${encodeURIComponent(order.id)}${tokenPart}`;
+  } catch (error) {
+    message.dataset.type = "";
+    message.textContent = error.message;
     button.disabled = false;
   }
 });
