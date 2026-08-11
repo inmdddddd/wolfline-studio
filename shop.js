@@ -513,12 +513,40 @@ document.addEventListener("change", async (event) => {
 let squareCardInstance = null;
 let currentPayOrder = null;
 
+// Sandbox and production use different SDK script URLs, and the SDK
+// rejects an applicationId that doesn't match the environment it was loaded
+// for (a production app id against the sandbox script, or vice versa) -
+// which environment is actually configured is only known at runtime, from
+// the server, so this can't be a static <script> tag in index.html.
+let squareSdkLoadPromise = null;
+function loadSquareSdk(environment) {
+  if (window.Square) return Promise.resolve();
+  if (squareSdkLoadPromise) return squareSdkLoadPromise;
+
+  squareSdkLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = environment === "production"
+      ? "https://web.squarecdn.com/v1/square.js"
+      : "https://sandbox.web.squarecdn.com/v1/square.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Square SDK script failed to load"));
+    document.head.appendChild(script);
+  });
+  return squareSdkLoadPromise;
+}
+
 async function ensureSquareCard() {
   if (squareCardInstance) return squareCardInstance;
-  if (!window.Square) return null;
 
   const config = await shopRequest("/api/square-config");
   if (!config.enabled) return null;
+
+  try {
+    await loadSquareSdk(config.environment);
+  } catch {
+    return null;
+  }
+  if (!window.Square) return null;
 
   const payments = window.Square.payments(config.applicationId, config.locationId);
   const card = await payments.card();

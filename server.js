@@ -856,21 +856,26 @@ function collectInlineScriptHashes() {
 
 const INLINE_SCRIPT_HASHES = collectInlineScriptHashes();
 
-// Square Web Payments SDK domains, Sandbox only (matches SQUARE_ENVIRONMENT
-// scope right now - see server.js's own comment near squareEnvironment
-// below). Baseline values came from Square's own documented CSP guide, then
-// were corrected against what the SDK actually requests in a real browser
-// (verified via the test deploy - Square's guide didn't mention the
-// cash-f.squarecdn.com font host or that the SDK loads a couple of its own
-// icons from sandbox.web.squarecdn.com itself, both of which showed up as
-// live CSP violations in the console, not just theoretical gaps): script/
-// style/frame load from sandbox.web.squarecdn.com, the card iframe's
-// tokenize call goes to the separate PCI-scoped connect endpoint, and the
-// SDK's own crash reporting goes to its Sentry project - omitting that last
-// one wouldn't break checkout, just spam the console with blocked-request
-// noise.
-const SQUARE_CSP_ORIGIN = "https://sandbox.web.squarecdn.com";
-const SQUARE_CSP_CONNECT = "https://pci-connect.squareupsandbox.com https://o160250.ingest.sentry.io";
+// Square Web Payments SDK domains - BOTH sandbox and production are always
+// allowed here, regardless of the current SQUARE_ENVIRONMENT, because the
+// CSP header is one static value computed once at startup while shop.js
+// picks which SDK script to load dynamically at runtime (see loadSquareSdk
+// in shop.js - it reads environment from GET /api/square-config). Allowing
+// both costs nothing (both are Square's own trusted domains) and avoids a
+// production/sandbox CSP mismatch silently breaking checkout again, the way
+// a hardcoded sandbox-only <script> tag already did once. Baseline values
+// came from Square's own documented CSP guide, then were corrected against
+// what the SDK actually requests in a real browser (verified via the test
+// deploy - Square's guide didn't mention the cash-f.squarecdn.com font host
+// or that the SDK loads a couple of its own icons from *.web.squarecdn.com
+// itself, both of which showed up as live CSP violations in the console,
+// not just theoretical gaps): script/style/frame load from web.squarecdn.com,
+// the card iframe's tokenize call goes to the separate PCI-scoped connect
+// endpoint, and the SDK's own crash reporting goes to its Sentry project -
+// omitting that last one wouldn't break checkout, just spam the console
+// with blocked-request noise.
+const SQUARE_CSP_ORIGIN = "https://sandbox.web.squarecdn.com https://web.squarecdn.com";
+const SQUARE_CSP_CONNECT = "https://pci-connect.squareupsandbox.com https://pci-connect.squareup.com https://o160250.ingest.sentry.io";
 const SQUARE_CSP_FONTS = "https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net https://cash-f.squarecdn.com";
 
 const CONTENT_SECURITY_POLICY = [
