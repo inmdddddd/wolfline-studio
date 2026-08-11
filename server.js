@@ -4374,17 +4374,20 @@ function validateStartupConfig() {
       problems.push(`DATA_DIR (${dataDirResolved}) se afla in directorul public/servabil. In productie seteaza DATA_DIR in afara proiectului (ex. /var/data/${BRAND_ID}).`);
     }
 
-    // Square is opt-in (most deploys of this codebase won't set it at all).
-    // NODE_ENV=production is a Node runtime setting (secure cookies, etc.) -
-    // it does NOT by itself mean "this is the real live site taking real
-    // money" (a production-configured staging/test deploy using Sandbox
-    // Square credentials, exactly like this one, is legitimate and must
-    // boot cleanly). So this only ever gates on SQUARE_ENVIRONMENT, Square's
-    // own real/test switch, never on NODE_ENV.
+    // Square is opt-in and can be configured incrementally without ever
+    // being unsafe - square.isConfigured() (accessToken + locationId both
+    // set) already gates every route that touches it, so a partial setup
+    // (e.g. token set, location id not obtained yet) just means checkout
+    // skips the payment step, exactly like Square being unset entirely.
+    // NODE_ENV=production is a Node runtime setting (secure cookies, etc.),
+    // not a signal that this is the real live site taking real money - a
+    // production-configured staging/test deploy using Sandbox Square
+    // credentials, exactly like this one, is legitimate and must boot
+    // cleanly. The one combination that's genuinely dangerous rather than
+    // just incomplete: SQUARE_ENVIRONMENT=production (real money) with no
+    // way to verify webhooks - that's the only thing worth refusing to boot
+    // over.
     if (brandEnv("SQUARE_ACCESS_TOKEN")) {
-      if (!brandEnv("SQUARE_LOCATION_ID")) {
-        problems.push("SQUARE_ACCESS_TOKEN este setat dar SQUARE_LOCATION_ID lipseste.");
-      }
       const squareEnvironment = String(brandEnv("SQUARE_ENVIRONMENT") || "sandbox").trim().toLowerCase();
       if (squareEnvironment === "production" && !brandEnv("SQUARE_WEBHOOK_SIGNATURE_KEY")) {
         problems.push("SQUARE_ENVIRONMENT este \"production\" dar SQUARE_WEBHOOK_SIGNATURE_KEY lipseste - webhook-urile Square nu pot fi verificate cu bani reali in joc.");
