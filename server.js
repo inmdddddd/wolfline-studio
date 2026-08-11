@@ -42,6 +42,7 @@ const path = require("path");
 
 const email = require("./lib/email");
 const square = require("./lib/square");
+const resend = require("./lib/resend");
 const { createStorage } = require("./lib/storage");
 const { createDb } = require("./lib/db");
 
@@ -4126,6 +4127,32 @@ async function handleAdminApi(request, response, pathname) {
     }
 
     json(response, 200, { ok: emailResult.ok, order: finalOrder, reason: emailResult.reason || null });
+    return true;
+  }
+
+  // TEMPORARY - verification endpoint for the new Resend integration
+  // (lib/resend.js). Not wired into any order-lifecycle flow yet; exists
+  // only so this can be tested end-to-end with a real RESEND_API_KEY before
+  // that wiring happens. Admin-gated (handleAdminApi's own session+CSRF
+  // checks already ran above) so it can't become a public mail-relay. Safe
+  // to delete once the real templates are built and confirmed working.
+  if (pathname === "/api/admin/resend-test-email" && request.method === "POST") {
+    const body = await readBody(request);
+    const to = String(body.to || session.user.email || "").trim();
+
+    if (!to || !to.includes("@")) {
+      json(response, 400, { error: "Adresa de test lipseste sau este invalida." });
+      return true;
+    }
+
+    const result = await resend.sendEmail({
+      to,
+      subject: "Test Resend - BECA",
+      text: `Acesta este un email de test trimis prin Resend din panoul admin BECA, de catre ${session.user.email}, la ${new Date().toISOString()}.`,
+      html: `<p>Acesta este un email de test trimis prin Resend din panoul admin BECA, de catre <strong>${session.user.email}</strong>, la ${new Date().toISOString()}.</p>`
+    });
+
+    json(response, result.ok ? 200 : 502, result);
     return true;
   }
 
