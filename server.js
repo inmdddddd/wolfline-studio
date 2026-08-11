@@ -857,22 +857,27 @@ const INLINE_SCRIPT_HASHES = collectInlineScriptHashes();
 
 // Square Web Payments SDK domains, Sandbox only (matches SQUARE_ENVIRONMENT
 // scope right now - see server.js's own comment near squareEnvironment
-// below). Values are Square's own documented CSP recommendation for the
-// Web Payments SDK, not guessed: script/style/frame all load from
-// sandbox.web.squarecdn.com, the card iframe's tokenize call goes to the
-// separate PCI-scoped connect endpoint, and the SDK's own crash reporting
-// goes to its Sentry project - omitting that last one wouldn't break
-// checkout, just spam the browser console with blocked-request noise.
+// below). Baseline values came from Square's own documented CSP guide, then
+// were corrected against what the SDK actually requests in a real browser
+// (verified via the test deploy - Square's guide didn't mention the
+// cash-f.squarecdn.com font host or that the SDK loads a couple of its own
+// icons from sandbox.web.squarecdn.com itself, both of which showed up as
+// live CSP violations in the console, not just theoretical gaps): script/
+// style/frame load from sandbox.web.squarecdn.com, the card iframe's
+// tokenize call goes to the separate PCI-scoped connect endpoint, and the
+// SDK's own crash reporting goes to its Sentry project - omitting that last
+// one wouldn't break checkout, just spam the console with blocked-request
+// noise.
 const SQUARE_CSP_ORIGIN = "https://sandbox.web.squarecdn.com";
 const SQUARE_CSP_CONNECT = "https://pci-connect.squareupsandbox.com https://o160250.ingest.sentry.io";
-const SQUARE_CSP_FONTS = "https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net";
+const SQUARE_CSP_FONTS = "https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net https://cash-f.squarecdn.com";
 
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   `script-src 'self' ${INLINE_SCRIPT_HASHES.join(" ")} https://unpkg.com ${SQUARE_CSP_ORIGIN}`.replace(/\s+/g, " "),
   `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${SQUARE_CSP_ORIGIN}`,
   `font-src 'self' https://fonts.gstatic.com ${SQUARE_CSP_FONTS}`,
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob: ${SQUARE_CSP_ORIGIN}`,
   `connect-src 'self' https://unpkg.com blob: ${SQUARE_CSP_CONNECT}`,
   "worker-src 'self' blob:",
   "media-src 'self'",
