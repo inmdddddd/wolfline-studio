@@ -4374,20 +4374,20 @@ function validateStartupConfig() {
       problems.push(`DATA_DIR (${dataDirResolved}) se afla in directorul public/servabil. In productie seteaza DATA_DIR in afara proiectului (ex. /var/data/${BRAND_ID}).`);
     }
 
-    // Square is opt-in (most deploys of this codebase won't set it at all),
-    // but once SQUARE_ACCESS_TOKEN is present, charging real cards without a
-    // way to verify webhooks, or against the wrong environment, is exactly
-    // the kind of silent misconfiguration this function exists to catch
-    // before the process ever starts accepting requests.
+    // Square is opt-in (most deploys of this codebase won't set it at all).
+    // NODE_ENV=production is a Node runtime setting (secure cookies, etc.) -
+    // it does NOT by itself mean "this is the real live site taking real
+    // money" (a production-configured staging/test deploy using Sandbox
+    // Square credentials, exactly like this one, is legitimate and must
+    // boot cleanly). So this only ever gates on SQUARE_ENVIRONMENT, Square's
+    // own real/test switch, never on NODE_ENV.
     if (brandEnv("SQUARE_ACCESS_TOKEN")) {
-      if (!brandEnv("SQUARE_WEBHOOK_SIGNATURE_KEY")) {
-        problems.push("SQUARE_ACCESS_TOKEN este setat dar SQUARE_WEBHOOK_SIGNATURE_KEY lipseste - webhook-urile Square nu pot fi verificate.");
-      }
       if (!brandEnv("SQUARE_LOCATION_ID")) {
         problems.push("SQUARE_ACCESS_TOKEN este setat dar SQUARE_LOCATION_ID lipseste.");
       }
-      if (String(brandEnv("SQUARE_ENVIRONMENT") || "").trim().toLowerCase() !== "production") {
-        problems.push("SQUARE_ACCESS_TOKEN este setat in productie dar SQUARE_ENVIRONMENT nu este \"production\" - risc sa ruleze plati reale impotriva Sandbox sau invers.");
+      const squareEnvironment = String(brandEnv("SQUARE_ENVIRONMENT") || "sandbox").trim().toLowerCase();
+      if (squareEnvironment === "production" && !brandEnv("SQUARE_WEBHOOK_SIGNATURE_KEY")) {
+        problems.push("SQUARE_ENVIRONMENT este \"production\" dar SQUARE_WEBHOOK_SIGNATURE_KEY lipseste - webhook-urile Square nu pot fi verificate cu bani reali in joc.");
       }
     }
   }
