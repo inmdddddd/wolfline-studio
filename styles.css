@@ -3606,6 +3606,32 @@ body.beca-minimal {
   cursor: pointer;
 }
 
+/* Primary CTA treatment (place order / pay now) - same gradient+glow as the
+   cart-actions/checkout-back group above, kept separate from the plain
+   .checkout-form button base so product-card buttons elsewhere aren't
+   affected. min-height:42px above still applies (not redeclared here). */
+.checkout-form button[type="submit"],
+.checkout-form button[data-payment-submit] {
+  border: 1px solid rgba(232, 184, 75, 0.32);
+  padding: 0 18px;
+  color: #1c1204;
+  background: linear-gradient(180deg, var(--accent-2), var(--accent) 60%);
+  box-shadow: 0 10px 24px rgba(232, 184, 75, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.04em;
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+}
+
+.checkout-form button[type="submit"]:hover,
+.checkout-form button[data-payment-submit]:hover {
+  filter: brightness(1.04);
+  box-shadow: 0 14px 30px rgba(232, 184, 75, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.checkout-form button[type="submit"]:active,
+.checkout-form button[data-payment-submit]:active {
+  transform: translateY(1px);
+}
+
 .product-card button:disabled,
 .checkout-form button:disabled {
   cursor: not-allowed;
@@ -3663,6 +3689,25 @@ body.beca-minimal {
   overflow: auto;
   transform: translateX(calc(100% + 42px));
   transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 45%, rgba(232, 184, 75, 0.045)),
+    linear-gradient(180deg, #10130f, #07090c 65%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 30px 70px rgba(0, 0, 0, 0.5);
+}
+
+.cart-drawer-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.75;
 }
 
 .cart-drawer.is-open .cart-drawer-panel {
@@ -3678,6 +3723,8 @@ body.beca-minimal {
 
 .cart-head {
   margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .cart-head p {
@@ -3708,15 +3755,30 @@ body.beca-minimal {
 
 .square-card-container {
   min-height: 90px;
-  padding: 10px;
-  border: 1px solid rgba(232, 184, 75, 0.32);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: border-color 160ms ease;
+}
+
+.square-card-container:focus-within {
+  border-color: rgba(232, 184, 75, 0.62);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.25),
+    0 0 0 4px rgba(232, 184, 75, 0.12);
 }
 
 .payment-order-summary {
-  color: rgba(242, 242, 236, 0.78);
-  font-size: 0.85rem;
+  margin: 0 0 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(232, 184, 75, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(232, 184, 75, 0.1), rgba(232, 184, 75, 0.02));
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .cart-actions {
@@ -3726,24 +3788,45 @@ body.beca-minimal {
 }
 
 .cart-actions button,
-.checkout-back {
-  min-height: 44px;
+button.checkout-back {
+  min-height: 46px;
   border: 1px solid rgba(232, 184, 75, 0.32);
   border-radius: 999px;
-  padding: 0 16px;
-  color: #081005;
-  background: var(--accent);
+  padding: 0 18px;
+  color: #1c1204;
+  background: linear-gradient(180deg, var(--accent-2), var(--accent) 60%);
+  box-shadow: 0 10px 24px rgba(232, 184, 75, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 950;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
 }
 
-.checkout-back {
+.cart-actions button:hover,
+button.checkout-back:hover {
+  filter: brightness(1.04);
+  box-shadow: 0 14px 30px rgba(232, 184, 75, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.cart-actions button:active,
+button.checkout-back:active {
+  transform: translateY(1px);
+}
+
+button.checkout-back {
   color: rgba(242, 242, 236, 0.78);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+}
+
+button.checkout-back:hover {
+  filter: none;
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: none;
 }
 
 .cart-empty {
@@ -3753,15 +3836,53 @@ body.beca-minimal {
 }
 
 .cart-row {
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 16px;
-  background: rgba(0, 0, 0, 0.18);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008));
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.cart-row:hover {
+  border-color: rgba(232, 184, 75, 0.3);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.014));
+  transform: translateY(-1px);
+}
+
+.cart-row-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.cart-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cart-row > div:first-of-type {
+  padding: 0 12px;
+  min-width: 0;
 }
 
 .cart-row strong,
 .cart-row span {
   display: block;
+}
+
+.cart-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cart-row span {
@@ -3771,12 +3892,14 @@ body.beca-minimal {
 }
 
 .cart-row > div:last-child {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
 .cart-row input {
-  width: 58px;
-  min-height: 38px;
+  width: 52px;
+  min-height: 36px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   color: var(--text);
@@ -3785,8 +3908,22 @@ body.beca-minimal {
 }
 
 .cart-row button {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.08);
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: rgba(242, 242, 236, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.cart-row button:hover {
+  color: #ff9d8a;
+  border-color: rgba(255, 157, 138, 0.35);
 }
 
 .checkout-form {
@@ -3809,22 +3946,36 @@ body.beca-minimal {
 
 .checkout-form label {
   display: grid;
-  gap: 6px;
-  color: rgba(242, 242, 236, 0.7);
-  font-size: 0.74rem;
-  font-weight: 850;
+  gap: 7px;
+  color: rgba(242, 242, 236, 0.62);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .checkout-form input,
 .checkout-form textarea {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 13px 15px;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.065);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
   outline: none;
+  font: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.checkout-form input:hover,
+.checkout-form textarea:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.checkout-form input::placeholder,
+.checkout-form textarea::placeholder {
+  color: rgba(242, 242, 236, 0.32);
 }
 
 .checkout-form input:focus,

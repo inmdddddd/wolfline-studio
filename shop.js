@@ -292,6 +292,8 @@ function renderCart(cart) {
 
   cart.items.forEach((item) => {
     const row = document.createElement("div");
+    const thumb = document.createElement("div");
+    const thumbImg = document.createElement("img");
     const info = document.createElement("div");
     const title = document.createElement("strong");
     const meta = document.createElement("span");
@@ -299,8 +301,16 @@ function renderCart(cart) {
     const qty = document.createElement("input");
     const remove = document.createElement("button");
     const display = shopProduct(item.product);
+    const imageSrc = productImageSrc(item.product);
 
     row.className = "cart-row";
+    thumb.className = "cart-row-thumb";
+    if (imageSrc) {
+      thumbImg.src = imageSrc;
+      thumbImg.alt = "";
+      thumbImg.loading = "lazy";
+      thumb.appendChild(thumbImg);
+    }
     title.textContent = item.size ? `${display.displayName} (${item.size})` : display.displayName;
     meta.textContent = `${item.qty} x ${shopMoney(item.product.price, item.product.currency)}`;
     qty.type = "number";
@@ -314,7 +324,7 @@ function renderCart(cart) {
 
     info.append(title, meta);
     controls.append(qty, remove);
-    row.append(info, controls);
+    row.append(thumb, info, controls);
     list.appendChild(row);
   });
 }
