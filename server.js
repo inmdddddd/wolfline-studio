@@ -1584,7 +1584,17 @@ function sanitizeProduct(input, existing = {}) {
   return {
     ...existing,
     id: existing.id || crypto.randomUUID(),
-    slug: toSlug(input.slug || name || existing.slug),
+    // Only regenerate from the name for a brand new product (no existing
+    // slug yet) or when the caller explicitly sends one. Editing an existing
+    // product without an explicit slug field (the common case - the admin
+    // form only sends name/price/etc.) must keep the current slug, not
+    // silently regenerate it from name every save: that broke public URLs
+    // on a plain rename, and for the handful of products the SQLite
+    // migration renamed to a -dup2/-dup3 suffix (resolving a real slug
+    // collision in the source data), it regenerated the ORIGINAL
+    // (colliding) slug on every re-save and made those products permanently
+    // un-editable (UNIQUE constraint failed: products.slug).
+    slug: input.slug ? toSlug(input.slug) : (existing.slug || toSlug(name)),
     name,
     nameRo: String(input.nameRo || existing.nameRo || "").trim().slice(0, 100),
     nameEn: String(input.nameEn || existing.nameEn || "").trim().slice(0, 100),
