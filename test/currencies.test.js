@@ -199,6 +199,47 @@ test("languages/currencies/country-config: admin CRUD, default invariant, deleti
       assert.ok(!currencies.payload.currencies.some((c) => c.code === "RON"), "the just-deactivated RON must not appear publicly");
     });
 
+    await t.test("PUT sets a displayRateFromDefault on a non-default currency; public GET exposes it; empty string clears it", async () => {
+      const create = await jsonRequest(baseUrl, "/api/admin/currencies/USD", {
+        method: "PUT", cookie: adminCookie,
+        body: { symbol: "$", decimalPlaces: 2, symbolPosition: "before", active: true, displayRateFromDefault: 1.27 }
+      });
+      assert.equal(create.status, 200, JSON.stringify(create.payload));
+      assert.equal(create.payload.currency.displayRateFromDefault, 1.27);
+
+      const publicList = await jsonRequest(baseUrl, "/api/currencies");
+      const usd = publicList.payload.currencies.find((c) => c.code === "USD");
+      assert.equal(usd.displayRateFromDefault, 1.27, "the public endpoint must expose the rate - locale.js reads it from here");
+
+      const clear = await jsonRequest(baseUrl, "/api/admin/currencies/USD", {
+        method: "PUT", cookie: adminCookie,
+        body: { symbol: "$", decimalPlaces: 2, symbolPosition: "before", displayRateFromDefault: "" }
+      });
+      assert.equal(clear.status, 200, JSON.stringify(clear.payload));
+      assert.equal(clear.payload.currency.displayRateFromDefault, null, "an empty string must clear the rate, same convention as compareAtPrice/costPrice");
+    });
+
+    await t.test("PUT rejects a zero or negative displayRateFromDefault", async () => {
+      const zero = await jsonRequest(baseUrl, "/api/admin/currencies/USD", {
+        method: "PUT", cookie: adminCookie,
+        body: { symbol: "$", displayRateFromDefault: 0 }
+      });
+      assert.equal(zero.status, 400);
+      const negative = await jsonRequest(baseUrl, "/api/admin/currencies/USD", {
+        method: "PUT", cookie: adminCookie,
+        body: { symbol: "$", displayRateFromDefault: -1.5 }
+      });
+      assert.equal(negative.status, 400);
+    });
+
+    await t.test("PUT rejects a displayRateFromDefault on the DEFAULT currency (a rate relative to itself is meaningless)", async () => {
+      const { status, payload } = await jsonRequest(baseUrl, "/api/admin/currencies/GBP", {
+        method: "PUT", cookie: adminCookie,
+        body: { symbol: "£", displayRateFromDefault: 5 }
+      });
+      assert.equal(status, 400, JSON.stringify(payload));
+    });
+
     await t.test("country-config: PUT rejects an unknown language or currency code", async () => {
       const badLang = await jsonRequest(baseUrl, "/api/admin/country-config/RO", {
         method: "PUT", cookie: adminCookie, body: { languageCode: "xx", currencyCode: "GBP" }

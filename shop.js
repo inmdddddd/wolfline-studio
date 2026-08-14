@@ -6,6 +6,16 @@ function shopMoney(value, currency = "GBP") {
   return `${currency} ${Number(value || 0).toFixed(2)}`;
 }
 
+// Appends the admin-configured secondary currency ("and also ~X lei") when
+// one is set up - see locale.js's secondaryPriceText for why this only
+// ever applies to the store's own default-currency price, never a
+// resolved per-country one.
+function shopMoneyWithSecondary(value, currency = "GBP") {
+  const primary = shopMoney(value, currency);
+  const secondary = window.BecaRegion?.secondaryPriceText?.(value, currency);
+  return secondary ? `${primary} (~${secondary})` : primary;
+}
+
 function shopText(key, fallback = key, replacements = {}) {
   return window.BecaRegion?.text?.(key, replacements) || fallback;
 }
@@ -238,7 +248,7 @@ function renderProducts(products = []) {
     sizeHint.textContent = shopText("selectSize", "Choose a size first.");
     price.textContent = isPreviewProduct(product)
       ? shopText("unknownYet", "Unknown yet")
-      : shopMoney(product.price, product.currency);
+      : shopMoneyWithSecondary(product.price, product.currency);
     button.type = "button";
     if (isPreviewProduct(product)) {
       button.dataset.notifyProduct = product.id;

@@ -449,7 +449,10 @@ function renderCurrencies(currencies) {
     item.className = "admin-product admin-order";
     meta.textContent = [currency.active ? "Activa" : "Dezactivata", currency.isDefault ? "Implicita" : ""].filter(Boolean).join(" - ");
     title.textContent = `${currency.code} (${currency.symbol})`;
-    detail.textContent = `${currency.decimalPlaces} zecimale - simbol ${currency.symbolPosition === "after" ? "dupa" : "inainte"}`;
+    detail.textContent = [
+      `${currency.decimalPlaces} zecimale - simbol ${currency.symbolPosition === "after" ? "dupa" : "inainte"}`,
+      currency.displayRateFromDefault ? `pret secundar activ (curs ${currency.displayRateFromDefault})` : ""
+    ].filter(Boolean).join(" - ");
 
     defaultButton.type = "button";
     defaultButton.dataset.currencySetDefault = currency.code;
@@ -2366,7 +2369,8 @@ document.querySelector("[data-currency-form]")?.addEventListener("submit", async
       body: JSON.stringify({
         symbol: fields.symbol,
         decimalPlaces: fields.decimalPlaces,
-        symbolPosition: fields.symbolPosition
+        symbolPosition: fields.symbolPosition,
+        displayRateFromDefault: fields.displayRateFromDefault === "" ? null : fields.displayRateFromDefault
       })
     });
     form.reset();

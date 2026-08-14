@@ -6,6 +6,16 @@ function productMoney(value, currency = "GBP") {
   return `${currency} ${Number(value || 0).toFixed(2)}`;
 }
 
+// Appends the admin-configured secondary currency ("and also ~X lei") when
+// one is set up - see locale.js's secondaryPriceText for why this only
+// ever applies to the store's own default-currency price, never a
+// resolved per-country one.
+function productMoneyWithSecondary(value, currency = "GBP") {
+  const primary = productMoney(value, currency);
+  const secondary = window.BecaRegion?.secondaryPriceText?.(value, currency);
+  return secondary ? `${primary} (~${secondary})` : primary;
+}
+
 function productText(key, fallback = key, replacements = {}) {
   return window.BecaRegion?.text?.(key, replacements) || fallback;
 }
@@ -189,7 +199,7 @@ async function initProductPage() {
   document.querySelector("[data-product-name]").textContent = display.displayName;
   document.querySelector("[data-product-price]").textContent = isPreviewProduct(product)
     ? productText("unknownYet", "Unknown yet")
-    : productMoney(product.price, product.currency);
+    : productMoneyWithSecondary(product.price, product.currency);
   const comparePriceEl = document.querySelector("[data-product-compare-price]");
   if (comparePriceEl) {
     // publicProduct() only sends compareAtPrice when it's genuinely higher

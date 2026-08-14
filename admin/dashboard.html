@@ -478,6 +478,10 @@
               <option value="after">Dupa (10 lei)</option>
             </select>
           </label>
+          <label>Curs afisare fata de moneda implicita (optional)
+            <input name="displayRateFromDefault" type="number" min="0" step="0.0001" placeholder="ex: 5.05">
+          </label>
+          <p class="admin-form-hint">Daca e completat pentru o moneda ne-implicita, preturile afisate in magazin arata si un pret secundar aproximativ in aceasta moneda (ex: "£59.00 (~298 lei)"). Gol = niciun pret secundar.</p>
           <button type="submit">Adauga moneda</button>
           <span class="form-message" data-currency-message></span>
         </form>
@@ -559,7 +563,7 @@
   </main>
 
   <script src="../security.js?v=2026-08-01"></script>
-  <script src="../currency.js?v=2026-08-14-1"></script>
+  <script src="../currency.js?v=2026-08-14-2"></script>
   <script src="../script.js?v=2026-08-01"></script>
   <script src="../admin.js?v=2026-08-14-3"></script>
   <script type="module" src="../studio.js?v=2026-08-01"></script>

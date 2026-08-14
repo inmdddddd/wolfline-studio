@@ -3810,13 +3810,42 @@ function sanitizeCurrency(input, existing = {}) {
     error.statusCode = 400;
     throw error;
   }
+  const isDefault = input.isDefault !== undefined ? Boolean(input.isDefault) : Boolean(existing.isDefault);
+
+  // Informational "and also ~X" price shown next to the default currency's
+  // real price (locale.js's secondaryPriceText) - never charged, never
+  // stored on an order, purely a display hint. null/empty clears it, same
+  // convention as compareAtPrice/costPrice; anything else must be a real
+  // positive rate (0 or negative would make the secondary price nonsensical).
+  let displayRateFromDefault = existing.displayRateFromDefault ?? null;
+  if (input.displayRateFromDefault !== undefined) {
+    const raw = input.displayRateFromDefault;
+    if (raw === null || String(raw).trim() === "") {
+      displayRateFromDefault = null;
+    } else {
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        const error = new Error("Cursul de afisare trebuie sa fie un numar pozitiv, sau gol pentru a-l dezactiva.");
+        error.statusCode = 400;
+        throw error;
+      }
+      displayRateFromDefault = parsed;
+    }
+  }
+  if (isDefault && displayRateFromDefault !== null) {
+    const error = new Error("Moneda implicita nu poate avea propriul ei curs de afisare secundar.");
+    error.statusCode = 400;
+    throw error;
+  }
+
   return {
     code,
     symbol,
     decimalPlaces,
     symbolPosition,
     active: input.active !== undefined ? Boolean(input.active) : (existing.active !== undefined ? existing.active : true),
-    isDefault: input.isDefault !== undefined ? Boolean(input.isDefault) : Boolean(existing.isDefault),
+    isDefault,
+    displayRateFromDefault,
     sortOrder: input.sortOrder !== undefined ? (Math.floor(Number(input.sortOrder)) || 0) : (existing.sortOrder || 0)
   };
 }

@@ -51,6 +51,17 @@
     return cache?.find((currency) => currency.code === code) || null;
   }
 
+  function getDefaultCurrency() {
+    return cache?.find((currency) => currency.isDefault) || null;
+  }
+
+  // "The store's second displayed price" - singular by design, not a list.
+  // If more than one non-default currency ever has a display rate
+  // configured, the first by sortOrder (the same order the admin sees) wins.
+  function getSecondaryCurrency() {
+    return cache?.find((currency) => !currency.isDefault && currency.displayRateFromDefault) || null;
+  }
+
   async function ensureLoaded() {
     if (cache) return cache;
     if (!loadPromise) {
@@ -75,5 +86,5 @@
   // that's currency-config-dependent from the very first paint).
   ensureLoaded();
 
-  window.BecaCurrency = { formatExact, formatWithConfig, getCurrencyConfig, ensureLoaded };
+  window.BecaCurrency = { formatExact, formatWithConfig, getCurrencyConfig, getDefaultCurrency, getSecondaryCurrency, ensureLoaded };
 })();

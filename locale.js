@@ -208,7 +208,7 @@
       addToCart: "Adauga in cos",
       previewOnly: "preview",
       notifyMe: "Anunta-ma cand e disponibil",
-      unknownYet: "Unknown yet",
+      unknownYet: "Pret in curand",
       notifySaved: "Esti pe lista.",
       notifySavedShort: "Pe lista",
       previewReason: "Intra pe lista pentru acces inainte de public. Stoc limitat.",
@@ -542,6 +542,26 @@
     return `${profile.currency} ${converted.toFixed(2)}`;
   }
 
+  // The "option for two prices" hint: an always-on "and also ~X" secondary
+  // price next to a browsing amount, independent of the visitor's detected
+  // language (unlike money()'s PROFILE-mode swap, which shows ONE currency
+  // based on who's looking). Admin-configured via the currencies panel
+  // (Currency.displayRateFromDefault), not an env var. Only ever applied to
+  // an amount already in the store's DEFAULT currency - a real per-country
+  // resolved price is a real number, not something to pair with a second,
+  // approximate one. Returns "" (never throws, never a raw NaN) whenever
+  // nothing is configured or the pairing doesn't apply, so callers can
+  // splice the result in unconditionally.
+  function secondaryPriceText(amount, fromCurrency = "GBP") {
+    const defaultCurrency = window.BecaCurrency?.getDefaultCurrency?.();
+    const secondary = window.BecaCurrency?.getSecondaryCurrency?.();
+    if (!defaultCurrency || !secondary) return "";
+    if (String(fromCurrency || "").toUpperCase() !== defaultCurrency.code) return "";
+    const rate = Number(secondary.displayRateFromDefault);
+    if (!Number.isFinite(rate) || rate <= 0) return "";
+    return window.BecaCurrency.formatWithConfig(Number(amount || 0) * rate, secondary);
+  }
+
   window.BecaRegion = {
     detect,
     getProfile,
@@ -554,6 +574,7 @@
     stockText,
     countText,
     itemCountText,
+    secondaryPriceText,
     setRates,
     getRates: () => ({ gbpToRon: gbpToRonRate, gbpToRonUpdatedAt }),
     setLanguages,

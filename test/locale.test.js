@@ -49,9 +49,14 @@ function createIntlStub(timeZone) {
 // returns the window.BecaRegion API it exposes. timeZone defaults to a
 // neutral, non-RO/non-UK zone so language stubs are what actually drive
 // detection in tests, regardless of the machine running them.
-function loadRegion({ languages = ["en-GB"], storage = {}, timeZone = "America/New_York" } = {}) {
+function loadRegion({ languages = ["en-GB"], storage = {}, timeZone = "America/New_York", becaCurrency } = {}) {
   const sandbox = {
-    window: {},
+    // Pre-seeded like currency.js would have already loaded and cached
+    // /api/currencies by the time a real page calls secondaryPriceText -
+    // locale.js only ever reads window.BecaCurrency lazily, at call time,
+    // so setting it up front here is equivalent to a real async load
+    // finishing before the caller's next tick.
+    window: { BecaCurrency: becaCurrency },
     navigator: { languages, language: languages[0] || "" },
     localStorage: createLocalStorage(storage),
     Intl: createIntlStub(timeZone),
@@ -223,6 +228,50 @@ test("money formats the converted amount with the profile currency", () => {
   const roFormatted = ro.money(10, "GBP");
   // RON uses 0 fraction digits, so no decimals should appear
   assert.doesNotMatch(roFormatted, /[.,]\d{2}/);
+});
+
+// Mirrors currency.js's real formatWithConfig (symbol + decimalPlaces +
+// symbolPosition) closely enough for assertions, without pulling in the
+// whole file - this suite only ever exercises locale.js.
+function fakeCurrency({ defaultCode = "GBP", secondaryCode = null, secondaryRate = null } = {}) {
+  const configs = {
+    GBP: { code: "GBP", symbol: "£", decimalPlaces: 2, symbolPosition: "before", isDefault: defaultCode === "GBP" },
+    RON: { code: "RON", symbol: "lei", decimalPlaces: 0, symbolPosition: "after", isDefault: defaultCode === "RON", displayRateFromDefault: secondaryCode === "RON" ? secondaryRate : null }
+  };
+  return {
+    getDefaultCurrency: () => configs[defaultCode] || null,
+    getSecondaryCurrency: () => (secondaryCode ? configs[secondaryCode] : null),
+    formatWithConfig: (amount, config) => {
+      const numeral = amount.toFixed(config.decimalPlaces);
+      return config.symbolPosition === "after" ? `${numeral} ${config.symbol}` : `${config.symbol}${numeral}`;
+    }
+  };
+}
+
+test("secondaryPriceText returns an empty string, never throws, before currency.js has loaded (window.BecaCurrency undefined)", () => {
+  const region = loadRegion({ languages: ["en-GB"] });
+  assert.equal(region.secondaryPriceText(59, "GBP"), "");
+});
+
+test("secondaryPriceText returns an empty string when no secondary currency has a rate configured", () => {
+  const region = loadRegion({ languages: ["en-GB"], becaCurrency: fakeCurrency({ defaultCode: "GBP", secondaryCode: null }) });
+  assert.equal(region.secondaryPriceText(59, "GBP"), "");
+});
+
+test("secondaryPriceText renders the configured secondary currency next to a default-currency amount", () => {
+  const region = loadRegion({
+    languages: ["en-GB"],
+    becaCurrency: fakeCurrency({ defaultCode: "GBP", secondaryCode: "RON", secondaryRate: 5 })
+  });
+  assert.equal(region.secondaryPriceText(59, "GBP"), "295 lei");
+});
+
+test("secondaryPriceText returns empty for an amount that is NOT in the store's default currency - a real resolved price never gets a fake second number spliced on", () => {
+  const region = loadRegion({
+    languages: ["en-GB"],
+    becaCurrency: fakeCurrency({ defaultCode: "GBP", secondaryCode: "RON", secondaryRate: 5 })
+  });
+  assert.equal(region.secondaryPriceText(295, "RON"), "", "an already-RON amount (e.g. a real per-country override) must not get a second RON number appended to itself");
 });
 
 test("stockText and countText pluralize based on the number", () => {

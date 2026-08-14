@@ -385,6 +385,43 @@ test("opening a pre-existing v4 database (no i18n/pricing tables yet) migrates t
   reopened.close();
 });
 
+test("opening a pre-existing v5 database (no display_rate_from_default yet) migrates to v6, adding the column without touching existing currency data", () => {
+  const { DatabaseSync } = require("node:sqlite");
+  const dbPath = tempDbPath();
+
+  // The live database is already at v5 as of this test being written, so
+  // unlike the v4 fixture above (which has to hand-build an entire parallel
+  // schema), the most accurate "real v5 database" is createDb() itself,
+  // rolled back by exactly what v6 adds - one nullable column - rather than
+  // a second hand-maintained copy of every table that could drift from the
+  // real SCHEMA_SQL over time.
+  const seed = createDb({ dbPath });
+  seed.upsertCurrency({
+    code: "RON", symbol: "lei", decimalPlaces: 0, symbolPosition: "after",
+    isDefault: false, active: true, sortOrder: 1, createdAt: new Date().toISOString()
+  });
+  seed.close();
+
+  const v5 = new DatabaseSync(dbPath);
+  v5.exec("ALTER TABLE currencies DROP COLUMN display_rate_from_default");
+  v5.exec("PRAGMA user_version = 5");
+  v5.close();
+
+  const upgraded = createDb({ dbPath });
+  const version = upgraded.raw.prepare("PRAGMA user_version").get().user_version;
+  assert.equal(version, CURRENT_SCHEMA_VERSION, "a v5 database must land on the current schema version after opening once");
+
+  const columns = upgraded.raw.prepare("PRAGMA table_info(currencies)").all().map((c) => c.name);
+  assert.ok(columns.includes("display_rate_from_default"), "currencies must gain display_rate_from_default");
+
+  const gbp = upgraded.getCurrencyByCode("GBP");
+  const ron = upgraded.getCurrencyByCode("RON");
+  assert.equal(gbp.displayRateFromDefault, null, "the pre-existing default currency row must not gain a spurious rate");
+  assert.equal(ron.displayRateFromDefault, null, "a pre-existing non-default currency row must start with no rate configured, not a garbage default");
+  assert.equal(ron.symbol, "lei", "pre-existing currency data must survive the migration untouched");
+  upgraded.close();
+});
+
 test("PRAGMA quick_check passes on a freshly created db", () => {
   const db = createDb({ dbPath: tempDbPath() });
   const integrity = db.raw.prepare("PRAGMA quick_check").get();
