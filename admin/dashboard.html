@@ -6,7 +6,7 @@
   <title>Admin Dashboard / BeCa</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23050706%27/%3E%3Ctext x=%2732%27 y=%2746%27 font-family=%27Georgia,serif%27 font-size=%2742%27 font-weight=%27700%27 fill=%27%23e8b84b%27 text-anchor=%27middle%27%3EB%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="../styles.css?v=2026-08-01">
+  <link rel="stylesheet" href="../styles.css?v=2026-08-14-1">
   <script type="importmap">
     {
       "imports": {
@@ -42,6 +42,9 @@
         <button type="button" data-admin-tab="stats">Statistici</button>
         <button type="button" data-admin-tab="reviews">Recenzii</button>
         <button type="button" data-admin-tab="coupons">Cupoane</button>
+        <button type="button" data-admin-tab="shipping">Livrare &amp; Taxe</button>
+        <button type="button" data-admin-tab="currencies">Limbi &amp; Monede</button>
+        <button type="button" data-admin-tab="email-templates">Email-uri</button>
         <button type="button" data-admin-tab="content">Continut</button>
       </nav>
     </aside>
@@ -111,6 +114,48 @@
           </div>
           <button type="button" data-admin-tab-target="add-product">Add product</button>
         </div>
+
+        <div class="admin-tags-manager">
+          <form class="admin-inline-form" data-tag-form>
+            <label>Eticheta noua<input name="name" placeholder="ex: sale, nou, limitat" maxlength="40" required></label>
+            <button type="submit">Adauga eticheta</button>
+            <span class="form-message" data-tag-message></span>
+          </form>
+          <div class="admin-tags-list" data-tags-list></div>
+          <label class="admin-tag-filter">Filtreaza produsele dupa eticheta
+            <select data-tag-filter>
+              <option value="">Toate produsele</option>
+            </select>
+          </label>
+        </div>
+
+        <details class="admin-categories-manager">
+          <summary>Categorii si traduceri</summary>
+          <p class="admin-form-hint">Categoria unui produs se seteaza tot din campul liber "Category" de la fiecare produs - lista de aici apare automat pe masura ce categorii noi sunt folosite. Redenumeste o categorie sau adauga traduceri per limba pentru afisarea pe site.</p>
+          <div data-categories-list></div>
+        </details>
+
+        <div class="admin-bulk-actions" data-bulk-actions>
+          <label class="admin-bulk-select-all"><input type="checkbox" data-bulk-select-all> Selecteaza tot</label>
+          <span data-bulk-selected-count>0 selectate</span>
+          <select data-bulk-action>
+            <option value="">Alege o actiune...</option>
+            <option value="publish">Publica (live)</option>
+            <option value="unpublish">Retrage (draft)</option>
+            <option value="archive">Arhiveaza</option>
+            <option value="feature">Marcheaza featured</option>
+            <option value="unfeature">Elimina featured</option>
+            <option value="setCategory">Schimba categoria</option>
+            <option value="addTags">Adauga eticheta</option>
+            <option value="removeTags">Elimina eticheta</option>
+            <option value="delete">Sterge definitiv</option>
+          </select>
+          <input type="text" data-bulk-category-value placeholder="Categorie noua" hidden>
+          <select data-bulk-tag-value hidden></select>
+          <button type="button" data-bulk-apply disabled>Aplica</button>
+          <span class="form-message" data-bulk-message></span>
+        </div>
+
         <div class="admin-products" data-products></div>
       </div>
 
@@ -130,7 +175,6 @@
           <form class="studio-controls" data-studio-form>
             <div class="admin-form-grid">
               <label>Product name<input name="name" value="Studio tee" required></label>
-              <label>Product name RO<input name="nameRo" placeholder="Optional"></label>
               <label>Category<input name="category" value="Tee"></label>
               <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
               <label>Currency<input name="currency" value="GBP"></label>
@@ -161,8 +205,8 @@
               <label>Rotation<input type="range" min="-45" max="45" value="0" data-studio-rotation></label>
               <label>Opacity<input type="range" min="20" max="100" value="100" data-studio-opacity></label>
             </div>
-            <label>Description EN<textarea name="description" rows="3">Fresh tee created in the 3D studio.</textarea></label>
-            <label>Description RO<textarea name="descriptionRo" rows="3" placeholder="Descriere pentru Romania"></textarea></label>
+            <label>Description<textarea name="description" rows="3">Fresh tee created in the 3D studio.</textarea></label>
+            <p class="admin-form-hint">Alte limbi: adauga traduceri dupa salvare, din lista de produse.</p>
             <div class="studio-actions">
               <button type="button" data-studio-reset>Reset print</button>
               <button type="submit">Save as product</button>
@@ -218,7 +262,6 @@
         <form data-product-form>
           <div class="admin-form-grid">
             <label>Name<input name="name" required></label>
-            <label>Name RO<input name="nameRo" placeholder="Optional"></label>
             <label>Category<input name="category" placeholder="Tee, accessory, hoodie"></label>
             <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
             <label>Currency<input name="currency" value="GBP"></label>
@@ -233,11 +276,27 @@
                 <option value="preview">Preview only</option>
                 <option value="live">Live</option>
                 <option value="sold-out">Sold out</option>
+                <option value="archived">Archived</option>
               </select>
             </label>
+            <label>SKU<input name="sku" placeholder="Optional"></label>
+            <label>Barcode<input name="barcode" placeholder="Optional"></label>
+            <label>Compare-at price<input name="compareAtPrice" type="number" min="0" step="0.01" placeholder="Optional"></label>
+            <label>Cost price (internal only)<input name="costPrice" type="number" min="0" step="0.01" placeholder="Optional"></label>
+            <label>Weight in grams<input name="weightGrams" type="number" min="0" step="1" placeholder="Optional"></label>
+            <label>Length<input name="dimensionsLength" type="number" min="0" step="0.1" placeholder="Optional"></label>
+            <label>Width<input name="dimensionsWidth" type="number" min="0" step="0.1" placeholder="Optional"></label>
+            <label>Height<input name="dimensionsHeight" type="number" min="0" step="0.1" placeholder="Optional"></label>
+            <label>Dimension unit<input name="dimensionsUnit" value="cm"></label>
+            <label>SEO title<input name="seoTitle" placeholder="Optional"></label>
+            <label>Canonical URL<input name="canonicalUrl" placeholder="Optional"></label>
+            <label data-checkbox-label><input name="featured" type="checkbox"> Featured</label>
+            <div class="admin-tag-checkboxes" data-product-tag-checkboxes></div>
           </div>
-          <label>Description EN<textarea name="description" rows="4"></textarea></label>
-          <label>Description RO<textarea name="descriptionRo" rows="4"></textarea></label>
+          <label>Description<textarea name="description" rows="4"></textarea></label>
+          <p class="admin-form-hint">Alte limbi: adauga traduceri dupa salvare, din lista de produse.</p>
+          <label>SEO description<textarea name="seoDescription" rows="3" placeholder="Optional"></textarea></label>
+          <label>Attributes - one "key: value" per line<textarea name="metadataText" rows="3" placeholder="Material: 100% cotton"></textarea></label>
           <button type="submit">Save product</button>
           <span class="form-message" data-product-message></span>
         </form>
@@ -339,11 +398,135 @@
           </label>
           <label>Valoare<input name="value" type="number" min="0" step="0.01" required></label>
           <label>Utilizari maxime (optional)<input name="maxUses" type="number" min="1"></label>
+          <label>Comanda minima (optional)<input name="minOrderValue" type="number" min="0" step="0.01"></label>
           <label>Expira la (optional)<input name="expiresAt" type="date"></label>
           <button type="submit">Adauga cupon</button>
           <span class="form-message" data-coupon-message></span>
         </form>
         <div class="admin-orders" data-coupons-list></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="shipping">
+        <div class="admin-view-head">
+          <div>
+            <p>Livrare &amp; Taxe</p>
+            <h2>Zone de livrare, metode si cote de TVA.</h2>
+          </div>
+        </div>
+        <div class="admin-note-grid admin-note-grid-single">
+          <article>
+            <strong>Cum functioneaza</strong>
+            <span>O tara fara nicio zona configurata (sau fara nicio metoda activa) primeste automat livrare gratuita la checkout - nu blocheaza comanda. Odata ce adaugi o zona cu cel putin o metoda activa pentru acea tara, clientul trebuie sa aleaga una dintre metodele reale la checkout.</span>
+          </article>
+        </div>
+
+        <h3>Zone de livrare</h3>
+        <form class="admin-inline-form" data-shipping-zone-form>
+          <label>Nume zona<input name="name" placeholder="Romania" required></label>
+          <label>Tari (coduri ISO, ex: RO sau RO,MD)<input name="countries" placeholder="gol = restul lumii"></label>
+          <button type="submit">Adauga zona</button>
+          <span class="form-message" data-shipping-zone-message></span>
+        </form>
+        <div class="admin-products" data-shipping-zones-list></div>
+
+        <h3>Cote de taxa (TVA)</h3>
+        <form class="admin-inline-form" data-tax-rate-form>
+          <label>Nume<input name="name" placeholder="TVA" required></label>
+          <label>Tara (cod ISO)<input name="country" placeholder="RO" maxlength="2" required></label>
+          <label>Regiune (optional)<input name="region"></label>
+          <label>Cota (%)<input name="rate" type="number" min="0" step="0.01" required></label>
+          <label data-checkbox-label><input name="inclusive" type="checkbox" checked> Pretul afisat include deja taxa</label>
+          <label>Prioritate<input name="priority" type="number" value="0"></label>
+          <button type="submit">Adauga cota</button>
+          <span class="form-message" data-tax-rate-message></span>
+        </form>
+        <div class="admin-orders" data-tax-rates-list></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="currencies">
+        <div class="admin-view-head">
+          <div>
+            <p>Limbi &amp; Monede</p>
+            <h2>Limbi, monede si maparea pe tari.</h2>
+          </div>
+        </div>
+        <div class="admin-note-grid admin-note-grid-single">
+          <article>
+            <strong>Cum functioneaza</strong>
+            <span>Fiecare limba/moneda activa e disponibila pe site. Exact una este implicita per categorie - devine fallback-ul cand nimic altceva nu se aplica (nu poate fi dezactivata sau stearsa fara sa numesti alta implicita mai intai). O tara fara mapare configurata foloseste automat limba si moneda implicita.</span>
+          </article>
+        </div>
+
+        <h3>Limbi</h3>
+        <form class="admin-inline-form" data-language-form>
+          <label>Cod (ISO 639-1)<input name="code" placeholder="fr" maxlength="3" required></label>
+          <label>Nume<input name="name" placeholder="French" required></label>
+          <label>Nume nativ<input name="nativeName" placeholder="Français" required></label>
+          <button type="submit">Adauga limba</button>
+          <span class="form-message" data-language-message></span>
+        </form>
+        <div class="admin-products" data-languages-list></div>
+
+        <h3>Monede</h3>
+        <form class="admin-inline-form" data-currency-form>
+          <label>Cod (ISO 4217)<input name="code" placeholder="EUR" maxlength="3" required></label>
+          <label>Simbol<input name="symbol" placeholder="€" maxlength="8" required></label>
+          <label>Zecimale<input name="decimalPlaces" type="number" min="0" max="4" value="2"></label>
+          <label>Pozitie simbol
+            <select name="symbolPosition">
+              <option value="before">Inainte (€10)</option>
+              <option value="after">Dupa (10 lei)</option>
+            </select>
+          </label>
+          <button type="submit">Adauga moneda</button>
+          <span class="form-message" data-currency-message></span>
+        </form>
+        <div class="admin-products" data-currencies-list></div>
+
+        <h3>Mapare tari</h3>
+        <form class="admin-inline-form" data-country-config-form>
+          <label>Tara (cod ISO)<input name="countryCode" placeholder="RO" maxlength="2" required></label>
+          <label>Limba<select name="languageCode" data-country-config-language-select required></select></label>
+          <label>Moneda<select name="currencyCode" data-country-config-currency-select required></select></label>
+          <button type="submit">Salveaza mapare</button>
+          <span class="form-message" data-country-config-message></span>
+        </form>
+        <div class="admin-orders" data-country-config-list></div>
+
+        <h3>Traduceri</h3>
+        <div class="admin-note-grid admin-note-grid-single">
+          <article>
+            <strong>Cum functioneaza</strong>
+            <span>Textele site-ului au deja un continut standard in engleza si romana. O traducere de aici suprascrie o singura cheie de text pentru o singura limba - utila mai ales pentru limbi noi (a 3-a si urmatoarele), care altfel afiseaza automat varianta in engleza pentru orice cheie netradusa inca. Cheia exacta a unui text nu e afisata pe site (e un identificator intern, ex: <code>checkout.free</code>) - cere developer-ului lista de chei daca ai nevoie sa traduci ceva anume.</span>
+          </article>
+        </div>
+        <form class="admin-inline-form" data-translation-form>
+          <label>Limba<select name="languageCode" data-translation-language-select required></select></label>
+          <label>Cheie<input name="key" placeholder="checkout.free" maxlength="200" required></label>
+          <label>Valoare<input name="value" placeholder="Gratuit" required></label>
+          <button type="submit">Salveaza traducerea</button>
+          <span class="form-message" data-translation-message></span>
+        </form>
+        <div class="admin-orders" data-translations-list></div>
+      </div>
+
+      <div class="admin-panel admin-view" data-admin-view="email-templates">
+        <div class="admin-view-head">
+          <div>
+            <p>Email-uri</p>
+            <h2>Sabloane pentru emailurile automate de comanda.</h2>
+          </div>
+        </div>
+        <div class="admin-note-grid admin-note-grid-single">
+          <article>
+            <strong>Cum functioneaza</strong>
+            <span>Fiecare tip de email are un continut standard, integrat in aplicatie, care merge intotdeauna daca nu personalizezi nimic. Activand un sablon de mai jos, textul tau il inlocuieste pe cel standard. Dezactivarea (nu stergerea) revine instant la emailul original - textul personalizat ramane salvat pentru cand vrei sa il reactivezi. Variabilele de forma <code>{{numeVariabila}}</code> sunt inlocuite automat cu datele reale ale fiecarei comenzi la trimitere. Fiecare limba are propriile sabloane, separate - un client primeste emailul in limba lui daca exista un sablon activ pentru ea, altfel in limba implicita, altfel textul standard din aplicatie (care exista si in engleza).</span>
+          </article>
+        </div>
+        <label class="admin-email-template-language">Limba sabloanelor
+          <select data-email-template-language-select></select>
+        </label>
+        <div data-email-templates-list></div>
       </div>
 
       <div class="admin-panel admin-view" data-admin-view="content">
@@ -376,8 +559,9 @@
   </main>
 
   <script src="../security.js?v=2026-08-01"></script>
+  <script src="../currency.js?v=2026-08-14-1"></script>
   <script src="../script.js?v=2026-08-01"></script>
-  <script src="../admin.js?v=2026-08-01"></script>
+  <script src="../admin.js?v=2026-08-14-3"></script>
   <script type="module" src="../studio.js?v=2026-08-01"></script>
 </body>
 </html>

@@ -23,7 +23,7 @@
       document.documentElement.classList.add("is-safari");
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=2026-08-12">
+  <link rel="stylesheet" href="styles.css?v=2026-08-14-1">
   <script>
     if (location.protocol === "file:") {
       location.replace("http://127.0.0.1:4189/");
@@ -83,6 +83,14 @@
           <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span><span data-i18n="nav.logout">Logout</span></button>
         </div>
       </div>
+      <a class="header-cart-button" href="/cart" aria-label="Go to cart">
+        <svg class="header-cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 8h12l-1 12H7L6 8Z"/>
+          <path d="M9 8V6a3 3 0 0 1 6 0v2"/>
+        </svg>
+        <span class="header-cart-label" data-i18n="cart.goToCart">Go to cart</span>
+        <span class="header-cart-badge" data-cart-badge hidden>0</span>
+      </a>
     </nav>
     <button class="mobile-menu-trigger" type="button" data-mobile-menu-open aria-expanded="false" aria-label="Open menu">
       <img src="assets/icon-menu.png" alt="">
@@ -103,7 +111,10 @@
         <a href="#drop" data-mobile-menu-link data-i18n="nav.drop">Drop</a>
         <a href="#quality" data-mobile-menu-link data-i18n="nav.quality">Quality</a>
         <a href="#contact" data-mobile-menu-link data-i18n="nav.contact">Contact</a>
-        <button type="button" data-cart-toggle data-mobile-menu-link data-i18n="cart.title">Cart</button>
+        <a href="/cart" class="mobile-cart-link" data-mobile-menu-link>
+          <span data-i18n="cart.goToCart">Go to cart</span>
+          <span class="header-cart-badge" data-cart-badge hidden>0</span>
+        </a>
       </div>
 
       <div class="mobile-menu-section" data-guest-only>
@@ -137,65 +148,11 @@
     </aside>
   </div>
 
-  <div class="floating-shop-actions" aria-label="Shop shortcuts">
-    <button class="floating-cart-button" type="button" data-cart-toggle aria-expanded="false" aria-label="Open cart">
-      <span data-i18n="cart.title">Cart</span>
-      <strong data-cart-count>0 pieces</strong>
-      <em data-cart-total>GBP 0.00</em>
-    </button>
+  <div class="floating-shop-actions" aria-label="Language">
     <div class="language-switch" aria-label="Language">
       <button type="button" data-lang="en" aria-pressed="true">EN</button>
       <button type="button" data-lang="ro" aria-pressed="false">RO</button>
     </div>
-  </div>
-
-  <div class="cart-drawer" data-cart-drawer aria-hidden="true">
-    <button class="cart-drawer-backdrop" type="button" data-cart-close aria-label="Close cart"></button>
-    <aside class="cart-panel cart-drawer-panel" aria-label="Cart">
-      <div class="cart-head">
-        <div>
-          <p data-i18n="cart.title">Cart</p>
-          <h3 data-cart-count>0 pieces</h3>
-        </div>
-        <button class="cart-close" type="button" data-cart-close aria-label="Close cart" data-i18n="cart.close">Close</button>
-        <strong data-cart-total>GBP 0.00</strong>
-      </div>
-      <div class="cart-items" data-cart-items>
-        <span class="cart-empty">No pieces selected yet.</span>
-      </div>
-      <div class="cart-actions" data-cart-actions hidden>
-        <button type="button" data-checkout-open data-i18n="cart.checkout">Checkout</button>
-      </div>
-      <form class="checkout-form" data-checkout-form data-checkout-panel hidden>
-        <button class="checkout-back" type="button" data-checkout-back data-i18n="cart.backToCart">Back to cart</button>
-        <label><span data-i18n="cart.name">Name</span><input name="customerName" autocomplete="name" required></label>
-        <label><span data-i18n="cart.email">Email</span><input name="customerEmail" type="email" autocomplete="email" required></label>
-        <label><span data-i18n="cart.phone">Phone</span><input name="customerPhone" autocomplete="tel" required></label>
-        <label><span data-i18n="cart.address">Address</span><textarea name="customerAddress" rows="3" required></textarea></label>
-        <label><span data-i18n="cart.coupon">Discount code (optional)</span><input name="couponCode" autocomplete="off" data-checkout-coupon></label>
-        <button type="submit" data-i18n="cart.placeOrder">Place order</button>
-        <p class="checkout-trust-note" data-i18n="checkout.trustNote">Orders are recorded in GBP; prices shown in other currencies are indicative. Your details are used only to process this order.</p>
-        <ul class="trust-strip" aria-label="Why shop with us">
-          <li data-i18n="trust.shipping">Ships in 2–5 business days</li>
-          <li data-i18n="trust.returns">Easy 14-day returns</li>
-          <li data-i18n="trust.payment">Order verified &amp; confirmed by our team</li>
-        </ul>
-        <span class="form-message" data-checkout-message></span>
-      </form>
-      <div class="checkout-form payment-form" data-payment-form data-payment-panel hidden>
-        <button class="checkout-back" type="button" data-payment-later data-i18n="cart.payLater">I'll pay later</button>
-        <p class="payment-order-summary" data-payment-summary></p>
-        <label><span data-i18n="cart.cardDetails">Card details</span><div class="square-card-container" data-square-card></div></label>
-        <button type="button" data-payment-submit data-i18n="cart.payNow">Pay now</button>
-        <p class="checkout-trust-note" data-i18n="checkout.paymentTrustNote">Card details are entered directly with Square and never reach our servers.</p>
-        <ul class="trust-strip" aria-label="Why shop with us">
-          <li data-i18n="trust.shipping">Ships in 2–5 business days</li>
-          <li data-i18n="trust.returns">Easy 14-day returns</li>
-          <li data-i18n="trust.payment">Order verified &amp; confirmed by our team</li>
-        </ul>
-        <span class="form-message" data-payment-message></span>
-      </div>
-    </aside>
   </div>
 
   <main id="top">
@@ -398,12 +355,13 @@
     </div>
   </footer>
 
-  <script src="locale.js?v=2026-08-12"></script>
-  <script src="script.js?v=2026-08-12"></script>
-  <script src="shop.js?v=2026-08-12"></script>
+  <script src="currency.js?v=2026-08-14-1"></script>
+  <script src="locale.js?v=2026-08-14-1"></script>
+  <script src="script.js?v=2026-08-14-2"></script>
+  <script src="shop.js?v=2026-08-13-1"></script>
   <script src="model-loader.js?v=no-drag-1"></script>
-  <script src="auth.js?v=2026-08-12"></script>
-  <script src="security.js?v=2026-08-12"></script>
-  <script src="editor.js?v=2026-08-12" defer></script>
+  <script src="auth.js?v=2026-08-13"></script>
+  <script src="security.js?v=2026-08-13"></script>
+  <script src="editor.js?v=2026-08-13" defer></script>
 </body>
 </html>

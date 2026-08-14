@@ -6,8 +6,10 @@
     return window.BecaRegion?.text?.(key, replacements) || fallback;
   }
 
+  // Exact mode: order history is a record of what was actually charged,
+  // never a live-converted display.
   function money(value, currency) {
-    return window.BecaRegion?.money?.(value, currency) || `${currency} ${Number(value || 0).toFixed(2)}`;
+    return window.BecaCurrency?.formatExact?.(value, currency) || `${currency} ${Number(value || 0).toFixed(2)}`;
   }
 
   function escapeHtml(value) {

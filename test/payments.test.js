@@ -97,7 +97,15 @@ async function placeCheckout() {
       customerName: "Payments Buyer",
       customerEmail: `buyer-${crypto.randomUUID()}@example.com`,
       customerPhone: "0700000000",
-      customerAddress: "Str. Test 1, Iasi"
+      customerAddress: "Str. Test 1, Iasi",
+      customerCountry: "RO",
+      // Explicit, not incidental: these tests assert on the ROMANIAN
+      // hardcoded email subject text (e.g. /plata confirmata/i) as a proxy
+      // for "the right email was sent" - customerLanguage is now a real,
+      // validated checkout field (see sanitizeCheckout), so it must be set
+      // explicitly rather than relying on whatever the store's default
+      // language happens to be.
+      customerLanguage: "ro"
     })
   });
   const payload = await checkoutResponse.json().catch(() => ({}));

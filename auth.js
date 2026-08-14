@@ -153,6 +153,14 @@ async function hydrateAccount() {
     element.hidden = user.role !== "admin";
   });
 
+  // Self-service account deletion is client-only - an admin doing this
+  // through the same generic flow risks deleting the account backing the
+  // site's own admin access, which the account-scale isPrimaryAdmin/
+  // oldestAdminUser safeguards elsewhere assume won't happen.
+  document.querySelectorAll("[data-client-only]").forEach((element) => {
+    element.hidden = user.role !== "client";
+  });
+
   const verifyBanner = document.querySelector("[data-verify-banner]");
   if (verifyBanner) verifyBanner.hidden = Boolean(user.emailVerified);
 
@@ -243,6 +251,31 @@ document.querySelectorAll("[data-settings-form]").forEach((form) => {
       submit.disabled = false;
     }
   });
+});
+
+// Deliberately its own handler rather than folding into the generic
+// [data-settings-form] loop above: that loop always re-hydrates the account
+// panel on success, which is wrong here (the account - and the session
+// that's reading it - no longer exists) and it never redirects, which this
+// irreversible action needs to.
+document.querySelector("[data-delete-account-form]")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = form.querySelector("[data-delete-account-message]");
+  const submit = form.querySelector("button[type='submit']");
+
+  if (!window.confirm("Delete your account? This cannot be undone.")) return;
+
+  submit.disabled = true;
+  setMessage(message, "Se sterge contul...", "info");
+
+  try {
+    await putJson("/api/account/delete", getFormData(form));
+    window.location.href = "/";
+  } catch (error) {
+    setMessage(message, error.message);
+    submit.disabled = false;
+  }
 });
 
 document.querySelectorAll("[data-logout]").forEach((button) => {

@@ -83,7 +83,8 @@ test("checkout assigns per-unit edition numbers and exposes the public archive r
         customerName: "Edition Tester",
         customerEmail: "editions@example.com",
         customerPhone: "0700000000",
-        customerAddress: "Str. Test 1, Bucuresti"
+        customerAddress: "Str. Test 1, Bucuresti",
+        customerCountry: "RO"
       })
     });
     assert.equal(checkoutResponse.status, 200);

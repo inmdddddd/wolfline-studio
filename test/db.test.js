@@ -4,7 +4,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { createDb } = require("../lib/db");
+const { createDb, CURRENT_SCHEMA_VERSION } = require("../lib/db");
 
 function tempDbPath() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "beca-db-test-"));
@@ -83,7 +83,7 @@ test("createDb applies schema and is safe to reopen (idempotent CREATE IF NOT EX
   third.close();
 });
 
-test("opening a pre-existing v1 database (payments has no kind column yet) migrates cleanly to v2 without losing data", () => {
+test("opening a pre-existing v1 database (payments has no kind column yet) migrates cleanly to the current schema without losing data", () => {
   const { DatabaseSync } = require("node:sqlite");
   const dbPath = tempDbPath();
 
@@ -207,7 +207,7 @@ test("opening a pre-existing v1 database (payments has no kind column yet) migra
   assert.equal(preExistingRow.amount, 59, "pre-existing data must survive the migration untouched");
 
   const version = upgraded.raw.prepare("PRAGMA user_version").get().user_version;
-  assert.equal(version, 2);
+  assert.equal(version, CURRENT_SCHEMA_VERSION, "a v1 database must land on the current schema version after opening once");
 
   const indexes = upgraded.raw.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map((row) => row.name);
   assert.ok(indexes.includes("idx_payments_provider_payment_id"), "the new unique index must be created for an upgraded database too");
@@ -229,6 +229,159 @@ test("opening a pre-existing v1 database (payments has no kind column yet) migra
   const reopened = createDb({ dbPath });
   const reopenedColumns = reopened.raw.prepare("PRAGMA table_info(payments)").all().map((column) => column.name);
   assert.equal(reopenedColumns.filter((name) => name === "kind").length, 1, "re-running the migration must not add the column twice");
+  reopened.close();
+});
+
+test("opening a pre-existing v4 database (no i18n/pricing tables yet) migrates to v5, backfilling categories/product_translations and rebuilding email_templates without losing data", () => {
+  const { DatabaseSync } = require("node:sqlite");
+  const dbPath = tempDbPath();
+
+  // Hand-build a COMPLETE v4-shaped file - the exact schema every real
+  // database (including the live VPS one) has today, before languages/
+  // currencies/country_config/product_prices/product_translations/
+  // categories/translations existed and before email_templates had a
+  // language dimension. Copied verbatim from the v4 rebuild block in
+  // lib/db.js (the products table shape) plus the v1 fixture above for
+  // every other table, since v4 only changed products.
+  const v4 = new DatabaseSync(dbPath);
+  v4.exec("PRAGMA journal_mode = WAL");
+  v4.exec(`
+    CREATE TABLE users (
+      id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('admin','client')), password_hash TEXT NOT NULL,
+      email_verified INTEGER NOT NULL DEFAULT 0, is_primary_admin INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL, updated_at TEXT
+    );
+    CREATE TABLE products (
+      id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, name_ro TEXT, name_en TEXT,
+      category TEXT, status TEXT NOT NULL CHECK (status IN ('draft','preview','live','sold-out','archived')),
+      price REAL NOT NULL, currency TEXT NOT NULL, image_url TEXT, scene_image_url TEXT, color TEXT,
+      description TEXT, description_ro TEXT, description_en TEXT, chapter_id TEXT,
+      chapter_product_order INTEGER, studio_json TEXT, created_at TEXT NOT NULL, updated_at TEXT,
+      sku TEXT, barcode TEXT, weight_grams INTEGER, dimensions_json TEXT, compare_at_price REAL,
+      cost_price REAL, seo_title TEXT, seo_description TEXT, canonical_url TEXT, metadata_json TEXT,
+      featured INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE product_variants (
+      id TEXT PRIMARY KEY, product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      size TEXT NOT NULL DEFAULT '', stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+      sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT,
+      UNIQUE(product_id, size)
+    );
+    CREATE TABLE orders (
+      id TEXT PRIMARY KEY, number TEXT NOT NULL UNIQUE, user_id TEXT REFERENCES users(id),
+      customer_name TEXT NOT NULL, customer_email TEXT NOT NULL, customer_phone TEXT, customer_address TEXT,
+      customer_country TEXT, address_id TEXT, notes TEXT, status TEXT NOT NULL, payment_status TEXT NOT NULL,
+      payment_method TEXT, paid_at TEXT, public_access_token_hash TEXT, reservation_expires_at TEXT,
+      reservation_confirmed_at TEXT, stock_restored INTEGER NOT NULL DEFAULT 0,
+      coupon_consumed INTEGER NOT NULL DEFAULT 0, coupon_restored INTEGER NOT NULL DEFAULT 0,
+      editions_cancelled INTEGER NOT NULL DEFAULT 0, currency TEXT NOT NULL, total REAL NOT NULL,
+      discount REAL NOT NULL DEFAULT 0, coupon_code TEXT, processed_at TEXT, shipped_at TEXT,
+      delivered_at TEXT, cancelled_at TEXT, fulfillment_courier_name TEXT, fulfillment_tracking_number TEXT,
+      fulfillment_tracking_url TEXT, fulfillment_estimated_delivery_date TEXT, fulfillment_customer_note TEXT,
+      fulfillment_internal_note TEXT, cancellation_reason TEXT, created_at TEXT NOT NULL, updated_at TEXT,
+      shipping_method_id TEXT, shipping_method_name TEXT, shipping_cost REAL NOT NULL DEFAULT 0,
+      tax_rate_id TEXT, tax_name TEXT, tax_rate_value REAL, tax_amount REAL NOT NULL DEFAULT 0,
+      tax_inclusive INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE order_items (
+      id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_id TEXT REFERENCES products(id), variant_id TEXT REFERENCES product_variants(id),
+      name TEXT NOT NULL, size TEXT, price REAL NOT NULL, currency TEXT NOT NULL, qty INTEGER NOT NULL CHECK (qty > 0),
+      subtotal REAL NOT NULL, edition_numbers_json TEXT, edition_total INTEGER, sort_order INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE payments (
+      id TEXT PRIMARY KEY, order_id TEXT NOT NULL REFERENCES orders(id), provider TEXT NOT NULL,
+      provider_payment_id TEXT, kind TEXT NOT NULL DEFAULT 'charge', amount REAL NOT NULL, currency TEXT NOT NULL,
+      status TEXT NOT NULL, raw_response_json TEXT, created_at TEXT NOT NULL, updated_at TEXT
+    );
+    CREATE UNIQUE INDEX idx_payments_provider_payment_id ON payments(provider_payment_id) WHERE provider_payment_id IS NOT NULL;
+    CREATE TABLE sessions (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE tags (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, slug TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL);
+    CREATE TABLE product_tags (
+      product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (product_id, tag_id)
+    );
+    CREATE TABLE email_templates (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1, updated_at TEXT, updated_by TEXT
+    );
+  `);
+  v4.exec("PRAGMA user_version = 4");
+
+  const now = new Date().toISOString();
+  v4.prepare(
+    `INSERT INTO products (id, slug, name, name_ro, category, status, price, currency, created_at)
+     VALUES (?,?,?,?,?,?,?,?,?)`
+  ).run("product-1", "test-tee", "Test Tee", "Tricou de test", "Tee", "live", 59, "GBP", now);
+  // A second product sharing the SAME category (case-different on purpose)
+  // exercises the slug-collision-avoidance path in the categories backfill.
+  v4.prepare(
+    `INSERT INTO products (id, slug, name, category, status, price, currency, created_at)
+     VALUES (?,?,?,?,?,?,?,?)`
+  ).run("product-2", "test-hoodie", "Test Hoodie", "TEE", "live", 79, "GBP", now);
+  v4.prepare(
+    `INSERT INTO email_templates (id, name, subject, body, active, updated_at, updated_by)
+     VALUES (?,?,?,?,?,?,?)`
+  ).run("order-received", "Comanda primita", "Custom subject", "Custom body", 1, now, "admin@beca.local");
+  v4.close();
+
+  const upgraded = createDb({ dbPath });
+
+  const version = upgraded.raw.prepare("PRAGMA user_version").get().user_version;
+  assert.equal(version, CURRENT_SCHEMA_VERSION, "a v4 database must land on the current schema version after opening once");
+
+  // Categories backfill: two distinct (case-sensitive) free-text values,
+  // "Tee" and "TEE", must become two separate category rows with
+  // non-colliding slugs, and each product must point at its own.
+  const categories = upgraded.raw.prepare("SELECT * FROM categories").all();
+  assert.equal(categories.length, 2, "distinct category text values must each get their own row");
+  const slugs = categories.map((row) => row.slug);
+  assert.equal(new Set(slugs).size, 2, "colliding slugs must be disambiguated, not silently overwritten");
+
+  const product1 = upgraded.raw.prepare("SELECT * FROM products WHERE id = ?").get("product-1");
+  const product2 = upgraded.raw.prepare("SELECT * FROM products WHERE id = ?").get("product-2");
+  assert.ok(product1.category_id, "product-1 must be assigned a category_id");
+  assert.ok(product2.category_id, "product-2 must be assigned a category_id");
+  assert.notEqual(product1.category_id, product2.category_id, "'Tee' and 'TEE' are distinct categories, not the same row");
+  assert.equal(product1.category, "Tee", "the original free-text category column must survive untouched");
+
+  // product_translations backfill: product-1's name_ro/description_ro must
+  // land as a real "ro" translation row.
+  const translation = upgraded.raw.prepare(
+    "SELECT * FROM product_translations WHERE product_id = ? AND language_code = 'ro'"
+  ).get("product-1");
+  assert.ok(translation, "a product with name_ro set must get a backfilled ro product_translations row");
+  assert.equal(translation.name, "Tricou de test");
+  assert.equal(
+    upgraded.raw.prepare("SELECT COUNT(*) AS n FROM product_translations WHERE product_id = ?").get("product-2").n,
+    0,
+    "a product with no name_ro/description_ro must not get a spurious translation row"
+  );
+
+  // email_templates rebuild: the pre-existing custom row must survive under
+  // the default language, not be dropped, with the composite key in place.
+  const templateColumns = upgraded.raw.prepare("PRAGMA table_info(email_templates)").all().map((c) => c.name);
+  assert.ok(templateColumns.includes("language_code"), "email_templates must gain language_code");
+  const template = upgraded.getEmailTemplate("order-received");
+  assert.equal(template.languageCode, "en", "pre-existing rows must land under the default language ('en')");
+  assert.equal(template.subject, "Custom subject", "pre-existing template content must survive the PK-shape rebuild");
+
+  upgraded.close();
+
+  // Re-opening a THIRD time must be a clean no-op - no duplicate categories,
+  // no duplicate translations, no re-thrown migration error.
+  const reopened = createDb({ dbPath });
+  assert.equal(reopened.raw.prepare("SELECT COUNT(*) AS n FROM categories").get().n, 2, "re-running the migration must not duplicate categories");
+  assert.equal(
+    reopened.raw.prepare("SELECT COUNT(*) AS n FROM product_translations WHERE product_id = ?").get("product-1").n,
+    1,
+    "re-running the migration must not duplicate product_translations"
+  );
   reopened.close();
 });
 

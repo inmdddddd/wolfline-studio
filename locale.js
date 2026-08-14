@@ -30,6 +30,94 @@
   const LANGUAGE_KEY = "beca-language";
   const LANGUAGE_SOURCE_KEY = "beca-language-source";
 
+  // Active languages + the country->language(->currency) mapping, fetched
+  // once and cached - lets detect()/language() generalize beyond the old
+  // inline RO/EN special case without every call site becoming async.
+  // Until the fetch resolves, isKnownLanguage()/defaultLanguageCode() fall
+  // back to exactly today's hardcoded en/ro behavior, so nothing regresses
+  // on a slow connection or the very first paint.
+  let languagesCache = null;
+  let countryConfigCache = null;
+
+  function loadLanguages() {
+    if (typeof fetch !== "function") return;
+    fetch("/api/languages", { headers: { Accept: "application/json" } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => setLanguages(data?.languages))
+      .catch(() => {});
+  }
+
+  function loadCountryConfig() {
+    if (typeof fetch !== "function") return;
+    fetch("/api/country-config", { headers: { Accept: "application/json" } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        setCountryConfig(data?.countryConfigs);
+        if (typeof document !== "undefined" && typeof CustomEvent === "function") {
+          document.dispatchEvent(new CustomEvent("beca:locale-change"));
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Exposed on window.BecaRegion alongside setRates - both the real
+  // fetch-then-cache loaders above and this file's own unit tests
+  // (test/locale.test.js, which run in a sandbox with no `fetch` global)
+  // use these to prime detection without a network round trip.
+  function setLanguages(list) {
+    languagesCache = Array.isArray(list) ? list : null;
+  }
+
+  function setCountryConfig(list) {
+    countryConfigCache = Array.isArray(list) ? list : null;
+  }
+
+  function defaultLanguageCode() {
+    const found = languagesCache?.find((entry) => entry.isDefault);
+    return found?.code || "en";
+  }
+
+  function isKnownLanguage(code) {
+    if (!code) return false;
+    if (languagesCache) return languagesCache.some((entry) => entry.code === code && entry.active);
+    return code === "en" || code === "ro";
+  }
+
+  // Optional override layer on top of the dictionary below (see the
+  // translations table's comment in lib/db.js) - fetched lazily per
+  // language the first time text() actually needs it, not eagerly for
+  // every active language up front. Undefined (not yet requested/loaded)
+  // reads as "no override" until the fetch resolves and a
+  // beca:locale-change re-render picks it up, exactly like gbpToRonRate's
+  // own load-then-event pattern above.
+  const translationOverrides = {};
+  const translationLoadStarted = {};
+
+  function ensureTranslationsLoaded(lang) {
+    if (!lang || translationLoadStarted[lang] || typeof fetch !== "function") return;
+    translationLoadStarted[lang] = true;
+    fetch(`/api/translations?lang=${encodeURIComponent(lang)}`, { headers: { Accept: "application/json" } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        translationOverrides[lang] = (data && data.translations) || {};
+        if (typeof document !== "undefined" && typeof CustomEvent === "function") {
+          document.dispatchEvent(new CustomEvent("beca:locale-change"));
+        }
+      })
+      .catch(() => {
+        translationOverrides[lang] = {};
+      });
+  }
+
+  // Test-only injection point (mirrors setLanguages/setCountryConfig above)
+  // - also marks the language as already-loaded so text() won't attempt a
+  // real fetch for it afterward.
+  function setTranslations(lang, map) {
+    if (!lang) return;
+    translationOverrides[lang] = map && typeof map === "object" ? map : {};
+    translationLoadStarted[lang] = true;
+  }
+
   const dictionary = {
     en: {
       piece: "Piece",
@@ -94,7 +182,22 @@
       "status.processing": "Processing",
       "status.shipped": "Shipped",
       "status.delivered": "Delivered",
-      "status.cancelled": "Cancelled"
+      "status.cancelled": "Cancelled",
+      itemSingular: "item",
+      itemPlural: "items",
+      "confirmation.title": "Order confirmed",
+      "confirmation.message": "Thank you — your order has been placed successfully. A confirmation email is on its way.",
+      "cart.itemsUnavailable": "Some items in your cart are no longer available and were removed.",
+      "confirmation.totalPaid": "Total paid",
+      "confirmation.continueShopping": "Continue shopping",
+      "checkout.noCardNote": "Card payment isn't available right now — we'll confirm your order and payment details by email.",
+      "checkout.selectCountry": "Select a country",
+      "checkout.selectCountryForDelivery": "Select a country above to see delivery options.",
+      "checkout.loadingDelivery": "Loading delivery options...",
+      "checkout.freeShippingNote": "Free shipping to this destination.",
+      "checkout.free": "Free",
+      "checkout.tax": "Tax",
+      "checkout.taxIncluded": "VAT (included)"
     },
     ro: {
       piece: "Piesa",
@@ -159,7 +262,22 @@
       "status.processing": "In procesare",
       "status.shipped": "Expediata",
       "status.delivered": "Livrata",
-      "status.cancelled": "Anulata"
+      "status.cancelled": "Anulata",
+      itemSingular: "articol",
+      itemPlural: "articole",
+      "confirmation.title": "Comanda confirmata",
+      "confirmation.message": "Multumim — comanda ta a fost plasata cu succes. Un email de confirmare este pe drum.",
+      "cart.itemsUnavailable": "Unele produse din cosul tau nu mai sunt disponibile si au fost eliminate.",
+      "confirmation.totalPaid": "Total platit",
+      "confirmation.continueShopping": "Continua cumparaturile",
+      "checkout.noCardNote": "Plata cu cardul nu este momentan disponibila — iti confirmam comanda si detaliile de plata prin email.",
+      "checkout.selectCountry": "Selecteaza o tara",
+      "checkout.selectCountryForDelivery": "Selecteaza o tara mai sus pentru a vedea optiunile de livrare.",
+      "checkout.loadingDelivery": "Se incarca optiunile de livrare...",
+      "checkout.freeShippingNote": "Livrare gratuita pentru aceasta destinatie.",
+      "checkout.free": "Gratuita",
+      "checkout.tax": "Taxa",
+      "checkout.taxIncluded": "TVA (inclus)"
     }
   };
 
@@ -192,41 +310,51 @@
     return -new Date().getTimezoneOffset() / 60;
   }
 
-  function detect() {
+  // Same narrow two-way heuristic as before ("looks Romanian" vs everything
+  // else) - real geo-IP / a general detectable-country list is explicitly
+  // out of scope (this only ever needs to distinguish one market from the
+  // rest). Returns the real ISO code "GB" now, not "UK" - a genuine bug fix:
+  // shipping_zones/tax_rates/checkout.js/country_config all key on "GB",
+  // so the old label only ever looked right, it never actually matched
+  // anything real.
+  function detectCountryCode() {
     const timeZone = getTimeZone();
     const offset = getUtcOffsetHours();
     const languages = navigator.languages || [navigator.language || ""];
     const browserIsRomanian = languages.some((language) => language.toLowerCase().startsWith("ro"));
 
-    if (timeZone === "Europe/Bucharest" || browserIsRomanian) {
-      // Without a configured, up-to-date rate the original currency (GBP)
-      // is displayed instead of an approximated RON value.
-      return {
-        country: "RO",
-        language: "ro",
-        currency: gbpToRonRate ? "RON" : "GBP",
-        locale: "ro-RO",
-        rateFromGBP: gbpToRonRate || 1
-      };
-    }
+    if (timeZone === "Europe/Bucharest" || browserIsRomanian) return "RO";
+    if (timeZone === "Europe/London" || offset <= 1) return "GB";
+    return "GB";
+  }
 
-    if (timeZone === "Europe/London" || offset <= 1) {
-      return {
-        country: "UK",
-        language: "en",
-        currency: "GBP",
-        locale: "en-GB",
-        rateFromGBP: 1
-      };
-    }
+  function detect() {
+    const country = detectCountryCode();
+    const mapping = countryConfigCache?.find((entry) => entry.countryCode === country);
+    // A real country_config mapping wins once loaded; until then (or if
+    // this country has none), fall back to the exact RO->ro / else->default
+    // guess this file has always made - not defaultLanguageCode() alone,
+    // which would show English to a Romanian visitor for as long as the
+    // country-config fetch is still in flight (or in non-fetch contexts,
+    // like this file's own unit tests).
+    const language = mapping?.languageCode || (country === "RO" ? "ro" : defaultLanguageCode());
+    const locale = language === "ro" ? "ro-RO" : "en-GB";
 
-    return {
-      country: "UK",
-      language: "en",
-      currency: "GBP",
-      locale: "en-GB",
-      rateFromGBP: 1
-    };
+    // The CURRENCY half stays exactly as narrow/opt-in as it always was,
+    // deliberately NOT generalized to "whatever country_config says" -
+    // this profile only ever backs the PRE-checkout browsing preview
+    // (product/shop/cart pages), which never resolves a real per-country
+    // price (see resolveProductPrice/resolveOrderPricing in server.js -
+    // that only ever runs at checkout). Labeling an unconverted browsing
+    // price with a currency country_config maps to, with no actual
+    // conversion rate behind it, would be exactly the mislabeling bug
+    // checkout.js's checkoutMoney() was fixed for this session - so this
+    // half of detect() intentionally still only ever returns GBP, or RON
+    // when the admin has explicitly configured a GBP_TO_RON_RATE.
+    if (country === "RO") {
+      return { country, language, currency: gbpToRonRate ? "RON" : "GBP", locale, rateFromGBP: gbpToRonRate || 1 };
+    }
+    return { country, language, currency: "GBP", locale, rateFromGBP: 1 };
   }
 
   function getForcedLanguage() {
@@ -237,7 +365,7 @@
     // guard keeps this loadable in non-DOM contexts (unit tests).
     if (typeof document === "undefined") return "";
     const forced = document.documentElement?.dataset?.forceLang;
-    return forced === "ro" || forced === "en" ? forced : "";
+    return isKnownLanguage(forced) ? forced : "";
   }
 
   function getProfile() {
@@ -253,21 +381,42 @@
     try {
       if (localStorage.getItem(LANGUAGE_SOURCE_KEY) !== "manual") return "";
       const value = localStorage.getItem(LANGUAGE_KEY);
-      return value === "ro" || value === "en" ? value : "";
+      return isKnownLanguage(value) ? value : "";
     } catch {
       return "";
     }
   }
 
   function language() {
-    return getProfile().language || "en";
+    return getProfile().language || defaultLanguageCode();
   }
 
+  // Fallback chain: brand override (aether/brand-copy.js, if the page sets
+  // one - highest priority, unchanged) -> DB override for the resolved
+  // language -> code-defined baseline for it -> DB override for the
+  // store's default language -> code-defined English baseline -> "" (never
+  // the raw key - the permanent fix for the old "shows cart.shippingFree"
+  // class of bug, not a per-key patch). ensureTranslationsLoaded is a cheap
+  // no-op once a language's overrides are cached/in-flight; a fetch that
+  // resolves later re-renders via the shared beca:locale-change event.
   function text(key, replacements = {}) {
     const lang = language();
-    const overrides = window.__BRAND_COPY__?.[lang] || {};
-    const pack = dictionary[lang] || dictionary.en;
-    let value = overrides[key] || pack[key] || dictionary.en[key] || key;
+    const defaultLang = defaultLanguageCode();
+    ensureTranslationsLoaded(lang);
+    if (defaultLang !== lang) ensureTranslationsLoaded(defaultLang);
+
+    const brandOverride = window.__BRAND_COPY__?.[lang]?.[key];
+    const dbOverride = translationOverrides[lang]?.[key];
+    // No `|| dictionary.en` fallback here - a language with NO code-defined
+    // dictionary at all (a real 3rd+ language; only en/ro ship one) must
+    // still fall through to dbOverrideDefault below before landing on
+    // English, not skip straight past it the way `dictionary[lang] ||
+    // dictionary.en` would.
+    const codeBaseline = dictionary[lang]?.[key];
+    const dbOverrideDefault = translationOverrides[defaultLang]?.[key];
+    const codeBaselineEn = dictionary.en[key];
+
+    let value = brandOverride || dbOverride || codeBaseline || dbOverrideDefault || codeBaselineEn || "";
     Object.entries(replacements).forEach(([name, replacement]) => {
       value = value.replace(new RegExp(`\\{${name}\\}`, "g"), replacement);
     });
@@ -292,8 +441,26 @@
     return "";
   }
 
+  // productTranslation(product, lang) looks up the NEW normalized
+  // product_translations row (server.js's publicProduct embeds it as
+  // product.translations) - the highest-priority source once an admin has
+  // actually translated something, since it is what the current admin
+  // form writes to. Everything below it (nameRo/descriptionRo/nameEn/
+  // descriptionEn, then collectionDescriptions) is the pre-existing
+  // fallback chain, kept exactly as it was for content that predates this
+  // table - in particular collectionDescriptions.en still holds the only
+  // real English copy for the 5 original seed products (their name_en/
+  // description_en columns were always empty, a bug fixed this session
+  // but with nothing to backfill from), so it is NOT retired even though
+  // the RO half of that same data did get backfilled into product_translations.
+  function productTranslation(product, lang) {
+    return (product?.translations || []).find((entry) => entry.languageCode === lang);
+  }
+
   function translateDescription(product) {
     if (!product) return "";
+    const translated = productTranslation(product, language())?.description;
+    if (translated) return translated;
     const key = collectionKey(product);
     const lang = language();
     if (lang === "ro" && product.descriptionRo) return product.descriptionRo;
@@ -304,11 +471,13 @@
 
   function displayProduct(product) {
     const lang = language();
+    const translated = productTranslation(product, lang);
     return {
       ...product,
-      displayName: lang === "ro" ? (product.nameRo || product.name) : (product.nameEn || product.name),
+      displayName: translated?.name || (lang === "ro" ? (product.nameRo || product.name) : (product.nameEn || product.name)),
       displayDescription: translateDescription(product),
-      displayCategory: translateCategory(product.category || "Piece")
+      displayShortDescription: translated?.shortDescription || "",
+      displayCategory: product?.categoryTranslations?.[lang] || translateCategory(product.category || "Piece")
     };
   }
 
@@ -320,6 +489,11 @@
   function countText(count) {
     const amount = Number(count || 0);
     return `${amount} ${text(amount === 1 ? "pieceSingular" : "piecePlural")}`;
+  }
+
+  function itemCountText(count) {
+    const amount = Number(count || 0);
+    return `${amount} ${text(amount === 1 ? "itemSingular" : "itemPlural")}`;
   }
 
   function convert(value, fromCurrency = "GBP") {
@@ -336,11 +510,36 @@
   function money(value, fromCurrency = "GBP") {
     const profile = getProfile();
     const converted = convert(value, fromCurrency);
-    return new Intl.NumberFormat(profile.locale, {
-      style: "currency",
-      currency: profile.currency,
-      maximumFractionDigits: profile.currency === "RON" ? 0 : 2
-    }).format(converted);
+
+    // Admin-configured symbol/decimalPlaces (currency.js) whenever a row
+    // exists for this currency - never Intl.NumberFormat's style:"currency"
+    // directly against an admin-typed code, which throws a RangeError for
+    // anything the JS engine's ICU data doesn't recognize (see currency.js's
+    // own comment). Once currency.js has loaded real config, this covers
+    // every currency the SAME safe way, GBP/RON included.
+    const config = window.BecaCurrency?.getCurrencyConfig?.(profile.currency);
+    if (config && window.BecaCurrency?.formatWithConfig) {
+      return window.BecaCurrency.formatWithConfig(converted, config);
+    }
+
+    // currency.js not loaded yet, or no config row for this currency. GBP/
+    // RON are the only two values detect() could ever produce before this
+    // session's country_config-driven language resolution existed, and
+    // both are real ISO codes Intl always recognizes - safe to keep the
+    // exact original formatting for them. Anything else reaching this path
+    // (a newly admin-added currency, before its config has loaded) gets the
+    // same crash-proof plain fallback BecaCurrency.formatExact uses, rather
+    // than risking a thrown RangeError on an unrecognized code.
+    if (profile.currency === "GBP" || profile.currency === "RON") {
+      const decimalPlaces = profile.currency === "RON" ? 0 : 2;
+      return new Intl.NumberFormat(profile.locale, {
+        style: "currency",
+        currency: profile.currency,
+        minimumFractionDigits: decimalPlaces,
+        maximumFractionDigits: decimalPlaces
+      }).format(converted);
+    }
+    return `${profile.currency} ${converted.toFixed(2)}`;
   }
 
   window.BecaRegion = {
@@ -354,9 +553,15 @@
     displayProduct,
     stockText,
     countText,
+    itemCountText,
     setRates,
-    getRates: () => ({ gbpToRon: gbpToRonRate, gbpToRonUpdatedAt })
+    getRates: () => ({ gbpToRon: gbpToRonRate, gbpToRonUpdatedAt }),
+    setLanguages,
+    setCountryConfig,
+    setTranslations
   };
 
   loadRates();
+  loadLanguages();
+  loadCountryConfig();
 })();

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Checkout / BeCa</title>
+  <meta name="description" content="Complete your BeCa order.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23050706%27/%3E%3Ctext x=%2732%27 y=%2746%27 font-family=%27Georgia,serif%27 font-size=%2742%27 font-weight=%27700%27 fill=%27%23e8b84b%27 text-anchor=%27middle%27%3EB%3C/text%3E%3C/svg%3E">
+  <script>
+    window.__BECA_IS_SAFARI__ = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+    if (window.__BECA_IS_SAFARI__) {
+      document.documentElement.classList.add("is-safari");
+    }
+  </script>
+  <link rel="stylesheet" href="styles.css?v=2026-08-14-1">
+  <!-- Square Web Payments SDK is loaded dynamically by checkout.js - the
+       script URL differs between sandbox and production (see loadSquareSdk),
+       which is only known at runtime from GET /api/square-config. -->
+</head>
+<body class="beca-minimal info-page">
+  <div class="cursor-glow" aria-hidden="true"></div>
+  <div class="site-scene" aria-hidden="true">
+    <div class="scene-aurora"></div>
+    <div class="scene-particles"></div>
+    <div class="scene-beams"></div>
+  </div>
+
+  <header class="header beca-header">
+    <a class="beca-logo" href="/" aria-label="BeCa">
+      <img class="beca-logo-img" src="assets/beca-logo.png?v=2" alt="" data-content-img="logoUrl">
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="/#drop" data-i18n="nav.drop">Drop</a>
+      <a href="/#quality" data-i18n="nav.quality">Quality</a>
+      <a href="/#contact" data-i18n="nav.contact">Contact</a>
+      <a href="/#login" data-auth-open="login" data-guest-only>Login</a>
+      <div class="profile-menu" data-user-only hidden>
+        <button type="button" class="profile-trigger" data-profile-toggle aria-expanded="false" aria-label="Profile menu">
+          <span data-user-initial>U</span>
+        </button>
+        <div class="profile-dropdown" data-profile-dropdown>
+          <div class="profile-dropdown-head">
+            <span class="profile-avatar" data-user-initial>U</span>
+            <div>
+              <strong data-user-name>Client</strong>
+              <span data-user-email></span>
+            </div>
+          </div>
+          <div class="profile-dropdown-list">
+            <a href="/account.html"><span class="profile-row-icon"><img src="assets/icon-user.png" alt=""></span><span data-i18n="nav.profile">My Profile</span></a>
+            <a href="/orders.html"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span><span data-i18n="nav.myOrders">My Orders</span></a>
+            <a href="/admin/dashboard.html" data-admin-only hidden><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span><span data-i18n="nav.adminPanel">Admin Panel</span></a>
+            <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span><span data-i18n="nav.settings">Settings</span></a>
+            <a href="/account.html#settings"><span class="profile-row-icon"><img src="assets/icon-privacy.png" alt=""></span><span data-i18n="nav.privacy">Privacy & Security</span></a>
+            <a href="/#contact"><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span><span data-i18n="nav.help">Help & Support</span></a>
+          </div>
+          <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span><span data-i18n="nav.logout">Logout</span></button>
+        </div>
+      </div>
+      <a class="header-cart-button" href="/cart" aria-label="Go to cart">
+        <svg class="header-cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 8h12l-1 12H7L6 8Z"/>
+          <path d="M9 8V6a3 3 0 0 1 6 0v2"/>
+        </svg>
+        <span class="header-cart-label" data-i18n="cart.goToCart">Go to cart</span>
+        <span class="header-cart-badge" data-cart-badge hidden>0</span>
+      </a>
+    </nav>
+    <button class="mobile-menu-trigger" type="button" data-mobile-menu-open aria-expanded="false" aria-label="Open menu">
+      <img src="assets/icon-menu.png" alt="">
+    </button>
+  </header>
+
+  <div class="mobile-menu" data-mobile-menu aria-hidden="true">
+    <button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Close menu"></button>
+    <aside class="mobile-menu-panel" aria-label="Mobile menu">
+      <div class="mobile-menu-head">
+        <a class="beca-logo mobile-menu-logo" href="/" data-mobile-menu-link aria-label="BeCa">
+          <img class="beca-logo-img" src="assets/beca-logo.png?v=2" alt="" data-content-img="logoUrl">
+        </a>
+        <button type="button" data-mobile-menu-close aria-label="Close menu" data-i18n="mobile.close">Close</button>
+      </div>
+
+      <div class="mobile-menu-section">
+        <a href="/#drop" data-mobile-menu-link data-i18n="nav.drop">Drop</a>
+        <a href="/#quality" data-mobile-menu-link data-i18n="nav.quality">Quality</a>
+        <a href="/#contact" data-mobile-menu-link data-i18n="nav.contact">Contact</a>
+        <a href="/cart" class="mobile-cart-link" data-mobile-menu-link>
+          <span data-i18n="cart.goToCart">Go to cart</span>
+          <span class="header-cart-badge" data-cart-badge hidden>0</span>
+        </a>
+      </div>
+
+      <div class="mobile-menu-section" data-guest-only>
+        <a href="/#login" data-auth-open="login" data-mobile-menu-link data-i18n="auth.login.tab">Login</a>
+        <a href="/#register" data-auth-open="register" data-mobile-menu-link data-i18n="auth.register.tab">Register</a>
+      </div>
+
+      <div class="mobile-profile-card" data-user-only hidden>
+        <div class="profile-dropdown-head">
+          <span class="profile-avatar" data-user-initial>U</span>
+          <div>
+            <strong data-user-name>Client</strong>
+            <span data-user-email></span>
+          </div>
+        </div>
+        <div class="profile-dropdown-list">
+          <a href="/account.html" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-user.png" alt=""></span><span data-i18n="nav.profile">My Profile</span></a>
+          <a href="/orders.html" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span><span data-i18n="nav.myOrders">My Orders</span></a>
+          <a href="/admin/dashboard.html" data-admin-only hidden data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span><span data-i18n="nav.adminPanel">Admin Panel</span></a>
+          <a href="/account.html#settings" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-setting.png" alt=""></span><span data-i18n="nav.settings">Settings</span></a>
+          <a href="/account.html#settings" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-privacy.png" alt=""></span><span data-i18n="nav.privacy">Privacy & Security</span></a>
+          <a href="/#contact" data-mobile-menu-link><span class="profile-row-icon"><img src="assets/icon-question.png" alt=""></span><span data-i18n="nav.help">Help & Support</span></a>
+        </div>
+        <button type="button" class="profile-logout-row" data-logout><span class="profile-row-icon"><img src="assets/icon-logout.png" alt=""></span><span data-i18n="nav.logout">Logout</span></button>
+      </div>
+
+      <div class="mobile-language-row" aria-label="Language">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="ro" aria-pressed="false">RO</button>
+      </div>
+    </aside>
+  </div>
+
+  <main class="shop-page-shell" data-checkout-page>
+    <div class="shop-page-head">
+      <ol class="shop-steps" aria-label="Checkout progress">
+        <li class="is-done" data-step="cart"><span>1</span><span data-i18n="steps.cart">Cart</span></li>
+        <li class="is-active" data-step="checkout"><span>2</span><span data-i18n="steps.checkout">Checkout</span></li>
+        <li data-step="confirmation"><span>3</span><span data-i18n="steps.confirmation">Confirmation</span></li>
+      </ol>
+      <h1 data-i18n="checkout.pageTitle">Checkout</h1>
+    </div>
+
+    <form class="shop-page-grid" data-checkout-form>
+      <div class="checkout-sections">
+        <section class="checkout-section">
+          <p class="checkout-section-title" data-i18n="checkout.contactInfo">Contact information</p>
+          <div class="checkout-form">
+            <label><span data-i18n="cart.name">Name</span><input name="customerName" autocomplete="name" required pattern="(?=.*[A-Za-zÀ-ÖØ-öø-ÿĂăÂâÎîȘșȚț]).{2,100}" title="Enter your real name (letters, not just numbers)."></label>
+            <div class="checkout-field-row">
+              <label><span data-i18n="cart.email">Email</span><input name="customerEmail" type="email" autocomplete="email" required></label>
+              <label><span data-i18n="cart.phone">Phone</span><input name="customerPhone" type="tel" autocomplete="tel" required pattern="[0-9+][0-9+\-\s().]{5,19}" title="Enter a valid phone number."></label>
+            </div>
+          </div>
+        </section>
+
+        <section class="checkout-section">
+          <p class="checkout-section-title" data-i18n="checkout.shippingAddress">Shipping address</p>
+          <div class="checkout-form">
+            <label><span data-i18n="checkout.country">Country</span><select name="addressCountry" autocomplete="country" required data-address-country><option value="" data-i18n="checkout.selectCountry">Select a country</option></select></label>
+            <label><span data-i18n="cart.address">Address</span><input name="addressLine" autocomplete="address-line1" required pattern="(?=.*[A-Za-zÀ-ÖØ-öø-ÿĂăÂâÎîȘșȚț]).{4,120}" title="Enter your street address (a street name, not just numbers)."></label>
+            <label><span data-i18n="checkout.apartment">Apartment / suite (optional)</span><input name="addressApartment" autocomplete="address-line2"></label>
+            <div class="checkout-field-row">
+              <label><span data-i18n="checkout.city">City</span><input name="addressCity" autocomplete="address-level2" required pattern="(?=.*[A-Za-zÀ-ÖØ-öø-ÿĂăÂâÎîȘșȚț]).{2,60}" title="Enter a valid city name."></label>
+              <label><span data-i18n="checkout.county">County / State</span><input name="addressCounty" autocomplete="address-level1"></label>
+            </div>
+            <label><span data-i18n="checkout.postalCode">Postal code</span><input name="addressPostalCode" autocomplete="postal-code" required pattern="[A-Za-z0-9][A-Za-z0-9\s-]{2,9}" title="Enter a valid postal code."></label>
+          </div>
+        </section>
+
+        <section class="checkout-section">
+          <p class="checkout-section-title" data-i18n="checkout.delivery">Delivery</p>
+          <div class="delivery-options" data-delivery-options>
+            <p class="delivery-option-meta" data-i18n="checkout.selectCountryForDelivery">Select a country above to see delivery options.</p>
+          </div>
+        </section>
+
+        <section class="checkout-section" data-payment-section>
+          <p class="checkout-section-title" data-i18n="checkout.payment">Payment</p>
+          <div class="checkout-form">
+            <label data-square-card-label><span data-i18n="cart.cardDetails">Card details</span><div class="square-card-container" data-square-card></div></label>
+            <p class="checkout-trust-note" data-payment-note data-i18n="checkout.paymentTrustNote">Card details are entered directly with Square and never reach our servers.</p>
+          </div>
+        </section>
+      </div>
+
+      <aside class="cart-panel shop-summary">
+        <h2 data-i18n="cart.summary">Order summary</h2>
+        <div class="shop-summary-rows" data-summary-items>
+        </div>
+        <div class="shop-summary-rows">
+          <div class="shop-summary-row">
+            <span data-i18n="cart.subtotal">Subtotal</span>
+            <span data-checkout-subtotal>GBP 0.00</span>
+          </div>
+          <div class="shop-summary-row">
+            <span data-i18n="cart.shipping">Shipping</span>
+            <span data-checkout-shipping>Free</span>
+          </div>
+          <div class="shop-summary-row" data-checkout-tax-row hidden>
+            <span data-checkout-tax-label>Tax</span>
+            <span data-checkout-tax>GBP 0.00</span>
+          </div>
+        </div>
+        <div class="shop-coupon">
+          <label for="couponCode" data-i18n="cart.coupon">Discount code (optional)</label>
+          <input id="couponCode" name="couponCode" autocomplete="off">
+        </div>
+        <div class="shop-summary-total">
+          <span data-i18n="cart.total">Total</span>
+          <strong data-checkout-total>GBP 0.00</strong>
+        </div>
+        <button type="submit" class="btn-gold" data-checkout-submit data-i18n="cart.placeOrder">Place order</button>
+        <p class="checkout-trust-note" data-i18n="checkout.trustNote">Your order is recorded in the currency shown at checkout. Your details are used only to process this order.</p>
+        <span class="form-message" data-checkout-message role="alert" aria-live="assertive"></span>
+      </aside>
+    </form>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-glow" aria-hidden="true"></div>
+    <div class="footer-top">
+      <a class="beca-logo" href="/" aria-label="BeCa">
+        <img class="beca-logo-img" src="assets/beca-logo.png?v=2" alt="" data-content-img="logoUrl">
+      </a>
+      <p class="footer-tagline" data-i18n="footer.tagline">Limited-run streetwear, made in Romania.</p>
+    </div>
+    <div class="footer-columns">
+      <div class="footer-col">
+        <strong data-i18n="footer.company">Company</strong>
+        <a href="/about.html" data-i18n="footer.about">About us</a>
+        <a href="/#contact" data-i18n="nav.contact">Contact</a>
+      </div>
+      <div class="footer-col">
+        <strong data-i18n="footer.help">Help</strong>
+        <a href="/faq.html" data-i18n="footer.faq">FAQ</a>
+        <a href="/support.html" data-i18n="footer.support">Support</a>
+      </div>
+      <div class="footer-col">
+        <strong data-i18n="footer.legal">Legal</strong>
+        <a href="/terms.html" data-i18n="footer.terms">Terms &amp; conditions</a>
+        <a href="/privacy.html" data-i18n="footer.privacy">Privacy policy</a>
+        <a href="/returns.html" data-i18n="footer.returns">Returns</a>
+        <a href="/shipping.html" data-i18n="footer.shipping">Shipping</a>
+        <a href="/cookies.html" data-i18n="footer.cookies">Cookies</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p class="footer-copy">&copy; 2026 BeCa. <span data-i18n="footer.rights">All rights reserved.</span></p>
+      <p class="footer-made">UI/UX &amp; Brand System &mdash; <strong>Wolfline Studio</strong></p>
+    </div>
+  </footer>
+
+  <script src="currency.js?v=2026-08-14-1"></script>
+  <script src="locale.js?v=2026-08-14-1"></script>
+  <script src="script.js?v=2026-08-14-2"></script>
+  <script src="checkout.js?v=2026-08-14-1"></script>
+  <script src="auth.js?v=2026-08-13"></script>
+  <script src="security.js?v=2026-08-13"></script>
+  <script src="editor.js?v=2026-08-13" defer></script>
+</body>
+</html>

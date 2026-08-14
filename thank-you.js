@@ -6,8 +6,11 @@
     return window.BecaRegion?.text?.(key, replacements) || fallback;
   }
 
+  // Exact mode: this order was already charged in `currency` - showing a
+  // live-converted number here (BecaRegion.money's job) would display an
+  // amount the customer never actually paid.
   function money(value, currency) {
-    return window.BecaRegion?.money?.(value, currency) || `${currency} ${Number(value || 0).toFixed(2)}`;
+    return window.BecaCurrency?.formatExact?.(value, currency) || `${currency} ${Number(value || 0).toFixed(2)}`;
   }
 
   function escapeHtml(value) {

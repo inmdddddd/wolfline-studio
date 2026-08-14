@@ -249,110 +249,33 @@ function renderProducts(products = []) {
       button.textContent = product.stock > 0 ? shopText("addToCart", "Add to cart") : shopText("soldOut", "Sold out");
     }
 
+    const priceGroup = document.createElement("div");
+    priceGroup.className = "product-price-group";
+    // publicProduct() already only sends compareAtPrice when it's genuinely
+    // higher than price, so no re-check is needed here.
+    if (!isPreviewProduct(product) && product.compareAtPrice) {
+      const comparePrice = document.createElement("del");
+      comparePrice.className = "product-compare-price";
+      comparePrice.textContent = shopMoney(product.compareAtPrice, product.currency);
+      priceGroup.appendChild(comparePrice);
+    }
+    priceGroup.appendChild(price);
+
     footer.className = "product-card-footer";
-    footer.append(price, button);
+    footer.append(priceGroup, button);
     card.append(media, meta, title, description, specs, sizeHint, footer);
     grid.appendChild(card);
   });
 }
 
-function renderCart(cart) {
-  const counts = document.querySelectorAll("[data-cart-count]");
-  const totals = document.querySelectorAll("[data-cart-total]");
-  const list = document.querySelector("[data-cart-items]");
-  const cartToggles = document.querySelectorAll("[data-cart-toggle]");
-  const cartActions = document.querySelector("[data-cart-actions]");
-
-  if (!counts.length || !totals.length || !list) return;
-  window.__BECA_LAST_CART_COUNT__ = cart.count || 0;
-
-  cartToggles.forEach((toggle) => {
-    toggle.hidden = !cart.count;
+// Header cart badge (desktop nav + mobile menu link) - the only "cart
+// rendering" this page still does; the cart's own contents live on /cart.
+function applyCartBadge(cart) {
+  document.querySelectorAll("[data-cart-badge]").forEach((element) => {
+    const count = Number(cart.count || 0);
+    element.textContent = String(count);
+    element.hidden = count === 0;
   });
-  if (cartActions) {
-    cartActions.hidden = !cart.count;
-  }
-
-  counts.forEach((count) => {
-    count.textContent = window.BecaRegion?.countText?.(cart.count) || `${cart.count || 0} ${cart.count === 1 ? "piece" : "pieces"}`;
-  });
-  totals.forEach((total) => {
-    total.textContent = shopMoney(cart.total, cart.currency);
-  });
-  list.innerHTML = "";
-
-  if (!cart.items.length) {
-    const empty = document.createElement("span");
-    empty.className = "cart-empty";
-    empty.textContent = shopText("noPieces", "No pieces selected yet.");
-    list.appendChild(empty);
-    setCartMode("cart");
-    return;
-  }
-
-  cart.items.forEach((item) => {
-    const row = document.createElement("div");
-    const thumb = document.createElement("div");
-    const thumbImg = document.createElement("img");
-    const info = document.createElement("div");
-    const title = document.createElement("strong");
-    const meta = document.createElement("span");
-    const controls = document.createElement("div");
-    const qty = document.createElement("input");
-    const remove = document.createElement("button");
-    const display = shopProduct(item.product);
-    const imageSrc = productImageSrc(item.product);
-
-    row.className = "cart-row";
-    thumb.className = "cart-row-thumb";
-    if (imageSrc) {
-      thumbImg.src = imageSrc;
-      thumbImg.alt = "";
-      thumbImg.loading = "lazy";
-      thumb.appendChild(thumbImg);
-    }
-    title.textContent = item.size ? `${display.displayName} (${item.size})` : display.displayName;
-    meta.textContent = `${item.qty} x ${shopMoney(item.product.price, item.product.currency)}`;
-    qty.type = "number";
-    qty.min = "1";
-    qty.max = String(Math.max(1, item.product.stock));
-    qty.value = item.qty;
-    qty.dataset.cartQty = item.key;
-    remove.type = "button";
-    remove.dataset.removeCart = item.key;
-    remove.textContent = shopText("remove", "Remove");
-
-    info.append(title, meta);
-    controls.append(qty, remove);
-    row.append(thumb, info, controls);
-    list.appendChild(row);
-  });
-}
-
-function setCartMode(mode = "cart") {
-  const drawer = document.querySelector("[data-cart-drawer]");
-  const checkoutPanel = document.querySelector("[data-checkout-panel]");
-  const paymentPanel = document.querySelector("[data-payment-panel]");
-  const cartActions = document.querySelector("[data-cart-actions]");
-  if (!drawer) return;
-
-  const hasItems = Number(window.__BECA_LAST_CART_COUNT__ || 0) > 0;
-  drawer.dataset.cartMode = mode;
-  if (checkoutPanel) checkoutPanel.hidden = mode !== "checkout";
-  if (paymentPanel) paymentPanel.hidden = mode !== "payment";
-  if (cartActions) cartActions.hidden = mode !== "cart" || !hasItems;
-}
-
-function setCartDrawer(open) {
-  const drawer = document.querySelector("[data-cart-drawer]");
-  const toggle = document.querySelector("[data-cart-toggle]");
-  if (!drawer || !toggle) return;
-
-  drawer.classList.toggle("is-open", open);
-  document.body.classList.toggle("is-cart-open", open);
-  drawer.setAttribute("aria-hidden", String(!open));
-  toggle.setAttribute("aria-expanded", String(open));
-  if (!open) setCartMode("cart");
 }
 
 function randomizeHeroShirt(products) {
@@ -377,20 +300,9 @@ async function loadShop() {
   ]);
 
   renderProducts(products);
-  renderCart(cart);
+  applyCartBadge(cart);
   randomizeHeroShirt(products);
   window.__BECA_SHOP_STATE__ = { products, cart };
-}
-
-async function hydrateCheckoutFromUser() {
-  const form = document.querySelector("[data-checkout-form]");
-  if (!form) return;
-
-  const { user } = await shopRequest("/api/me");
-  if (!user) return;
-
-  if (!form.elements.customerName.value) form.elements.customerName.value = user.name || "";
-  if (!form.elements.customerEmail.value) form.elements.customerEmail.value = user.email || "";
 }
 
 async function notifyForProduct(productId, button, preferredSize = "") {
@@ -418,40 +330,8 @@ async function notifyForProduct(productId, button, preferredSize = "") {
 document.addEventListener("click", async (event) => {
   const addButton = event.target.closest("[data-add-to-cart]");
   const notifyButton = event.target.closest("[data-notify-product]");
-  const removeButton = event.target.closest("[data-remove-cart]");
-  const cartToggle = event.target.closest("[data-cart-toggle]");
-  const cartClose = event.target.closest("[data-cart-close]");
-  const checkoutOpen = event.target.closest("[data-checkout-open]");
-  const checkoutBack = event.target.closest("[data-checkout-back]");
-  const paymentLater = event.target.closest("[data-payment-later]");
 
   try {
-    if (cartToggle) {
-      setCartDrawer(true);
-    }
-
-    if (cartClose) {
-      setCartDrawer(false);
-    }
-
-    if (checkoutOpen) {
-      setCartMode("checkout");
-      await hydrateCheckoutFromUser();
-    }
-
-    if (checkoutBack) {
-      setCartMode("cart");
-    }
-
-    if (paymentLater) {
-      // The order already exists server-side by this point (created when the
-      // checkout form was submitted) - there is nothing to "go back" to edit.
-      // Closing just leaves it pending/unpaid; the received email already
-      // sent has a link back to it, and the usual stock-reservation sweep
-      // cancels it automatically if it's genuinely abandoned.
-      setCartDrawer(false);
-    }
-
     if (addButton) {
       const card = addButton.closest(".product-card");
       const specs = card?.querySelector(".product-specs");
@@ -470,9 +350,12 @@ document.addEventListener("click", async (event) => {
         method: "POST",
         body: JSON.stringify({ productId: addButton.dataset.addToCart, qty: 1, size: selectedSize })
       });
-      renderCart(cart);
-      setCartDrawer(true);
-      addButton.disabled = false;
+      applyCartBadge(cart);
+      addButton.textContent = shopText("addedToCart", "Added to cart.");
+      window.setTimeout(() => {
+        addButton.disabled = false;
+        addButton.textContent = shopText("addToCart", "Add to cart");
+      }, 1400);
     }
 
     if (notifyButton) {
@@ -489,169 +372,14 @@ document.addEventListener("click", async (event) => {
         await notifyForProduct(notifyButton.dataset.notifyProduct, notifyButton, selectedSize);
       }
     }
-
-    if (removeButton) {
-      const { cart } = await shopRequest(`/api/cart/items/${encodeURIComponent(removeButton.dataset.removeCart)}`, {
-        method: "DELETE",
-        body: "{}"
-      });
-      renderCart(cart);
+  } catch (error) {
+    if (addButton) {
+      addButton.disabled = false;
+      addButton.textContent = error.message;
+      window.setTimeout(() => {
+        addButton.textContent = shopText("addToCart", "Add to cart");
+      }, 1800);
     }
-  } catch (error) {
-    const message = document.querySelector("[data-checkout-message]");
-    if (message) message.textContent = error.message;
-    if (addButton) addButton.disabled = false;
-  }
-});
-
-document.addEventListener("change", async (event) => {
-  const qty = event.target.closest("[data-cart-qty]");
-  if (!qty) return;
-
-  const { cart } = await shopRequest(`/api/cart/items/${encodeURIComponent(qty.dataset.cartQty)}`, {
-    method: "PUT",
-    body: JSON.stringify({ qty: qty.value })
-  });
-  renderCart(cart);
-});
-
-// Lazily initialized once per page load and reused across a single checkout -
-// Square's card element is expensive to (re)attach and this page only ever
-// needs one. currentPayOrder holds what the payment-submit handler below
-// needs (order id + its guest access token); null whenever the payment
-// panel isn't the active step.
-let squareCardInstance = null;
-let currentPayOrder = null;
-
-// Sandbox and production use different SDK script URLs, and the SDK
-// rejects an applicationId that doesn't match the environment it was loaded
-// for (a production app id against the sandbox script, or vice versa) -
-// which environment is actually configured is only known at runtime, from
-// the server, so this can't be a static <script> tag in index.html.
-let squareSdkLoadPromise = null;
-function loadSquareSdk(environment) {
-  if (window.Square) return Promise.resolve();
-  if (squareSdkLoadPromise) return squareSdkLoadPromise;
-
-  squareSdkLoadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = environment === "production"
-      ? "https://web.squarecdn.com/v1/square.js"
-      : "https://sandbox.web.squarecdn.com/v1/square.js";
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Square SDK script failed to load"));
-    document.head.appendChild(script);
-  });
-  return squareSdkLoadPromise;
-}
-
-async function ensureSquareCard() {
-  if (squareCardInstance) return squareCardInstance;
-
-  const config = await shopRequest("/api/square-config");
-  if (!config.enabled) return null;
-
-  try {
-    await loadSquareSdk(config.environment);
-  } catch {
-    return null;
-  }
-  if (!window.Square) return null;
-
-  const payments = window.Square.payments(config.applicationId, config.locationId);
-  const card = await payments.card();
-  await card.attach("[data-square-card]");
-  squareCardInstance = card;
-  return card;
-}
-
-// Returns true if the payment panel was actually shown (Square is configured
-// and the SDK initialized). false means the caller should fall back to the
-// pre-Square behavior (redirect straight to thank-you; the order stays
-// pending/unpaid for manual confirmation) - keeps checkout working exactly
-// as it does today on any deploy that hasn't set up Square yet.
-async function enterPaymentStep(order, token) {
-  let card = null;
-  try {
-    card = await ensureSquareCard();
-  } catch (error) {
-    card = null;
-  }
-  if (!card) return false;
-
-  currentPayOrder = { id: order.id, token };
-  const summary = document.querySelector("[data-payment-summary]");
-  if (summary) summary.textContent = shopText("payAmountDue", "Amount due: ") + shopMoney(order.total, order.currency);
-  const message = document.querySelector("[data-payment-message]");
-  if (message) {
-    message.dataset.type = "";
-    message.textContent = "";
-  }
-  setCartMode("payment");
-  return true;
-}
-
-document.querySelector("[data-checkout-form]")?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const message = form.querySelector("[data-checkout-message]");
-  const button = form.querySelector("button[type=submit]");
-  const data = Object.fromEntries(new FormData(form).entries());
-
-  message.dataset.type = "info";
-  message.textContent = shopText("sendingOrder", "Sending order...");
-  button.disabled = true;
-
-  try {
-    const { order, publicAccessToken } = await shopRequest("/api/checkout", {
-      method: "POST",
-      body: JSON.stringify(data)
-    });
-
-    const enteredPayment = await enterPaymentStep(order, publicAccessToken);
-    if (!enteredPayment) {
-      const tokenPart = publicAccessToken ? `&token=${encodeURIComponent(publicAccessToken)}` : "";
-      window.location.href = `/thank-you.html?order=${encodeURIComponent(order.id)}${tokenPart}`;
-    }
-  } catch (error) {
-    message.dataset.type = "";
-    message.textContent = error.message;
-  } finally {
-    button.disabled = false;
-  }
-});
-
-document.querySelector("[data-payment-submit]")?.addEventListener("click", async () => {
-  if (!currentPayOrder || !squareCardInstance) return;
-  const message = document.querySelector("[data-payment-message]");
-  const button = document.querySelector("[data-payment-submit]");
-
-  message.dataset.type = "info";
-  message.textContent = shopText("processingPayment", "Processing payment...");
-  button.disabled = true;
-
-  try {
-    const tokenResult = await squareCardInstance.tokenize();
-    if (tokenResult.status !== "OK") {
-      throw new Error(tokenResult.errors?.[0]?.message || shopText("cardDeclined", "Card was declined."));
-    }
-
-    const { order, publicAccessToken } = await shopRequest(`/api/orders/${encodeURIComponent(currentPayOrder.id)}/pay`, {
-      method: "POST",
-      body: JSON.stringify({ sourceId: tokenResult.token, token: currentPayOrder.token })
-    });
-
-    // The server rotates the guest access token on a real settlement, so the
-    // token this request was sent with is already stale by now - use the
-    // fresh one the response just handed back (falling back to the original
-    // only for the alreadyPaid/no-op case, where nothing was rotated).
-    const redirectToken = publicAccessToken || currentPayOrder.token;
-    const tokenPart = redirectToken ? `&token=${encodeURIComponent(redirectToken)}` : "";
-    window.location.href = `/thank-you.html?order=${encodeURIComponent(order.id)}${tokenPart}`;
-  } catch (error) {
-    message.dataset.type = "";
-    message.textContent = error.message;
-    button.disabled = false;
   }
 });
 
@@ -661,11 +389,10 @@ loadShop().catch(() => {
     grid.innerHTML = `<article class="shop-loading"><span>${shopText("drop", "Drop")}</span><h3>${shopText("productsLoadFailed", "Products could not load.")}</h3></article>`;
   }
 });
-hydrateCheckoutFromUser().catch(() => {});
 
 window.addEventListener("beca:locale-change", () => {
   const state = window.__BECA_SHOP_STATE__;
   if (!state) return;
   renderProducts(state.products);
-  renderCart(state.cart);
+  applyCartBadge(state.cart);
 });

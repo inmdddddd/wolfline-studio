@@ -93,6 +93,42 @@ test("detect falls back to the UK/GBP profile for non-RO languages", () => {
   assert.equal(profile.rateFromGBP, 1);
 });
 
+test("detect returns the real ISO code GB, not the old 'UK' label", () => {
+  // shipping_zones/tax_rates/checkout.js/country_config all key on "GB" -
+  // the old "UK" label only ever looked right, it never matched anything
+  // real downstream. Covers both branches that used to return it.
+  assert.equal(loadRegion({ languages: ["en-GB"] }).detect().country, "GB");
+  assert.equal(loadRegion({ languages: ["de-DE"], timeZone: "Europe/Berlin" }).detect().country, "GB");
+});
+
+test("detect resolves LANGUAGE from a real country_config mapping once loaded, overriding the RO/default guess", () => {
+  const region = loadRegion({ languages: ["ro-RO"] });
+  region.setLanguages([
+    { code: "en", isDefault: true, active: true },
+    { code: "hu", isDefault: false, active: true }
+  ]);
+  // Admin has explicitly mapped Romania to Hungarian (an unusual but valid
+  // choice) - once loaded, this real mapping wins over the built-in
+  // RO->ro guess.
+  region.setCountryConfig([{ countryCode: "RO", languageCode: "hu", currencyCode: "GBP" }]);
+  const profile = region.detect();
+  assert.equal(profile.country, "RO");
+  assert.equal(profile.language, "hu", "a real country_config mapping overrides the built-in RO->ro guess");
+});
+
+test("detect's CURRENCY half stays narrow even once country_config has loaded - never labels an unconverted price with a currency that has no real conversion rate", () => {
+  const region = loadRegion({ languages: ["fr-FR"], timeZone: "Europe/Paris" });
+  region.setCountryConfig([{ countryCode: "GB", languageCode: "fr", currencyCode: "EUR" }]);
+  const profile = region.detect();
+  assert.equal(profile.language, "fr", "language DOES follow the real mapping");
+  assert.equal(profile.currency, "GBP", "currency does NOT follow it - browsing-price currency stays GBP/RON-only, by design (decision #7)");
+});
+
+test("without any country_config loaded yet, detect still resolves RO->ro exactly like before (pre-fetch / test-sandbox safe)", () => {
+  const region = loadRegion({ languages: ["ro-RO"] });
+  assert.equal(region.detect().language, "ro");
+});
+
 test("getProfile honours a manual language override stored in localStorage", () => {
   const region = loadRegion({
     languages: ["en-GB"],
@@ -118,10 +154,43 @@ test("text looks up the active language and applies replacements", () => {
   const en = loadRegion({ languages: ["en-GB"] });
   assert.equal(en.text("addToCart"), "Add to cart");
   assert.equal(en.text("orderReceived", { number: "42" }), "Order 42 received.");
-  assert.equal(en.text("missingKey"), "missingKey", "unknown keys fall through to the key itself");
+  assert.equal(en.text("missingKey"), "", "an unknown key must NEVER surface the raw key itself - the permanent fix, not a per-key patch");
 
   const ro = loadRegion({ languages: ["ro-RO"] });
   assert.equal(ro.text("addToCart"), "Adauga in cos");
+});
+
+test("text's fallback chain: DB override for the active language wins over the code baseline", () => {
+  const en = loadRegion({ languages: ["en-GB"] });
+  en.setTranslations("en", { addToCart: "Buy now" });
+  assert.equal(en.text("addToCart"), "Buy now");
+  // A key with no override still falls through to the code baseline.
+  assert.equal(en.text("cart"), "Cart");
+});
+
+test("text falls back to a DB override for the DEFAULT language, then the English baseline, before giving up", () => {
+  const withDefault = loadRegion({
+    languages: ["en-GB"],
+    storage: { "beca-language-source": "manual", "beca-language": "fr" }
+  });
+  withDefault.setLanguages([
+    { code: "en", isDefault: true, active: true },
+    { code: "fr", isDefault: false, active: true }
+  ]);
+  // "fr" has no code-defined dictionary in this file at all (only en/ro
+  // ship a baseline - see decision #4: hardcoded dictionaries are NOT
+  // migrated) - a 3rd+ language leans on overrides, then English.
+  withDefault.setTranslations("en", { "checkout.free": "Gratis (EN override)" });
+  withDefault.setTranslations("fr", {});
+  assert.equal(withDefault.language(), "fr", "manual override must resolve to fr for this to actually exercise the fallback chain");
+  assert.equal(withDefault.text("checkout.free"), "Gratis (EN override)", "falls through to the default language's own DB override");
+  assert.equal(withDefault.text("cart"), "Cart", "falls all the way through to the English code baseline when nothing else matches");
+});
+
+test("a DB override for a language with its own code-defined baseline (ro) wins over that baseline", () => {
+  const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setTranslations("ro", { addToCart: "Cumpara acum" });
+  assert.equal(ro.text("addToCart"), "Cumpara acum");
 });
 
 test("translateCategory maps known categories and passes others through", () => {
@@ -182,4 +251,50 @@ test("displayProduct falls back to the base name when a locale name is absent", 
   const en = loadRegion({ languages: ["en-GB"] });
   const display = en.displayProduct({ name: "Instinct", category: "tee" });
   assert.equal(display.displayName, "Instinct");
+});
+
+test("displayProduct prefers the normalized product_translations row over nameRo/descriptionRo (the new admin form's own data source)", () => {
+  const ro = loadRegion({ languages: ["ro-RO"] });
+  const display = ro.displayProduct({
+    name: "Golden Hour Tee",
+    nameRo: "Tricou Ora de Aur (vechi)",
+    descriptionRo: "Descriere veche",
+    category: "tee",
+    translations: [
+      { languageCode: "ro", name: "Tricou Ora de Aur (nou)", description: "Descriere noua", shortDescription: "Scurt" }
+    ]
+  });
+
+  assert.equal(display.displayName, "Tricou Ora de Aur (nou)", "product_translations must win over the legacy nameRo column");
+  assert.equal(display.displayDescription, "Descriere noua");
+  assert.equal(display.displayShortDescription, "Scurt");
+});
+
+test("displayProduct falls back to nameRo/descriptionRo when no product_translations row exists for the active language", () => {
+  const ro = loadRegion({ languages: ["ro-RO"] });
+  const display = ro.displayProduct({
+    name: "Golden Hour Tee",
+    nameRo: "Tricou Ora de Aur",
+    descriptionRo: "Descriere RO",
+    category: "tee",
+    translations: [{ languageCode: "en", name: "Golden Hour Tee (EN)" }]
+  });
+
+  assert.equal(display.displayName, "Tricou Ora de Aur", "no ro translation row -> falls through to the legacy column, not the en row");
+  assert.equal(display.displayDescription, "Descriere RO");
+});
+
+test("displayProduct prefers categoryTranslations over the hardcoded tee/piece/drop matching", () => {
+  const ro = loadRegion({ languages: ["ro-RO"] });
+  const display = ro.displayProduct({
+    name: "Custom Piece",
+    category: "Hoodie",
+    categoryTranslations: { ro: "Hanorac", en: "Hoodie" }
+  });
+  assert.equal(display.displayCategory, "Hanorac");
+
+  // A category with no translations row for this language falls through
+  // to the old hardcoded matching (still correct for "tee"/"piece"/"drop").
+  const untranslated = ro.displayProduct({ name: "Tee", category: "tee", categoryTranslations: {} });
+  assert.equal(untranslated.displayCategory, "Tricou");
 });

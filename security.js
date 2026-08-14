@@ -35,8 +35,9 @@
 
   function boot() {
     hardenExternalLinks(document);
-    // Page scripts (thank-you.js / invoice.js) read the token synchronously
-    // at parse time; this runs afterwards, so removal is safe.
+    // Page scripts (thank-you.js / invoice.js / order-confirmation.js) read
+    // the token synchronously at parse time; this runs afterwards, so
+    // removal is safe.
     stripAccessTokenFromUrl();
 
     // Only walk what actually changed. Rescanning the whole document on every

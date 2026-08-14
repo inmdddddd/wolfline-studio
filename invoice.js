@@ -2,8 +2,10 @@
   const root = document.querySelector("[data-invoice-root]");
   if (!root) return;
 
+  // Exact mode: an invoice is a record of what was actually charged, never
+  // a live-converted display - zero conversion, ever.
   function money(value, currency) {
-    return `${currency} ${Number(value || 0).toFixed(2)}`;
+    return window.BecaCurrency ? window.BecaCurrency.formatExact(value, currency) : `${currency} ${Number(value || 0).toFixed(2)}`;
   }
 
   function escapeHtml(value) {

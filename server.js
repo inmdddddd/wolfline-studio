@@ -42,9 +42,9 @@ const path = require("path");
 
 const email = require("./lib/email");
 const square = require("./lib/square");
-const resend = require("./lib/resend");
 const { createStorage } = require("./lib/storage");
 const { createDb } = require("./lib/db");
+const { toSlug } = require("./lib/slug");
 
 // White-label support: this whole codebase (engine, data model, admin, email
 // logic) is shared across brands. What differs per brand is: which JSON config
@@ -129,6 +129,16 @@ function sortGenealogyProducts(a, b) {
   const createdDifference = new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
   if (createdDifference) return createdDifference;
   return String(a.id || "").localeCompare(String(b.id || ""));
+}
+
+// Featured items surface first on the public storefront, without disturbing
+// the admin's manual drag-order (chapterProductOrder) within each group -
+// featured products keep their relative order among themselves, same for
+// the rest.
+function sortProductsForDisplay(a, b) {
+  const featuredDifference = (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+  if (featuredDifference) return featuredDifference;
+  return sortGenealogyProducts(a, b);
 }
 
 // A brand's own public/ directory (BeCa's is "." - the project root itself,
@@ -332,7 +342,13 @@ const LEGACY_CLAIM_REPLACEMENTS = {
     ],
     "checkout.trustNote": [
       ["Your details are encrypted and used only to process this order.",
-        "Orders are recorded in GBP; prices shown in other currencies are indicative. Your details are used only to process this order."]
+        "Orders are recorded in GBP; prices shown in other currencies are indicative. Your details are used only to process this order."],
+      // The "always GBP" claim stopped being true once country-based pricing
+      // could resolve an order to a different admin-configured currency -
+      // same replace-only-the-known-legacy-string approach as the hop above,
+      // so a real admin customization of this field is never touched.
+      ["Orders are recorded in GBP; prices shown in other currencies are indicative. Your details are used only to process this order.",
+        "Your order is recorded in the currency shown at checkout. Your details are used only to process this order."]
     ],
     "privacy.s2.body": [
       ["Account data (name, email, encrypted password), order data (name, email, phone, delivery address) and payment data (processed directly by Stripe; we do not store card numbers).",
@@ -349,7 +365,9 @@ const LEGACY_CLAIM_REPLACEMENTS = {
     ],
     "checkout.trustNote": [
       ["Datele tale sunt criptate si folosite doar pentru procesarea acestei comenzi.",
-        "Comanda se inregistreaza in GBP; preturile afisate in alte monede sunt orientative. Datele tale sunt folosite doar pentru procesarea acestei comenzi."]
+        "Comanda se inregistreaza in GBP; preturile afisate in alte monede sunt orientative. Datele tale sunt folosite doar pentru procesarea acestei comenzi."],
+      ["Comanda se inregistreaza in GBP; preturile afisate in alte monede sunt orientative. Datele tale sunt folosite doar pentru procesarea acestei comenzi.",
+        "Comanda ta se inregistreaza in moneda afisata la finalizarea comenzii. Datele tale sunt folosite doar pentru procesarea acestei comenzi."]
     ],
     "privacy.s2.body": [
       ["Date de cont (nume, email, parola criptata), date de comanda (nume, email, telefon, adresa de livrare) si date de plata (procesate direct de Stripe; noi nu stocam numere de card).",
@@ -1016,14 +1034,20 @@ function safePublicUser(user) {
   };
 }
 
-function toSlug(value) {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+// {languageCode: translatedName} for this product's category, resolved
+// from the normalized categories/category_translations tables via
+// product.categoryId - NOT a second stored copy of anything, always a
+// live lookup. Empty object when the product has no category yet, or (a
+// graceful-degradation case - category_id carries no FK constraint, same
+// reasoning as orders.shipping_method_id) when categoryId points at a row
+// that no longer exists.
+function publicCategoryTranslations(product) {
+  if (!product.categoryId) return {};
+  const category = db.getCategoryById(product.categoryId);
+  if (!category) return {};
+  const map = {};
+  category.translations.forEach((entry) => { map[entry.languageCode] = entry.name; });
+  return map;
 }
 
 function publicProduct(product) {
@@ -1035,6 +1059,7 @@ function publicProduct(product) {
     nameRo: product.nameRo || "",
     nameEn: product.nameEn || "",
     category: product.category,
+    categoryTranslations: publicCategoryTranslations(product),
     status: product.status,
     price: product.price,
     currency: product.currency,
@@ -1055,7 +1080,55 @@ function publicProduct(product) {
       model: product.studio.model || "assets/models/tshirt-web.glb",
       textureUrl: product.studio.textureUrl || "",
       shirtColor: product.studio.shirtColor || "#ffffff"
-    } : null
+    } : null,
+    sku: product.sku || "",
+    // compareAtPrice is only meaningful as a strike-through when it's
+    // actually higher than the real price - a stale/misconfigured value
+    // below price would advertise a fake discount.
+    compareAtPrice: product.compareAtPrice && product.compareAtPrice > product.price ? product.compareAtPrice : null,
+    seoTitle: product.seoTitle || "",
+    seoDescription: product.seoDescription || "",
+    canonicalUrl: product.canonicalUrl || "",
+    featured: Boolean(product.featured),
+    tags: (product.tags || []).map((tag) => ({ id: tag.id, name: tag.name, slug: tag.slug })),
+    // Normalized per-language content (product_translations) - the
+    // fallback chain (translation -> nameRo/descriptionRo/nameEn/
+    // descriptionEn above -> the hardcoded collectionDescriptions -> base
+    // name/description) lives client-side in locale.js's displayProduct(),
+    // same layering the rest of this session's i18n work uses everywhere
+    // else (DB override wins, code baseline is the safety net).
+    translations: (product.translations || []).map((entry) => ({
+      languageCode: entry.languageCode,
+      name: entry.name || "",
+      description: entry.description || "",
+      shortDescription: entry.shortDescription || "",
+      seoTitle: entry.seoTitle || "",
+      seoDescription: entry.seoDescription || ""
+    }))
+    // costPrice, barcode, weightGrams, dimensions and metadata stay
+    // internal - no storefront surface needs them yet, and costPrice in
+    // particular must never reach a customer-facing response.
+  };
+}
+
+// countryCode null/omitted => identical to publicProduct(product), the
+// product's own base price/currency (every existing caller before this
+// session, unchanged). A real country code re-resolves price/
+// compareAtPrice/currency through resolveProductPrice against the RAW
+// product (which publicProduct() itself never sees - it only receives the
+// already-resolved numbers) and redoes publicProduct()'s own "only show
+// compareAtPrice when it's genuinely higher" check against THOSE resolved
+// values, since a compare-at price from one currency compared against a
+// price in another would be meaningless.
+function publicProductInCountry(product, countryCode) {
+  const base = publicProduct(product);
+  if (!countryCode) return base;
+  const resolved = resolveProductPrice(product, countryCode);
+  return {
+    ...base,
+    price: resolved.price,
+    currency: resolved.currency,
+    compareAtPrice: resolved.compareAtPrice && resolved.compareAtPrice > resolved.price ? resolved.compareAtPrice : null
   };
 }
 
@@ -1288,6 +1361,16 @@ function publicOrder(order) {
     total: order.total,
     discount: order.discount || 0,
     couponCode: order.couponCode || null,
+    shipping: {
+      methodName: order.shipping?.methodName || null,
+      cost: order.shipping?.cost || 0
+    },
+    tax: {
+      name: order.tax?.name || null,
+      rateValue: order.tax?.rateValue ?? null,
+      amount: order.tax?.amount || 0,
+      inclusive: Boolean(order.tax?.inclusive)
+    },
     customerEmail: order.customerEmail,
     customerPhone: order.customerPhone,
     items: (order.items || []).map((item) => ({
@@ -1382,13 +1465,24 @@ function sanitizeContentDictionary(dictionary) {
   return result;
 }
 
+// Iterates every language ever seen (active languages first, so a fresh
+// content.json always gets a key for each - plus any language code already
+// present in the stored file, so content for a language an admin later
+// deactivates is preserved rather than silently dropped on the next save).
+// Not migrated from the old literal ["en","ro"] shape - a stored file with
+// only en/ro keys reads back identically either way, so upgrading is a
+// no-op until a 3rd+ language is actually used.
 function sanitizeContent(content) {
   const base = content && typeof content === "object" ? content : {};
-  return {
-    en: sanitizeContentDictionary(base.en),
-    ro: sanitizeContentDictionary(base.ro),
-    branding: sanitizeBranding(base.branding)
-  };
+  const languageCodes = new Set(db.listLanguages().map((language) => language.code));
+  Object.keys(base).forEach((key) => {
+    if (key !== "branding") languageCodes.add(key);
+  });
+  const result = { branding: sanitizeBranding(base.branding) };
+  languageCodes.forEach((code) => {
+    result[code] = sanitizeContentDictionary(base[code]);
+  });
+  return result;
 }
 
 function sameOriginPost(request) {
@@ -1523,6 +1617,53 @@ function totalStockFromSizeStock(sizeStock) {
   return Object.values(sizeStock).reduce((sum, qty) => sum + Math.max(0, Math.floor(Number(qty) || 0)), 0);
 }
 
+// "key: value" per line -> a plain object. Free-form admin-authored product
+// attributes (material, care instructions, ...) that don't fit the fixed
+// columns above - capped so a pasted wall of text can't bloat the row.
+function parseProductMetadata(text) {
+  const lines = String(text || "").split("\n").slice(0, 20);
+  const metadata = {};
+  for (const line of lines) {
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex === -1) continue;
+    const key = line.slice(0, separatorIndex).trim().slice(0, 60);
+    const value = line.slice(separatorIndex + 1).trim().slice(0, 200);
+    if (key && value) metadata[key] = value;
+  }
+  return Object.keys(metadata).length ? metadata : undefined;
+}
+
+function metadataToText(metadata) {
+  if (!metadata) return "";
+  return Object.entries(metadata).map(([key, value]) => `${key}: ${value}`).join("\n");
+}
+
+// null or an empty string both mean "clear this field"; anything else must
+// be a valid non-negative number. JSON null needs its own check because
+// String(null) is the literal text "null", not an empty string - without
+// this, echoing a product's own publicProduct() payload back (compareAtPrice:
+// null when unset) would fail validation instead of clearing the field.
+function parseOptionalNonNegativeNumber(value, fieldLabel) {
+  if (value === null || String(value).trim() === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    const error = new Error(`${fieldLabel} must be a non-negative number.`);
+    error.statusCode = 400;
+    throw error;
+  }
+  return parsed;
+}
+
+// Same local-path-or-https shape as isApprovedImageUrl, just without the
+// image-extension requirement - a canonical URL points at an HTML page.
+function isApprovedCanonicalUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw || raw.length > 300 || /[\s<>"']/.test(raw)) return false;
+  if (/^https:\/\/[^/]+\/?.*/i.test(raw)) return true;
+  if (raw.startsWith("/") && !raw.startsWith("//")) return true;
+  return false;
+}
+
 function sanitizeProduct(input, existing = {}) {
   const price = Number(input.price);
   const inputStock = Number(input.stock);
@@ -1581,6 +1722,51 @@ function sanitizeProduct(input, existing = {}) {
     }
   }
 
+  // null or an empty field both mean "clear it" - see
+  // parseOptionalNonNegativeNumber's comment for why null needs its own
+  // check. Only an actual invalid (non-empty, non-numeric, or negative)
+  // value is rejected outright.
+  let compareAtPrice = existing.compareAtPrice ?? null;
+  if (input.compareAtPrice !== undefined) {
+    compareAtPrice = parseOptionalNonNegativeNumber(input.compareAtPrice, "Compare-at price");
+  }
+
+  let costPrice = existing.costPrice ?? null;
+  if (input.costPrice !== undefined) {
+    costPrice = parseOptionalNonNegativeNumber(input.costPrice, "Cost price");
+  }
+
+  let weightGrams = existing.weightGrams ?? null;
+  if (input.weightGrams !== undefined) {
+    const parsed = parseOptionalNonNegativeNumber(input.weightGrams, "Weight");
+    weightGrams = parsed === null ? null : Math.round(parsed);
+  }
+
+  let dimensions = existing.dimensions;
+  if (input.dimensionsLength !== undefined || input.dimensionsWidth !== undefined || input.dimensionsHeight !== undefined) {
+    const length = Number(input.dimensionsLength);
+    const width = Number(input.dimensionsWidth);
+    const height = Number(input.dimensionsHeight);
+    if ([length, width, height].every((value) => Number.isFinite(value) && value > 0)) {
+      dimensions = { length, width, height, unit: String(input.dimensionsUnit || "cm").trim().slice(0, 10) || "cm" };
+    } else if (![length, width, height].some((value) => Number.isFinite(value) && value > 0)) {
+      dimensions = undefined;
+    }
+  }
+
+  const canonicalUrl = input.canonicalUrl !== undefined
+    ? (isApprovedCanonicalUrl(input.canonicalUrl) ? String(input.canonicalUrl).trim().slice(0, 300) : "")
+    : (existing.canonicalUrl || "");
+
+  // Comma-separated ids (the multipart product form's shape - see sizes for
+  // the same convention) rather than repeated same-name fields, since
+  // parseMultipart keeps the last value for a repeated field name, not an
+  // array. Unknown ids are dropped silently rather than rejecting the save -
+  // a stale id from a deleted tag must not block editing the product.
+  const tagIds = input.tagIds !== undefined
+    ? [...new Set(String(input.tagIds).split(",").map((id) => id.trim()).filter(Boolean))].filter((id) => db.getTagById(id))
+    : (existing.tags || []).map((tag) => tag.id);
+
   return {
     ...existing,
     id: existing.id || crypto.randomUUID(),
@@ -1599,7 +1785,7 @@ function sanitizeProduct(input, existing = {}) {
     nameRo: String(input.nameRo || existing.nameRo || "").trim().slice(0, 100),
     nameEn: String(input.nameEn || existing.nameEn || "").trim().slice(0, 100),
     category: String(input.category || "").trim().slice(0, 60),
-    status: ["draft", "preview", "live", "sold-out"].includes(input.status) ? input.status : "draft",
+    status: ["draft", "preview", "live", "sold-out", "archived"].includes(input.status) ? input.status : "draft",
     price: Number.isFinite(price) ? Math.max(0, price) : 0,
     currency: String(input.currency || "GBP").trim().slice(0, 8).toUpperCase(),
     stock,
@@ -1612,34 +1798,85 @@ function sanitizeProduct(input, existing = {}) {
     descriptionEn: String(input.descriptionEn || existing.descriptionEn || "").trim().slice(0, 900),
     chapterId,
     chapterProductOrder,
+    sku: String(input.sku ?? existing.sku ?? "").trim().slice(0, 64),
+    barcode: String(input.barcode ?? existing.barcode ?? "").trim().slice(0, 64),
+    weightGrams,
+    dimensions,
+    compareAtPrice,
+    costPrice,
+    seoTitle: String(input.seoTitle ?? existing.seoTitle ?? "").trim().slice(0, 70),
+    seoDescription: String(input.seoDescription ?? existing.seoDescription ?? "").trim().slice(0, 160),
+    canonicalUrl,
+    metadata: input.metadataText !== undefined ? parseProductMetadata(input.metadataText) : existing.metadata,
+    featured: input.featured !== undefined ? Boolean(input.featured) : Boolean(existing.featured),
+    tagIds,
     updatedAt: new Date().toISOString(),
     createdAt: existing.createdAt || new Date().toISOString()
   };
 }
 
-function buildCartPayload(cart) {
+// Resolves-or-creates the normalized categories row underneath
+// sanitizeProduct's free-text category field and sets categoryId on the
+// object - called by every route right before db.upsertProduct(), never
+// inside sanitizeProduct itself (which stays a pure shaping function, no DB
+// access, matching how tagIds is already resolved by the caller before
+// reaching it). The admin UX for category never changes: it is still a
+// plain text field/bulk-action value, this only maintains the row that
+// lets that value carry per-language translations.
+function applyProductCategory(product) {
+  if (!product.category) {
+    product.categoryId = null;
+    return product;
+  }
+  const category = db.resolveOrCreateCategory(product.category, toSlug(product.category));
+  product.categoryId = category.id;
+  return product;
+}
+
+// countryCode omitted => every item prices at its own base price/currency,
+// exactly today's behavior (cart browsing - GET/add/remove - never passes
+// one, unchanged). Passing one is ONLY safe once resolveOrderPricing has
+// already confirmed every item in this cart actually has an active
+// override for it - buildCartPayload itself does not re-validate that, so
+// every call site here that resolves a real country does so through
+// resolveOrderPricing first (see the checkout handler and
+// /api/checkout-options), never by guessing a country and hoping.
+function buildCartPayload(cart, countryCode) {
   const products = db.listProducts();
-  const items = Object.entries(cart.items || {})
-    .map(([key, qty]) => {
+  const storedKeys = Object.keys(cart.items || {});
+  const items = storedKeys
+    .map((key) => {
+      const qty = cart.items[key];
       const { productId, size } = parseCartKey(key);
       const product = products.find((item) => item.id === productId);
       if (!product || !productCanBePurchased(product)) return null;
       const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
+      const resolved = resolveProductPrice(product, countryCode);
       return {
         key,
         size,
-        product: publicProduct(product),
+        product: { ...publicProduct(product), price: resolved.price, compareAtPrice: resolved.compareAtPrice, currency: resolved.currency },
         qty: safeQty,
-        subtotal: (Number(product.price) || 0) * safeQty
+        subtotal: (Number(resolved.price) || 0) * safeQty
       };
     })
     .filter(Boolean);
+
+  // Deliberate now, not an accident of iteration order - derived from the
+  // COUNTRY this whole payload was resolved for (via country_config), the
+  // same for every item in it, never read off items[0].
+  const currency = countryCode ? (db.getCountryConfig(countryCode)?.currencyCode || db.getDefaultCurrencyCode()) : db.getDefaultCurrencyCode();
 
   return {
     items,
     count: items.reduce((total, item) => total + item.qty, 0),
     total: items.reduce((total, item) => total + item.subtotal, 0),
-    currency: items[0]?.product.currency || "GBP"
+    currency,
+    // A stored key that no longer resolves to a purchasable product (deleted,
+    // sold out, unpublished since it was added) - surfaced so the client can
+    // tell the customer their cart changed instead of the total just quietly
+    // being lower than expected.
+    droppedCount: storedKeys.length - items.length
   };
 }
 
@@ -1650,6 +1887,24 @@ function sanitizeCheckout(input, session) {
     customerEmail: normalizeEmail(input.customerEmail || input.email || user?.email || ""),
     customerPhone: String(input.customerPhone || input.phone || "").trim().slice(0, 30),
     customerAddress: String(input.customerAddress || input.address || "").trim().slice(0, 500),
+    // No .slice(0, 2) here: truncating before the caller's /^[A-Z]{2}$/
+    // check would let "Romania" silently pass as "RO" - the exact
+    // accepts-garbage-input bug class this checkout already had to fix once
+    // (the "323" name / invisible-button incident). Anything that isn't
+    // already exactly 2 letters must fail validation, not get coerced into it.
+    customerCountry: String(input.customerCountry || input.country || "").trim().toUpperCase(),
+    // Which language to send order-lifecycle emails in - the customer's
+    // own active site language at checkout time (checkout.js sends
+    // window.BecaRegion.language()), independent of shipping country (a
+    // Romanian-speaker shipping to the UK, or vice versa, is a real case).
+    // Never trusted blindly: falls back to the store's default language
+    // for anything that isn't a real, currently-active language code, the
+    // same defensive posture customerCountry already has for garbage input.
+    customerLanguage: (() => {
+      const code = String(input.customerLanguage || "").trim().toLowerCase();
+      const language = code && db.getLanguageByCode(code);
+      return language && language.active ? code : db.getDefaultLanguageCode();
+    })(),
     notes: String(input.notes || "").trim().slice(0, 500)
   };
 }
@@ -1802,6 +2057,61 @@ async function handleAuth(request, response, pathname) {
     // Every other session of this account is logged out; only the session
     // that changed the password stays valid.
     invalidateUserSessions(session.user.id, session.id);
+
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  // Self-service "right to erasure" for the account itself. Orders are
+  // deliberately left untouched: they already carry their own customerName/
+  // Email/Phone/Address snapshot independent of the users table (see
+  // rowToOrder in lib/db.js), and the privacy policy explicitly promises
+  // account deletion "except data we are legally required to keep" (order/
+  // accounting records). Anonymizing here can never corrupt that history.
+  if (request.method === "PUT" && pathname === "/api/account/delete") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+
+    const session = getSession(request);
+    if (!session) {
+      json(response, 401, { error: "Login required." });
+      return true;
+    }
+
+    if (isRateLimited(`account-delete:${session.user.id}`, 5, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
+    // Admin accounts are excluded - deleting the account backing the site's
+    // own admin access is exactly what anyAdminHasPrimaryFlag/oldestAdminUser
+    // elsewhere exist to protect against; an admin who genuinely needs to
+    // leave should be handled deliberately by another admin, not this
+    // one-click self-service path.
+    if (session.user.role !== "client") {
+      json(response, 403, { error: "Contul de admin nu poate fi sters din acest ecran." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const currentUser = db.getUserById(session.user.id);
+    if (!currentUser || !verifyPassword(String(body.password || ""), currentUser.passwordHash)) {
+      json(response, 401, { error: "Parola nu este corecta." });
+      return true;
+    }
+
+    db.updateUser(session.user.id, {
+      name: "Deleted user",
+      email: `deleted-${session.user.id}@deleted.invalid`,
+      // Not left as-is: the anonymized row must never be a valid login,
+      // even by coincidence of someone knowing the original password.
+      passwordHash: hashPassword(crypto.randomUUID())
+    });
+
+    invalidateUserSessions(session.user.id, null);
+    clearSessionCookie(response);
 
     json(response, 200, { ok: true });
     return true;
@@ -2032,17 +2342,144 @@ async function handleShopApi(request, response, pathname) {
     return true;
   }
 
-  // Display-currency configuration. Orders are always recorded in the
-  // product currency (GBP); any RON display is an indicative conversion made
-  // client-side with this rate. No rate configured => clients show the
+  // Display-currency configuration for locale.js's PROFILE-mode browsing
+  // preview only (never what actually gets charged - see resolveOrderPricing
+  // for that). orderCurrency is the store's default currency, not a
+  // hardcoded "GBP" literal, so this stays correct if an admin ever changes
+  // the default. Any RON display is an indicative conversion made
+  // client-side with this rate; no rate configured => clients show the
   // original currency instead of guessing.
   if (pathname === "/api/region-config" && request.method === "GET") {
     const rate = Number(process.env.GBP_TO_RON_RATE);
     json(response, 200, {
-      orderCurrency: "GBP",
+      orderCurrency: db.getDefaultCurrencyCode(),
       gbpToRon: Number.isFinite(rate) && rate > 0 ? rate : null,
       gbpToRonUpdatedAt: process.env.GBP_TO_RON_UPDATED_AT || null,
       conversionIsIndicative: true
+    });
+    return true;
+  }
+
+  if (pathname === "/api/languages" && request.method === "GET") {
+    json(response, 200, { languages: db.listLanguages().filter((language) => language.active) });
+    return true;
+  }
+
+  if (pathname === "/api/currencies" && request.method === "GET") {
+    json(response, 200, { currencies: db.listCurrencies().filter((currency) => currency.active) });
+    return true;
+  }
+
+  // Public (unlike /api/admin/country-config, which also joins live
+  // shipping/tax zone names for the admin screen) - just the raw
+  // country->language->currency mapping, which locale.js needs client-side
+  // to generalize country/language detection beyond the old inline RO
+  // special case. No auth needed: this is the same trust level as
+  // /api/languages and /api/currencies above (admin-configured but not
+  // secret - a visitor's own browser already reveals which country/language
+  // it resolves to).
+  if (pathname === "/api/country-config" && request.method === "GET") {
+    json(response, 200, {
+      countryConfigs: db.listCountryConfig().map((config) => ({
+        countryCode: config.countryCode,
+        languageCode: config.languageCode,
+        currencyCode: config.currencyCode
+      }))
+    });
+    return true;
+  }
+
+  // Override-only layer on top of locale.js's/script.js's hardcoded
+  // dictionaries (see the translations table's comment in lib/db.js) - a
+  // flat {key: value} map for ONE language, not a full dictionary dump.
+  // An unknown/missing/inactive lang returns an empty map, same
+  // "garbage input never breaks the response" posture as ?country=/?tag=
+  // elsewhere in this file - the caller's own hardcoded baseline is always
+  // the real fallback, this is never the only source of truth.
+  if (pathname === "/api/translations" && request.method === "GET") {
+    const target = new URL(request.url, `http://${request.headers.host}`);
+    const lang = String(target.searchParams.get("lang") || "").trim().toLowerCase();
+    const language = lang && db.getLanguageByCode(lang);
+    const rows = language && language.active ? db.listTranslations(lang) : [];
+    const translations = {};
+    rows.forEach((row) => { translations[row.key] = row.value; });
+    json(response, 200, { translations });
+    return true;
+  }
+
+  // Lets checkout show real shipping choices and a tax preview for the
+  // country the customer picked, before they submit. No zone/method/rate
+  // configured for a country is not an error - see resolveShipping's
+  // comment: it degrades to free shipping, same graceful-degradation shape
+  // as /api/region-config and /api/square-config above.
+  if (pathname === "/api/checkout-options" && request.method === "GET") {
+    const target = new URL(request.url, `http://${request.headers.host}`);
+    const country = String(target.searchParams.get("country") || "").trim().toUpperCase();
+
+    if (!/^[A-Z]{2}$/.test(country)) {
+      json(response, 400, { error: "Tara este invalida." });
+      return true;
+    }
+
+    // Live-priced preview so the checkout page's total is never a
+    // placeholder in the wrong currency before submission - resolves the
+    // SAME way /api/checkout does, with one deliberate, documented
+    // narrowing: no shipping method is chosen yet at this point (that's
+    // what this very response lets the customer pick from), so the
+    // shipping-price-availability half of the all-or-nothing check is
+    // skipped here. /api/checkout re-validates the full picture, including
+    // whichever method actually gets chosen, and is the only authoritative
+    // source for what gets charged - this stays a preview, same as the
+    // shipping/tax fields below always have been.
+    const { cart } = getCart(request, response);
+    const basePayload = buildCartPayload(cart);
+    const pricing = basePayload.items.length
+      ? resolveOrderPricing(country, basePayload.items.map((item) => ({ productId: item.product.id })), 0, null)
+      : { countryCode: null, currency: db.getDefaultCurrencyCode() };
+    const payload = pricing.countryCode ? buildCartPayload(cart, pricing.countryCode) : basePayload;
+
+    const zones = db.listShippingZones().filter((zone) => zone.active);
+    const zone = zones.find((candidate) => candidate.countries.includes(country))
+      || zones.find((candidate) => candidate.countries.length === 0);
+    // Every method's price/threshold is shown in the SAME resolved country
+    // as items/total above - a method with no override for it falls back to
+    // its own base price/currency rather than silently mixing currencies
+    // within one preview response. resolveShipping (the authoritative path)
+    // makes this same substitution once a method is actually chosen.
+    const shippingMethods = zone
+      ? db.listShippingMethodsForZone(zone.id)
+        .filter((method) => method.active)
+        .map((method) => {
+          const override = pricing.countryCode ? db.getShippingMethodPrice(method.id, pricing.countryCode) : null;
+          const useOverride = override && override.active && override.currencyCode === pricing.currency;
+          return {
+            id: method.id,
+            name: method.name,
+            description: method.description,
+            price: useOverride ? override.price : method.price,
+            freeShippingThreshold: useOverride ? override.freeShippingThreshold : method.freeShippingThreshold,
+            estimatedDeliveryText: method.estimatedDeliveryText
+          };
+        })
+      : [];
+
+    const taxRate = resolveTax(country);
+
+    json(response, 200, {
+      country,
+      currency: payload.currency,
+      items: payload.items.map((item) => ({
+        key: item.key,
+        productId: item.product.id,
+        name: item.product.name,
+        size: item.size,
+        qty: item.qty,
+        price: item.product.price,
+        subtotal: item.subtotal
+      })),
+      total: payload.total,
+      shippingMethods,
+      tax: taxRate ? { name: taxRate.name, rate: taxRate.rate, inclusive: taxRate.inclusive } : null
     });
     return true;
   }
@@ -2075,10 +2512,27 @@ async function handleShopApi(request, response, pathname) {
 
   if (pathname === "/api/products" && request.method === "GET") {
     const editions = db.listEditions();
+    const target = new URL(request.url, `http://${request.headers.host}`);
+    const tagSlug = target.searchParams.get("tag");
+    const tagFilter = tagSlug ? db.getTagBySlug(tagSlug) : null;
+    // An unknown ?tag= is treated as "no results", not "ignore the filter" -
+    // silently falling back to the unfiltered list would look like the tag
+    // matched everything.
+    const productIdsForTag = tagFilter ? new Set(db.listProductIdsForTag(tagFilter.id)) : null;
+    // Optional, not wired to any storefront browsing page yet (checkout is
+    // still the only place a resolved country reaches the customer) - lets
+    // an admin preview, or a future page, ask for prices in a specific
+    // country without a code change here. An unrecognized code is silently
+    // ignored (falls back to base pricing), same "garbage input never
+    // breaks the response" posture as the tag filter above.
+    const requestedCountry = target.searchParams.get("country");
+    const countryCode = requestedCountry && /^[A-Za-z]{2}$/.test(requestedCountry) ? requestedCountry.toUpperCase() : null;
+
     const products = db.listProducts()
       .filter((product) => (product.status === "live" || product.status === "preview") && productBelongsToOpenChapter(product))
-      .sort(sortGenealogyProducts)
-      .map((product) => withEditionInfo(publicProduct(product), product, editions));
+      .filter((product) => !tagSlug || (productIdsForTag && productIdsForTag.has(product.id)))
+      .sort(sortProductsForDisplay)
+      .map((product) => withEditionInfo(publicProductInCountry(product, countryCode), product, editions));
     const categories = [...new Set(products.map((product) => product.category).filter(Boolean))];
     json(response, 200, { products, categories });
     return true;
@@ -2094,8 +2548,12 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
+    const target = new URL(request.url, `http://${request.headers.host}`);
+    const requestedCountry = target.searchParams.get("country");
+    const countryCode = requestedCountry && /^[A-Za-z]{2}$/.test(requestedCountry) ? requestedCountry.toUpperCase() : null;
+
     const editions = db.listEditions();
-    json(response, 200, { product: withEditionInfo(publicProduct(product), product, editions) });
+    json(response, 200, { product: withEditionInfo(publicProductInCountry(product, countryCode), product, editions) });
     return true;
   }
 
@@ -2330,8 +2788,21 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
     const cartSession = getSession(request);
-    const { cart } = getCart(request, response, cartSession);
-    json(response, 200, { cart: buildCartPayload(cart) });
+    const payload = await withStockLock(() => {
+      const { cartId, cart, carts } = getCart(request, response, cartSession);
+      const built = buildCartPayload(cart);
+      // Prune stale keys once they've been surfaced, so droppedCount fires
+      // once per disappearance rather than on every future cart view.
+      if (built.droppedCount > 0) {
+        const validKeys = new Set(built.items.map((item) => item.key));
+        Object.keys(cart.items).forEach((key) => {
+          if (!validKeys.has(key)) delete cart.items[key];
+        });
+        saveCart(cartId, cart, carts);
+      }
+      return built;
+    });
+    json(response, 200, { cart: payload });
     return true;
   }
 
@@ -2416,6 +2887,25 @@ async function handleShopApi(request, response, pathname) {
     return true;
   }
 
+  if (pathname === "/api/cart" && request.method === "DELETE") {
+    if (!sameOriginPost(request)) {
+      json(response, 403, { error: "Request blocked." });
+      return true;
+    }
+
+    const cartSession = getSession(request);
+    const resultCart = await withStockLock(() => {
+      const { cartId, cart, carts } = getCart(request, response, cartSession);
+      cart.items = {};
+      cart.reminderSentAt = null;
+      saveCart(cartId, cart, carts);
+      return cart;
+    });
+
+    json(response, 200, { ok: true, cart: buildCartPayload(resultCart) });
+    return true;
+  }
+
   if (pathname === "/api/checkout" && request.method === "POST") {
     if (!sameOriginPost(request)) {
       json(response, 403, { error: "Request blocked." });
@@ -2441,18 +2931,38 @@ async function handleShopApi(request, response, pathname) {
       return true;
     }
 
+    if (!/^[A-Z]{2}$/.test(customer.customerCountry)) {
+      json(response, 400, { error: "Selecteaza o tara valida." });
+      return true;
+    }
+
+    // The checkout form's HTML pattern attributes reject this client-side,
+    // but that only stops the form UI - anyone can still POST here directly,
+    // so a pending order shell with a name/address of pure digits (or no
+    // letters at all) needs to be rejected here too.
+    const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿĂăÂâÎîȘșȚț]/;
+    if (!hasLetter.test(customer.customerName) || !hasLetter.test(customer.customerAddress)) {
+      json(response, 400, { error: "Introdu un nume si o adresa valide." });
+      return true;
+    }
+
     const outcome = await withStockLock(() => {
       const { cartId, cart, carts } = getCart(request, response, session);
-      const payload = buildCartPayload(cart);
+      // Always built first, in the store's default currency - this is what
+      // coupon minOrderValue/eligibility checks run against (Gap 3: a
+      // fixed-amount discount or a minimum-order threshold only means
+      // anything in the currency it was configured in, so those checks
+      // never move to a resolved currency even when the order itself does).
+      const basePayload = buildCartPayload(cart);
 
-      if (!payload.items.length) {
+      if (!basePayload.items.length) {
         return { error: "Cartul este gol." };
       }
 
       let discount = 0;
       let appliedCoupon = null;
       if (body.couponCode) {
-        const couponResult = resolveCoupon(body.couponCode, payload.total);
+        const couponResult = resolveCoupon(body.couponCode, basePayload.total);
         if (couponResult.error) {
           return { error: couponResult.error };
         }
@@ -2460,7 +2970,59 @@ async function handleShopApi(request, response, pathname) {
         appliedCoupon = couponResult.coupon;
       }
 
-      const finalTotal = Math.max(0, Math.round((payload.total - discount) * 100) / 100);
+      const discountedBaseSubtotal = Math.max(0, Math.round((basePayload.total - discount) * 100) / 100);
+      const baseShipping = resolveShipping({
+        country: customer.customerCountry,
+        shippingMethodId: body.shippingMethodId,
+        subtotal: discountedBaseSubtotal
+      });
+      if (baseShipping.error) {
+        return { error: baseShipping.error };
+      }
+
+      // All-or-nothing pricing resolution (server.js's resolveOrderPricing):
+      // every cart item AND (if shipping isn't free) the selected shipping
+      // method must have an active price override for this exact country,
+      // or the whole order stays on base pricing - never mixed. A
+      // fixed-amount coupon's discount is only meaningful in the default
+      // currency it was validated against above, so it forces base pricing
+      // outright rather than resolving to anything else.
+      const isFixedCouponApplied = Boolean(appliedCoupon && appliedCoupon.type === "fixed");
+      const pricing = isFixedCouponApplied
+        ? { countryCode: null, currency: db.getDefaultCurrencyCode() }
+        : resolveOrderPricing(customer.customerCountry, basePayload.items.map((item) => ({ productId: item.product.id })), baseShipping.cost, baseShipping.methodId);
+
+      let payload = basePayload;
+      let shipping = baseShipping;
+      if (pricing.countryCode) {
+        payload = buildCartPayload(cart, pricing.countryCode);
+        // A percent coupon's discount scales with the total it's applied
+        // to - recomputed against the resolved-country total rather than
+        // reusing the base-currency number. Fixed coupons never reach this
+        // branch (isFixedCouponApplied forces base pricing above), so
+        // there is nothing to recompute for that case.
+        if (appliedCoupon) {
+          discount = computeCouponDiscount(appliedCoupon, payload.total);
+        }
+        const discountedResolvedSubtotal = Math.max(0, Math.round((payload.total - discount) * 100) / 100);
+        shipping = resolveShipping({
+          country: customer.customerCountry,
+          shippingMethodId: body.shippingMethodId,
+          subtotal: discountedResolvedSubtotal,
+          priceCountryCode: pricing.countryCode
+        });
+        if (shipping.error) {
+          return { error: shipping.error };
+        }
+      }
+
+      const taxRate = resolveTax(customer.customerCountry);
+      const { taxAmount, total: finalTotal } = computeOrderTotals({
+        subtotal: payload.total,
+        discount,
+        shippingCost: shipping.cost,
+        taxRate
+      });
 
       // Per-unit edition numbering. Every physical piece sold gets the next
       // number in its product's fixed edition. The edition total is pinned
@@ -2530,6 +3092,18 @@ async function handleShopApi(request, response, pathname) {
         total: finalTotal,
         discount,
         couponCode: appliedCoupon ? appliedCoupon.code : null,
+        shipping: {
+          methodId: shipping.methodId,
+          methodName: shipping.methodName,
+          cost: shipping.cost
+        },
+        tax: {
+          rateId: taxRate?.id || null,
+          name: taxRate?.name || null,
+          rateValue: taxRate?.rate ?? null,
+          amount: taxAmount,
+          inclusive: Boolean(taxRate?.inclusive)
+        },
         items: payload.items.map((item) => ({
           productId: item.product.id,
           name: item.product.name,
@@ -2607,14 +3181,19 @@ async function handleShopApi(request, response, pathname) {
     });
 
     if (outcome.error) {
-      const isBadRequest = /gol|cupon|reducere/i.test(outcome.error);
+      const isBadRequest = /gol|cupon|reducere|livrare/i.test(outcome.error);
       json(response, isBadRequest ? 400 : 409, { error: outcome.error });
       return true;
     }
 
     const orderUrl = orderAccessUrl("thank-you.html", outcome.order.id, outcome.publicAccessToken);
     const invoiceUrl = orderAccessUrl("invoice.html", outcome.order.id, outcome.publicAccessToken);
-    email.sendMail(email.buildOrderReceivedEmail(outcome.order, orderUrl, invoiceUrl)).catch(() => {});
+    email.sendMail(buildEmailWithTemplateOverride(
+      "order-received", outcome.order.customerEmail,
+      orderEmailVariables(outcome.order, { orderUrl, invoiceUrl }),
+      (lang) => email.buildOrderReceivedEmail(outcome.order, orderUrl, invoiceUrl, lang),
+      orderLanguage(outcome.order)
+    )).catch(() => {});
 
     // The cart was emptied and saved inside the lock above, so re-reading
     // carts.json here would parse the whole file again to learn what this
@@ -2728,9 +3307,14 @@ async function handleShopApi(request, response, pathname) {
     }
 
     if (!settled.alreadySettled && !db.getEmailLog(settled.order.id, "payment-confirmed")) {
-      const orderUrl = orderAccessUrl("thank-you.html", settled.order.id, settled.accessToken);
+      const orderUrl = orderAccessUrl("order-confirmation", settled.order.id, settled.accessToken);
       const invoiceUrl = orderAccessUrl("invoice.html", settled.order.id, settled.accessToken);
-      const emailResult = await email.sendPaymentConfirmedEmail(settled.order, orderUrl, invoiceUrl);
+      const emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+        "payment-confirmed", settled.order.customerEmail,
+        orderEmailVariables(settled.order, { orderUrl, invoiceUrl }),
+        (lang) => email.buildPaymentConfirmedEmail(settled.order, orderUrl, invoiceUrl, lang),
+        orderLanguage(settled.order)
+      ));
       await withStockLock(() => {
         db.insertEmailLog({
           orderId: settled.order.id, status: "payment-confirmed", sentAt: new Date().toISOString(),
@@ -2796,9 +3380,14 @@ async function handleShopApi(request, response, pathname) {
             });
 
             if (!settled.error && !settled.alreadySettled && !db.getEmailLog(settled.order.id, "payment-confirmed")) {
-              const orderUrl = orderAccessUrl("thank-you.html", settled.order.id, settled.accessToken);
+              const orderUrl = orderAccessUrl("order-confirmation", settled.order.id, settled.accessToken);
               const invoiceUrl = orderAccessUrl("invoice.html", settled.order.id, settled.accessToken);
-              const emailResult = await email.sendPaymentConfirmedEmail(settled.order, orderUrl, invoiceUrl);
+              const emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+                "payment-confirmed", settled.order.customerEmail,
+                orderEmailVariables(settled.order, { orderUrl, invoiceUrl }),
+                (lang) => email.buildPaymentConfirmedEmail(settled.order, orderUrl, invoiceUrl, lang),
+                orderLanguage(settled.order)
+              ));
               await withStockLock(() => {
                 db.insertEmailLog({
                   orderId: settled.order.id, status: "payment-confirmed", sentAt: new Date().toISOString(),
@@ -3131,6 +3720,14 @@ function resolveCoupon(rawCode, total) {
     }
   }
 
+  if (coupon.minOrderValue && total < coupon.minOrderValue) {
+    // total is always the DEFAULT-currency subtotal (coupons never move to a
+    // resolved currency - see resolveOrderPricing's isFixedCouponApplied/
+    // percent-recompute handling in the checkout route), so the default
+    // currency's own code is never a guess here.
+    return { error: `Comanda minima pentru acest cupon este ${db.getDefaultCurrencyCode()} ${coupon.minOrderValue.toFixed(2)}.` };
+  }
+
   if (coupon.maxUses) {
     // usedCount only counts confirmed/paid orders; pending orders hold the
     // coupon too, so count them as well - otherwise N parallel checkouts
@@ -3141,13 +3738,581 @@ function resolveCoupon(rawCode, total) {
     }
   }
 
-  // Percent coupons are clamped to 0-100 even if legacy data holds a larger
-  // value; fixed coupons can never exceed the order total.
-  const discount = coupon.type === "fixed"
+  return { coupon, discount: computeCouponDiscount(coupon, total) };
+}
+
+// Percent coupons are clamped to 0-100 even if legacy data holds a larger
+// value; fixed coupons can never exceed the order total. Split out of
+// resolveCoupon so checkout can recompute a percent coupon's discount
+// against a re-priced (resolved-currency) total without re-running
+// validation (active/expiry/maxUses/minOrderValue) a second time - those
+// checks must only ever run once, against the base-currency subtotal
+// (see the currency-resolution block in the checkout handler for why).
+function computeCouponDiscount(coupon, total) {
+  return coupon.type === "fixed"
     ? Math.min(total, Math.max(0, Number(coupon.value) || 0))
     : Math.round(total * (Math.min(100, Math.max(0, Number(coupon.value) || 0)) / 100) * 100) / 100;
+}
 
-  return { coupon, discount };
+// Admin-supplied zone countries: array or comma-separated string in, deduped
+// uppercase ISO alpha-2 codes out. Anything that isn't exactly 2 letters is
+// silently dropped rather than rejecting the whole request.
+// 2-3 lowercase letters covers plain ISO 639-1 ("en", "ro") and the
+// occasional 3-letter code some brands use - not validated against a
+// real ISO registry (same trust level products.currency already has),
+// just enough to reject obvious garbage before it becomes a URL segment.
+function sanitizeLanguage(input, existing = {}) {
+  const code = String(input.code || existing.code || "").trim().toLowerCase();
+  if (!/^[a-z]{2,3}$/.test(code)) {
+    const error = new Error("Codul limbii trebuie sa aiba 2-3 litere (ex: en, ro).");
+    error.statusCode = 400;
+    throw error;
+  }
+  const name = String(input.name ?? existing.name ?? "").trim().slice(0, 60);
+  const nativeName = String(input.nativeName ?? existing.nativeName ?? "").trim().slice(0, 60);
+  if (!name || !nativeName) {
+    const error = new Error("Numele limbii (si numele nativ) sunt obligatorii.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return {
+    code,
+    name,
+    nativeName,
+    active: input.active !== undefined ? Boolean(input.active) : (existing.active !== undefined ? existing.active : true),
+    isDefault: input.isDefault !== undefined ? Boolean(input.isDefault) : Boolean(existing.isDefault),
+    sortOrder: input.sortOrder !== undefined ? (Math.floor(Number(input.sortOrder)) || 0) : (existing.sortOrder || 0)
+  };
+}
+
+function sanitizeCurrency(input, existing = {}) {
+  const code = String(input.code || existing.code || "").trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) {
+    const error = new Error("Codul monedei trebuie sa aiba 3 litere (ISO 4217, ex: GBP).");
+    error.statusCode = 400;
+    throw error;
+  }
+  const symbol = String(input.symbol ?? existing.symbol ?? "").trim().slice(0, 8);
+  if (!symbol) {
+    const error = new Error("Simbolul monedei este obligatoriu.");
+    error.statusCode = 400;
+    throw error;
+  }
+  const decimalPlaces = input.decimalPlaces !== undefined ? Math.floor(Number(input.decimalPlaces)) : (existing.decimalPlaces ?? 2);
+  if (!Number.isFinite(decimalPlaces) || decimalPlaces < 0 || decimalPlaces > 4) {
+    const error = new Error("Numarul de zecimale trebuie sa fie intre 0 si 4.");
+    error.statusCode = 400;
+    throw error;
+  }
+  const symbolPosition = input.symbolPosition || existing.symbolPosition || "before";
+  if (symbolPosition !== "before" && symbolPosition !== "after") {
+    const error = new Error("Pozitia simbolului trebuie sa fie 'before' sau 'after'.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return {
+    code,
+    symbol,
+    decimalPlaces,
+    symbolPosition,
+    active: input.active !== undefined ? Boolean(input.active) : (existing.active !== undefined ? existing.active : true),
+    isDefault: input.isDefault !== undefined ? Boolean(input.isDefault) : Boolean(existing.isDefault),
+    sortOrder: input.sortOrder !== undefined ? (Math.floor(Number(input.sortOrder)) || 0) : (existing.sortOrder || 0)
+  };
+}
+
+// Shared by languages and currencies: the row used as the store-wide
+// fallback can never be deleted or deactivated without reassigning default
+// elsewhere first, and the last remaining active row can never be removed -
+// the storefront always needs at least one usable language and currency.
+function assertCanRemoveOrDeactivate(rows, target, label) {
+  if (target.isDefault) {
+    const error = new Error(`Nu poti sterge sau dezactiva ${label} implicita. Seteaza alta ${label} ca implicita mai intai.`);
+    error.statusCode = 400;
+    throw error;
+  }
+  const activeCount = rows.filter((row) => row.active).length;
+  if (target.active && activeCount <= 1) {
+    const error = new Error(`Cel putin o ${label} activa este obligatorie.`);
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+// Shared validation for the "one row per currency" override lists
+// (product_prices, shipping_method_prices) - both admin editors submit a
+// full array (wholesale replace, matching setProductTags' convention), one
+// entry per COUNTRY (a country the admin has already mapped to a language/
+// currency via country_config - see the "Limbi & Monede" tab), each
+// active/CHECK(price >= 0)-enforced-in-schema but validated here first for
+// a clear 400 instead of a raw SQLite error. currencyCode is never read
+// from the submission - it is derived from country_config so there is
+// always exactly one place a country's currency comes from; the admin only
+// ever enters a price, the currency is "just for display".
+function sanitizeCountryPriceEntries(rawEntries, { withCompareAt = false, withFreeShippingThreshold = false } = {}) {
+  const entries = Array.isArray(rawEntries) ? rawEntries : [];
+  const seenCountries = new Set();
+
+  return entries.map((raw) => {
+    const countryCode = String(raw?.countryCode || "").trim().toUpperCase();
+    const countryConfig = db.getCountryConfig(countryCode);
+    if (!countryConfig) {
+      const error = new Error(`Tara "${countryCode}" nu are limba/moneda configurata (vezi tabul Limbi & Monede).`);
+      error.statusCode = 400;
+      throw error;
+    }
+    if (seenCountries.has(countryCode)) {
+      const error = new Error(`Tara "${countryCode}" apare de mai multe ori.`);
+      error.statusCode = 400;
+      throw error;
+    }
+    seenCountries.add(countryCode);
+
+    const price = Number(raw?.price);
+    if (!Number.isFinite(price) || price < 0) {
+      const error = new Error(`Pretul pentru ${countryCode} trebuie sa fie un numar pozitiv.`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const entry = { countryCode, currencyCode: countryConfig.currencyCode, price, active: raw?.active !== false };
+
+    // Omitted (undefined) means the same thing as explicit null here -
+    // "no value" - matching sanitizeProduct's own `!== undefined` guard
+    // before calling parseOptionalNonNegativeNumber elsewhere; that
+    // function only special-cases literal null, so an omitted field
+    // reaching it directly would be misread as "NaN", not "absent".
+    if (withCompareAt) {
+      entry.compareAtPrice = raw?.compareAtPrice !== undefined
+        ? parseOptionalNonNegativeNumber(raw.compareAtPrice, `Pretul de comparatie pentru ${countryCode}`)
+        : null;
+    }
+    if (withFreeShippingThreshold) {
+      entry.freeShippingThreshold = raw?.freeShippingThreshold !== undefined
+        ? parseOptionalNonNegativeNumber(raw.freeShippingThreshold, `Pragul de livrare gratuita pentru ${countryCode}`)
+        : null;
+    }
+
+    return entry;
+  });
+}
+
+// Wholesale-replace validator for a product's per-language translation
+// blocks - same "one entry per language, full set submitted every save"
+// convention as sanitizeCountryPriceEntries above. Every field is optional
+// (an admin may only want to translate the name, say) except languageCode
+// itself; an entry with every field blank is harmless (replaceProductTranslations
+// just stores an all-empty row, which resolves identically to "no
+// override" on the read side).
+function sanitizeProductTranslationEntries(rawEntries) {
+  const entries = Array.isArray(rawEntries) ? rawEntries : [];
+  const seenLanguages = new Set();
+
+  return entries.map((raw) => {
+    const languageCode = String(raw?.languageCode || "").trim().toLowerCase();
+    const language = db.getLanguageByCode(languageCode);
+    if (!language) {
+      const error = new Error(`Limba "${languageCode}" nu exista.`);
+      error.statusCode = 400;
+      throw error;
+    }
+    if (seenLanguages.has(languageCode)) {
+      const error = new Error(`Limba "${languageCode}" apare de mai multe ori.`);
+      error.statusCode = 400;
+      throw error;
+    }
+    seenLanguages.add(languageCode);
+
+    return {
+      languageCode,
+      name: String(raw?.name || "").trim().slice(0, 100),
+      description: String(raw?.description || "").trim().slice(0, 900),
+      shortDescription: String(raw?.shortDescription || "").trim().slice(0, 300),
+      seoTitle: String(raw?.seoTitle || "").trim().slice(0, 70),
+      seoDescription: String(raw?.seoDescription || "").trim().slice(0, 160),
+      metadata: raw?.metadataText !== undefined ? parseProductMetadata(raw.metadataText) : undefined
+    };
+  });
+}
+
+// Same shape for a category's per-language names.
+function sanitizeCategoryTranslationEntries(rawEntries) {
+  const entries = Array.isArray(rawEntries) ? rawEntries : [];
+  const seenLanguages = new Set();
+
+  return entries
+    .map((raw) => {
+      const languageCode = String(raw?.languageCode || "").trim().toLowerCase();
+      const language = db.getLanguageByCode(languageCode);
+      if (!language) {
+        const error = new Error(`Limba "${languageCode}" nu exista.`);
+        error.statusCode = 400;
+        throw error;
+      }
+      if (seenLanguages.has(languageCode)) {
+        const error = new Error(`Limba "${languageCode}" apare de mai multe ori.`);
+        error.statusCode = 400;
+        throw error;
+      }
+      seenLanguages.add(languageCode);
+      const name = String(raw?.name || "").trim().slice(0, 60);
+      return name ? { languageCode, name } : null;
+    })
+    // A blank name means "no translation for this language" - dropped
+    // rather than stored as an empty row, unlike product translations
+    // (which allow all-blank rows harmlessly): category_translations.name
+    // is NOT NULL, so an empty string would need special-casing on every
+    // read instead of just not existing.
+    .filter(Boolean);
+}
+
+function sanitizeCountryList(input) {
+  const raw = Array.isArray(input) ? input : String(input || "").split(",");
+  const codes = new Set();
+  for (const entry of raw) {
+    const code = String(entry || "").trim().toUpperCase();
+    if (/^[A-Z]{2}$/.test(code)) codes.add(code);
+  }
+  return [...codes];
+}
+
+// A country matches the first active zone whose countries list names it,
+// falling back to an active zone with an empty countries list (a "rest of
+// world" catch-all, if the admin configures one). No matching zone/method
+// at all is NOT an error: it degrades to free/no shipping, the same
+// behavior checkout already has today with no shipping system in place -
+// same graceful-degradation idiom as /api/region-config and
+// /api/square-config when those are left unconfigured.
+// priceCountryCode is optional - omitted means "price in the method's own
+// base price/threshold", exactly today's behavior. Zone/method SELECTION
+// never depends on it; only the price NUMBER attached to an already-selected
+// method does, the same relationship resolveProductPrice has to an
+// already-selected product. In every real call this equals `country`
+// (there is only ever one country per order) - kept as a separate param,
+// passed only once resolveOrderPricing has confirmed an override exists,
+// matching the two-phase base-then-resolved call pattern the checkout
+// handler and /api/checkout-options both use.
+function resolveShipping({ country, shippingMethodId, subtotal, priceCountryCode }) {
+  const code = String(country || "").trim().toUpperCase();
+  const zones = db.listShippingZones().filter((zone) => zone.active);
+  const zone = zones.find((candidate) => candidate.countries.includes(code))
+    || zones.find((candidate) => candidate.countries.length === 0);
+
+  if (!zone) {
+    return { methodId: null, methodName: null, cost: 0 };
+  }
+
+  const methods = db.listShippingMethodsForZone(zone.id).filter((method) => method.active);
+  if (!methods.length) {
+    return { methodId: null, methodName: null, cost: 0 };
+  }
+
+  // Once real methods exist for this country, the client must pick a real
+  // one - the price never comes from client input, only which configured
+  // method was chosen.
+  const method = methods.find((candidate) => candidate.id === String(shippingMethodId || ""));
+  if (!method) {
+    return { error: "Selecteaza o metoda de livrare valida." };
+  }
+
+  let price = method.price;
+  let freeThreshold = method.freeShippingThreshold;
+  if (priceCountryCode) {
+    const override = db.getShippingMethodPrice(method.id, priceCountryCode);
+    // Both resolveOrderPricing's own precondition (it never resolves to a
+    // country without a confirmed method-price override when shipping
+    // isn't free) and the checkout handler's re-resolution below only ever
+    // call this with a priceCountryCode already known to have one - a
+    // missing override here means a caller skipped that check, not a real
+    // gap to paper over silently, so it stays on the base price/currency
+    // rather than guessing.
+    if (override && override.active) {
+      price = override.price;
+      freeThreshold = override.freeShippingThreshold;
+    }
+  }
+
+  const cost = freeThreshold != null && subtotal >= freeThreshold ? 0 : price;
+  return { methodId: method.id, methodName: method.name, cost: Math.round(cost * 100) / 100 };
+}
+
+// listTaxRates() is already ordered country ASC, priority DESC, so the
+// first active match for this country is the highest-priority one.
+function resolveTax(country) {
+  const code = String(country || "").trim().toUpperCase();
+  return db.listTaxRates().find((rate) => rate.active && rate.country === code) || null;
+}
+
+// Same zone-matching rule as resolveShipping's first half, without needing
+// a cart to price - used only to show the admin which zone/tax WOULD apply
+// for a country on the country-config screen. A read-only preview composed
+// from the existing shipping/tax tables, not a second stored mapping.
+function resolveShippingZoneForCountry(country) {
+  const code = String(country || "").trim().toUpperCase();
+  const zones = db.listShippingZones().filter((zone) => zone.active);
+  return zones.find((candidate) => candidate.countries.includes(code))
+    || zones.find((candidate) => candidate.countries.length === 0)
+    || null;
+}
+
+// product must be a RAW db product row (product.prices embedded by
+// rowToProduct) - never a publicProduct()-shaped object, which strips
+// .prices. Falls back to the product's own base price/currency whenever no
+// active override row exists for this specific country - "no override
+// configured" is never an error, just the documented fallback. A country
+// gets its own price row even when its currency matches the base currency
+// (e.g. an explicit "United Kingdom" price alongside "Romania") - full
+// independent control per country is the whole point, so there is no
+// currency-equality shortcut here the way there was in the old
+// currency-keyed design.
+function resolveProductPrice(product, countryCode) {
+  if (countryCode) {
+    const override = (product.prices || []).find((entry) => entry.countryCode === countryCode && entry.active);
+    if (override) {
+      return { price: override.price, compareAtPrice: override.compareAtPrice, currency: override.currencyCode };
+    }
+  }
+  return { price: product.price, compareAtPrice: product.compareAtPrice, currency: product.currency };
+}
+
+// The order's price source is decided ONCE, before any item or the shipping
+// line is priced - never mixed within one order, never trusted from the
+// client. cartItems is [{productId, qty}] (or anything with a .productId);
+// raw product rows are looked up fresh here (not from a caller-provided
+// shape) since publicProduct() strips the .prices array a cart payload's
+// items normally carry. baseShippingCost/baseShippingMethodId come from
+// resolveShipping() already run once at base pricing - only used here to
+// know whether shipping is free for this order (a fact that doesn't depend
+// on which country ultimately prices it) and which method was selected (its
+// country-specific price gets looked up separately once the final country
+// is known).
+//
+// Returns {countryCode, currency}: countryCode is null when the order stays
+// on base pricing (no country selected, no country_config for it, or the
+// all-or-nothing check below fails) - currency is always populated (the
+// store's default currency in the null case). A price row only counts if
+// its OWN stored currency_code still matches country_config's CURRENT
+// mapping for that country - if an admin later repoints a country to a
+// different currency without re-saving its prices, those now-stale rows are
+// treated as "no override" (safe fallback to base pricing) rather than
+// silently charging in a currency the price was never actually set in.
+function resolveOrderPricing(countryCode, cartItems, baseShippingCost, baseShippingMethodId) {
+  const defaultCurrency = db.getDefaultCurrencyCode();
+  const fallback = { countryCode: null, currency: defaultCurrency };
+  const code = String(countryCode || "").trim().toUpperCase();
+  if (!code) return fallback;
+
+  const countryConfig = db.getCountryConfig(code);
+  if (!countryConfig) return fallback;
+
+  const everyItemPriced = cartItems.every((item) => {
+    const product = db.getProductById(item.productId);
+    if (!product) return false;
+    return (product.prices || []).some(
+      (entry) => entry.countryCode === code && entry.active && entry.currencyCode === countryConfig.currencyCode
+    );
+  });
+  if (!everyItemPriced) return fallback;
+
+  if (baseShippingCost > 0) {
+    const methodOverride = baseShippingMethodId ? db.getShippingMethodPrice(baseShippingMethodId, code) : null;
+    if (!methodOverride || !methodOverride.active || methodOverride.currencyCode !== countryConfig.currencyCode) {
+      return fallback;
+    }
+  }
+
+  return { countryCode: code, currency: countryConfig.currencyCode };
+}
+
+// subtotal - discounts + shipping + tax = total, except when the matched
+// tax rate is inclusive: BeCa's existing Terms already state displayed
+// prices include VAT, so an inclusive rate must not add anything ON TOP of
+// the subtotal - it only reports the VAT portion already baked in. An
+// exclusive rate (a country the admin has explicitly configured that way)
+// really does add on top.
+function computeOrderTotals({ subtotal, discount, shippingCost, taxRate }) {
+  const discountedSubtotal = Math.max(0, Math.round((subtotal - discount) * 100) / 100);
+  let taxAmount = 0;
+  if (taxRate && taxRate.rate > 0) {
+    taxAmount = taxRate.inclusive
+      ? discountedSubtotal - discountedSubtotal / (1 + taxRate.rate / 100)
+      : discountedSubtotal * (taxRate.rate / 100);
+  }
+  taxAmount = Math.round(taxAmount * 100) / 100;
+  const taxAddOn = taxRate && !taxRate.inclusive ? taxAmount : 0;
+  const total = Math.round((discountedSubtotal + shippingCost + taxAddOn) * 100) / 100;
+  return { taxAmount, total };
+}
+
+// --- Admin-editable email templates -----------------------------------
+// Deliberately plain-text, same as every hardcoded email lib/email.js
+// already sends: {{variable}} substitution only, never eval/new Function,
+// so a template can only ever produce different TEXT, never execute code.
+// Scoped to the 8 order-lifecycle emails an admin would plausibly want to
+// reword (matches the brief's own example variables: customer name, order
+// number, total, items, shipping address, tracking). Auth emails
+// (password reset, email verification) carry short-lived security tokens
+// and stay hardcoded - out of scope on purpose, not an oversight.
+function formatOrderItemsForEmail(order) {
+  return (order.items || [])
+    .map((item) => `${item.qty} x ${item.name}${item.size ? ` (${item.size})` : ""} - ${item.subtotal} ${item.currency}`)
+    .join("\n");
+}
+
+function orderEmailVariables(order, extra = {}) {
+  return {
+    customerName: order.customerName || "",
+    orderNumber: order.number || "",
+    total: `${order.total} ${order.currency}`,
+    items: formatOrderItemsForEmail(order),
+    shippingAddress: order.customerAddress || "",
+    brandName: BRAND.brandShortName,
+    ...extra
+  };
+}
+
+const EMAIL_TEMPLATE_SAMPLE_ORDER = {
+  customerName: "Ana Popescu",
+  number: "BC-0042",
+  total: 128,
+  currency: "GBP",
+  customerAddress: "Str. Exemplu 10, Bucuresti, 010101, Romania",
+  items: [
+    { qty: 1, name: "Oversized statement tee", size: "M", subtotal: 59, currency: "GBP" },
+    { qty: 1, name: "Studio hoodie", size: "L", subtotal: 69, currency: "GBP" }
+  ]
+};
+
+const EMAIL_TEMPLATE_DEFS = [
+  {
+    id: "order-received",
+    name: "Comanda primita",
+    description: "Trimis imediat dupa checkout - comanda este inregistrata, nu inca confirmata.",
+    variables: ["customerName", "orderNumber", "total", "items", "shippingAddress", "brandName", "orderUrl", "invoiceUrl"],
+    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost primita",
+    defaultBody: "Salut {{customerName}},\n\nAm primit comanda ta {{brandName}}. Comanda va fi verificata si confirmata de echipa noastra.\n\nNumar comanda: {{orderNumber}}\nTotal: {{total}}\n\nProduse:\n{{items}}\n\nLivrare la: {{shippingAddress}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nMultumim ca ai ales {{brandName}}.\nEchipa {{brandName}}",
+    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", invoiceUrl: "https://example.com/invoice.html?order=sample" }
+  },
+  {
+    id: "order-confirmed",
+    name: "Comanda confirmata",
+    description: "Trimis cand un admin confirma manual o comanda (fara plata online).",
+    variables: ["customerName", "orderNumber", "total", "items", "shippingAddress", "brandName", "orderUrl", "invoiceUrl"],
+    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost confirmata",
+    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} a fost confirmata.\n\nNumar comanda: {{orderNumber}}\nTotal: {{total}}\n\nProduse:\n{{items}}\n\nLivrare la: {{shippingAddress}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nMultumim ca ai ales {{brandName}}.\nEchipa {{brandName}}",
+    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", invoiceUrl: "https://example.com/invoice.html?order=sample" }
+  },
+  {
+    id: "payment-confirmed",
+    name: "Plata confirmata",
+    description: "Trimis cand o plata cu cardul (Square) se confirma.",
+    variables: ["customerName", "orderNumber", "total", "items", "shippingAddress", "brandName", "orderUrl", "invoiceUrl"],
+    defaultSubject: "Plata confirmata - comanda {{brandName}} {{orderNumber}}",
+    defaultBody: "Salut {{customerName}},\n\nAm primit plata pentru comanda ta {{brandName}} {{orderNumber}}. Comanda este confirmata si intra in pregatire.\n\nTotal platit: {{total}}\n\nProduse:\n{{items}}\n\nLivrare la: {{shippingAddress}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nMultumim ca ai ales {{brandName}}.\nEchipa {{brandName}}",
+    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", invoiceUrl: "https://example.com/invoice.html?order=sample" }
+  },
+  {
+    id: "refund-confirmed",
+    name: "Rambursare procesata",
+    description: "Trimis cand un admin proceseaza o rambursare Square.",
+    variables: ["customerName", "orderNumber", "brandName", "orderUrl", "refundAmount", "supportEmail"],
+    defaultSubject: "Rambursare procesata - comanda {{brandName}} {{orderNumber}}",
+    defaultBody: "Salut {{customerName}},\n\nAm procesat o rambursare pentru comanda ta {{brandName}} {{orderNumber}}.\n\nSuma rambursata: {{refundAmount}}\n\nRambursarea poate dura cateva zile lucratoare pana apare pe cont, in functie de banca.\n\nDaca ai intrebari, scrie-ne la {{supportEmail}}.\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", refundAmount: "59 GBP", supportEmail: BRAND.supportEmail || "" }
+  },
+  {
+    id: "order-processing",
+    name: "Comanda in procesare",
+    description: "Trimis cand admin schimba statusul comenzii la 'in procesare'.",
+    variables: ["customerName", "orderNumber", "total", "items", "brandName", "orderUrl", "customerNote"],
+    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} este in procesare",
+    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} {{orderNumber}} este in curs de procesare - o pregatim pentru expediere.\n\nProduse:\n{{items}}\n\nTotal: {{total}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", customerNote: "" }
+  },
+  {
+    id: "order-shipped",
+    name: "Comanda expediata",
+    description: "Trimis cand admin schimba statusul comenzii la 'expediata'.",
+    variables: ["customerName", "orderNumber", "items", "brandName", "orderUrl", "courierName", "trackingNumber", "trackingUrl", "estimatedDeliveryDate", "customerNote"],
+    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost expediata",
+    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} {{orderNumber}} a fost expediata.\n\nCurier: {{courierName}}\nAWB / tracking: {{trackingNumber}}\nLink tracking: {{trackingUrl}}\nData estimata de livrare: {{estimatedDeliveryDate}}\n\nProduse:\n{{items}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    sampleExtra: {
+      orderUrl: "https://example.com/order-confirmation?order=sample",
+      courierName: "Sameday", trackingNumber: "AWB123456789", trackingUrl: "https://example.com/track/AWB123456789",
+      estimatedDeliveryDate: "2026-08-18", customerNote: ""
+    }
+  },
+  {
+    id: "order-delivered",
+    name: "Comanda livrata",
+    description: "Trimis cand admin schimba statusul comenzii la 'livrata'.",
+    variables: ["customerName", "orderNumber", "brandName", "orderUrl", "reviewUrl"],
+    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost livrata",
+    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} {{orderNumber}} a fost livrata cu succes. Multumim ca ai ales {{brandName}}!\n\nNe-ar ajuta enorm o recenzie despre piesa primita:\n{{reviewUrl}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", reviewUrl: "https://example.com/product.html?id=sample" }
+  },
+  {
+    id: "order-cancelled",
+    name: "Comanda anulata",
+    description: "Trimis cand admin schimba statusul comenzii la 'anulata'.",
+    variables: ["customerName", "orderNumber", "brandName", "orderUrl", "cancellationReason", "supportEmail"],
+    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost anulata",
+    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} {{orderNumber}} a fost anulata.\n{{cancellationReason}}\n\nDaca ai intrebari, scrie-ne la {{supportEmail}}.\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", cancellationReason: "Motiv: stoc epuizat.", supportEmail: BRAND.supportEmail || "" }
+  }
+];
+
+const EMAIL_TEMPLATE_DEF_BY_ID = new Map(EMAIL_TEMPLATE_DEFS.map((def) => [def.id, def]));
+
+// {{variable}} substitution only - never eval/new Function, so a
+// misconfigured or maliciously-edited template can only ever produce
+// different plain text, never execute code in the app context. An unknown
+// placeholder is left as literal text (not silently dropped), so a typo is
+// visible in the preview/sent email instead of vanishing.
+function interpolateEmailTemplate(text, variables) {
+  return String(text || "").replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => (
+    Object.prototype.hasOwnProperty.call(variables, key) ? String(variables[key] ?? "") : match
+  ));
+}
+
+// The single choke point every order-email call site routes through. Three
+// rungs, same "a bad/missing template can never break the critical order-
+// email flow" guarantee as before, now language-aware: (1) the admin's
+// saved+active template for the CUSTOMER's own order-time language, (2) the
+// admin's saved+active template for the store's DEFAULT language (so a
+// customer in a 3rd+ language with no template of their own still gets the
+// admin's customized copy rather than jumping straight to the hardcoded
+// original), (3) the original hardcoded lib/email.js builder, itself now
+// language-aware (see lib/email.js's English variants) - called with the
+// customer's language so even the last-resort fallback isn't always
+// Romanian. A missing row, an inactive row, or ANY error while rendering
+// takes the same fallback path.
+function buildEmailWithTemplateOverride(templateId, to, variables, fallbackBuilder, languageCode) {
+  const lang = languageCode || db.getDefaultLanguageCode();
+  try {
+    let template = db.getEmailTemplate(templateId, lang);
+    if (!(template && template.active)) {
+      const defaultLang = db.getDefaultLanguageCode();
+      if (lang !== defaultLang) template = db.getEmailTemplate(templateId, defaultLang);
+    }
+    if (template && template.active) {
+      return {
+        to,
+        subject: interpolateEmailTemplate(template.subject, variables),
+        text: interpolateEmailTemplate(template.body, variables)
+      };
+    }
+  } catch (error) {
+    console.error(`[email-template] ${templateId} failed to render, falling back:`, error.message);
+  }
+  return fallbackBuilder(lang);
+}
+
+// order.customerLanguage is set at checkout time (sanitizeCheckout, already
+// validated against active languages there) - this is just the "or default"
+// half, shared by every order-email call site below.
+function orderLanguage(order) {
+  return order.customerLanguage || db.getDefaultLanguageCode();
 }
 
 function toCsvValue(value) {
@@ -3200,13 +4365,16 @@ async function handleAdminApi(request, response, pathname) {
     const current = sanitizeContent(readJson("content.json", { en: {}, ro: {}, branding: {} }));
     // Incoming values are sanitized before merging: text becomes plain text
     // (no tags, no event handlers), branding accepts only known record shapes
-    // with approved image URLs - arbitrary values are dropped.
+    // with approved image URLs - arbitrary values are dropped. Merges over
+    // every language key either side has (not just en/ro), so saving from
+    // an admin screen that only shows a subset of languages can never wipe
+    // another language's already-saved content.
     const incoming = sanitizeContent(body);
-    const next = {
-      en: { ...current.en, ...incoming.en },
-      ro: { ...current.ro, ...incoming.ro },
-      branding: { ...current.branding, ...incoming.branding }
-    };
+    const next = { branding: { ...current.branding, ...incoming.branding } };
+    new Set([...Object.keys(current), ...Object.keys(incoming)]).forEach((code) => {
+      if (code === "branding") return;
+      next[code] = { ...current[code], ...incoming[code] };
+    });
     writeJson("content.json", next);
     json(response, 200, { ok: true, content: next });
     return true;
@@ -3498,6 +4666,7 @@ async function handleAdminApi(request, response, pathname) {
         type,
         value,
         maxUses: body.maxUses ? Math.max(1, Math.floor(Number(body.maxUses))) : null,
+        minOrderValue: body.minOrderValue ? Math.max(0, Number(body.minOrderValue)) : null,
         usedCount: 0,
         expiresAt: body.expiresAt ? new Date(body.expiresAt).toISOString() : null,
         active: true,
@@ -3545,6 +4714,722 @@ async function handleAdminApi(request, response, pathname) {
       const coupons = readJson("coupons.json", []);
       writeJson("coupons.json", coupons.filter((coupon) => coupon.id !== couponMatch[1]));
     });
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  if (pathname === "/api/admin/languages" && request.method === "GET") {
+    json(response, 200, { languages: db.listLanguages() });
+    return true;
+  }
+
+  // Matched permissively at the URL level - sanitizeLanguage/sanitizeCurrency
+  // below own the real format validation and return a proper 400 with a
+  // clear message, rather than the code segment silently failing to match
+  // the route at all (a bare 404/405, no explanation) for anything the
+  // strict pattern didn't anticipate.
+  const languageMatch = pathname.match(/^\/api\/admin\/languages\/([^/]+)$/);
+  if (languageMatch && request.method === "PUT") {
+    const existing = db.getLanguageByCode(languageMatch[1].toLowerCase());
+    const body = await readBody(request);
+    const language = sanitizeLanguage({ ...body, code: languageMatch[1] }, existing || {});
+    // Deactivating or un-defaulting (true -> false) an existing row is
+    // exactly as risky as deleting it - same guard, same rules, checked
+    // against the row's CURRENT state before the new values are written.
+    if (existing && ((existing.active && !language.active) || (existing.isDefault && !language.isDefault))) {
+      assertCanRemoveOrDeactivate(db.listLanguages(), existing, "limba");
+    }
+    const now = new Date().toISOString();
+    const saved = await withStockLock(() => db.upsertLanguage({
+      ...language,
+      createdAt: existing ? existing.createdAt : now,
+      updatedAt: now
+    }));
+    json(response, 200, { ok: true, language: saved });
+    return true;
+  }
+
+  if (languageMatch && request.method === "DELETE") {
+    const existing = db.getLanguageByCode(languageMatch[1].toLowerCase());
+    if (!existing) {
+      json(response, 404, { error: "Limba nu exista." });
+      return true;
+    }
+    assertCanRemoveOrDeactivate(db.listLanguages(), existing, "limba");
+    await withStockLock(() => db.deleteLanguage(existing.code));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  if (pathname === "/api/admin/currencies" && request.method === "GET") {
+    json(response, 200, { currencies: db.listCurrencies() });
+    return true;
+  }
+
+  const currencyMatch = pathname.match(/^\/api\/admin\/currencies\/([^/]+)$/);
+  if (currencyMatch && request.method === "PUT") {
+    const existing = db.getCurrencyByCode(currencyMatch[1].toUpperCase());
+    const body = await readBody(request);
+    const currency = sanitizeCurrency({ ...body, code: currencyMatch[1] }, existing || {});
+    if (existing && ((existing.active && !currency.active) || (existing.isDefault && !currency.isDefault))) {
+      assertCanRemoveOrDeactivate(db.listCurrencies(), existing, "moneda");
+    }
+    const now = new Date().toISOString();
+    const saved = await withStockLock(() => db.upsertCurrency({
+      ...currency,
+      createdAt: existing ? existing.createdAt : now,
+      updatedAt: now
+    }));
+    json(response, 200, { ok: true, currency: saved });
+    return true;
+  }
+
+  if (currencyMatch && request.method === "DELETE") {
+    const existing = db.getCurrencyByCode(currencyMatch[1].toUpperCase());
+    if (!existing) {
+      json(response, 404, { error: "Moneda nu exista." });
+      return true;
+    }
+    assertCanRemoveOrDeactivate(db.listCurrencies(), existing, "moneda");
+    await withStockLock(() => db.deleteCurrency(existing.code));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  // Composed read-only view: joins the new country_config mapping with a
+  // LIVE lookup into the existing shipping/tax tables (never a second
+  // stored copy of what resolveShipping/resolveTax already know) so the
+  // admin sees the full country -> language -> currency -> tax -> shipping
+  // picture in one screen without duplicating either system.
+  if (pathname === "/api/admin/country-config" && request.method === "GET") {
+    const configs = db.listCountryConfig().map((config) => {
+      const zone = resolveShippingZoneForCountry(config.countryCode);
+      const tax = resolveTax(config.countryCode);
+      return {
+        ...config,
+        shippingZoneName: zone ? zone.name : null,
+        taxName: tax ? tax.name : null,
+        taxRate: tax ? tax.rate : null
+      };
+    });
+    json(response, 200, { countryConfigs: configs });
+    return true;
+  }
+
+  const countryConfigMatch = pathname.match(/^\/api\/admin\/country-config\/([A-Za-z]{2})$/);
+  if (countryConfigMatch && request.method === "PUT") {
+    const countryCode = countryConfigMatch[1].toUpperCase();
+    const body = await readBody(request);
+    const languageCode = String(body.languageCode || "").trim().toLowerCase();
+    const currencyCode = String(body.currencyCode || "").trim().toUpperCase();
+
+    if (!db.getLanguageByCode(languageCode)) {
+      json(response, 400, { error: "Limba selectata nu exista." });
+      return true;
+    }
+    if (!db.getCurrencyByCode(currencyCode)) {
+      json(response, 400, { error: "Moneda selectata nu exista." });
+      return true;
+    }
+
+    const existing = db.getCountryConfig(countryCode);
+    const now = new Date().toISOString();
+    const saved = await withStockLock(() => db.upsertCountryConfig({
+      countryCode,
+      languageCode,
+      currencyCode,
+      createdAt: existing ? existing.createdAt : now,
+      updatedAt: now
+    }));
+    json(response, 200, { ok: true, countryConfig: saved });
+    return true;
+  }
+
+  if (countryConfigMatch && request.method === "DELETE") {
+    const countryCode = countryConfigMatch[1].toUpperCase();
+    // product_prices/shipping_method_prices both REFERENCE country_config -
+    // without this check, an in-use deletion would fail deep inside SQLite
+    // with a raw foreign-key-constraint error instead of a clear message.
+    if (db.countryConfigInUse(countryCode)) {
+      json(response, 400, { error: "Aceasta tara are preturi de produs sau livrare configurate. Sterge-le mai intai." });
+      return true;
+    }
+    await withStockLock(() => db.deleteCountryConfig(countryCode));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  // Full cross-language list (unlike the public, single-language
+  // /api/translations above) - the admin screen groups these by language
+  // client-side.
+  if (pathname === "/api/admin/translations" && request.method === "GET") {
+    json(response, 200, { translations: db.listTranslations() });
+    return true;
+  }
+
+  if (pathname === "/api/admin/translations" && request.method === "POST") {
+    const body = await readBody(request);
+    const key = String(body.key || "").trim().slice(0, 200);
+    const languageCode = String(body.languageCode || "").trim().toLowerCase();
+    const value = stripHtmlToText(body.value);
+
+    if (!key) {
+      json(response, 400, { error: "Cheia este obligatorie." });
+      return true;
+    }
+    if (!db.getLanguageByCode(languageCode)) {
+      json(response, 400, { error: "Limba selectata nu exista." });
+      return true;
+    }
+    if (!value) {
+      json(response, 400, { error: "Valoarea este obligatorie (sterge cheia daca vrei sa elimini suprascrierea)." });
+      return true;
+    }
+
+    const existing = db.getTranslation(key, languageCode);
+    const now = new Date().toISOString();
+    const saved = await withStockLock(() => db.upsertTranslation({
+      id: existing?.id || crypto.randomUUID(),
+      key,
+      languageCode,
+      value,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now
+    }));
+    json(response, 200, { ok: true, translation: saved });
+    return true;
+  }
+
+  const translationMatch = pathname.match(/^\/api\/admin\/translations\/([^/]+)\/([^/]+)$/);
+  if (translationMatch && request.method === "DELETE") {
+    const languageCode = decodeURIComponent(translationMatch[1]);
+    const key = decodeURIComponent(translationMatch[2]);
+    await withStockLock(() => db.deleteTranslation(key, languageCode));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  if (pathname === "/api/admin/shipping-zones" && request.method === "GET") {
+    const zones = db.listShippingZones().map((zone) => ({
+      ...zone,
+      methods: db.listShippingMethodsForZone(zone.id)
+    }));
+    json(response, 200, { zones });
+    return true;
+  }
+
+  if (pathname === "/api/admin/shipping-zones" && request.method === "POST") {
+    const body = await readBody(request);
+    const name = String(body.name || "").trim().slice(0, 80);
+
+    if (!name) {
+      json(response, 400, { error: "Zona are nevoie de un nume." });
+      return true;
+    }
+
+    const now = new Date().toISOString();
+    const zone = await withStockLock(() => db.upsertShippingZone({
+      id: crypto.randomUUID(),
+      name,
+      countries: sanitizeCountryList(body.countries),
+      active: body.active !== false,
+      sortOrder: Number.isFinite(Number(body.sortOrder)) ? Math.floor(Number(body.sortOrder)) : db.listShippingZones().length,
+      createdAt: now,
+      updatedAt: now
+    }));
+
+    json(response, 200, { ok: true, zone });
+    return true;
+  }
+
+  const shippingZoneMatch = pathname.match(/^\/api\/admin\/shipping-zones\/([a-f0-9-]+)$/);
+  if (shippingZoneMatch && request.method === "PUT") {
+    const existing = db.getShippingZoneById(shippingZoneMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Zona nu exista." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const name = body.name !== undefined ? String(body.name).trim().slice(0, 80) : existing.name;
+    if (!name) {
+      json(response, 400, { error: "Zona are nevoie de un nume." });
+      return true;
+    }
+
+    const zone = await withStockLock(() => db.upsertShippingZone({
+      ...existing,
+      name,
+      countries: body.countries !== undefined ? sanitizeCountryList(body.countries) : existing.countries,
+      active: body.active !== undefined ? Boolean(body.active) : existing.active,
+      sortOrder: body.sortOrder !== undefined ? (Math.floor(Number(body.sortOrder)) || 0) : existing.sortOrder,
+      updatedAt: new Date().toISOString()
+    }));
+
+    json(response, 200, { ok: true, zone });
+    return true;
+  }
+
+  if (shippingZoneMatch && request.method === "DELETE") {
+    const existing = db.getShippingZoneById(shippingZoneMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Zona nu exista." });
+      return true;
+    }
+    // ON DELETE CASCADE removes this zone's methods too. Past orders keep
+    // their own shipping_method_name/shipping_cost snapshot (no FK to
+    // shipping_methods), so historical orders are unaffected.
+    await withStockLock(() => db.deleteShippingZone(shippingZoneMatch[1]));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  if (pathname === "/api/admin/shipping-zones/reorder" && request.method === "POST") {
+    const body = await readBody(request);
+    const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+    if (!ids.length) {
+      json(response, 400, { error: "Lipseste ordinea zonelor." });
+      return true;
+    }
+
+    await withStockLock(() => db.withTransaction(() => {
+      ids.forEach((id, index) => {
+        const zone = db.getShippingZoneById(id);
+        if (zone) db.upsertShippingZone({ ...zone, sortOrder: index, updatedAt: new Date().toISOString() });
+      });
+    }));
+
+    json(response, 200, { ok: true, reordered: ids.length });
+    return true;
+  }
+
+  if (pathname === "/api/admin/shipping-methods" && request.method === "POST") {
+    const body = await readBody(request);
+    const zone = db.getShippingZoneById(String(body.zoneId || ""));
+    if (!zone) {
+      json(response, 400, { error: "Selecteaza o zona valida." });
+      return true;
+    }
+
+    const name = String(body.name || "").trim().slice(0, 80);
+    const price = Number(body.price);
+    if (!name || !Number.isFinite(price) || price < 0) {
+      json(response, 400, { error: "Metoda are nevoie de nume si pret valide." });
+      return true;
+    }
+
+    const freeShippingThreshold = body.freeShippingThreshold === undefined
+      || body.freeShippingThreshold === null || body.freeShippingThreshold === ""
+      ? null
+      : Math.max(0, Number(body.freeShippingThreshold));
+
+    const now = new Date().toISOString();
+    const method = await withStockLock(() => db.upsertShippingMethod({
+      id: crypto.randomUUID(),
+      zoneId: zone.id,
+      name,
+      description: String(body.description || "").trim().slice(0, 300),
+      price: Math.round(price * 100) / 100,
+      freeShippingThreshold,
+      estimatedDeliveryText: String(body.estimatedDeliveryText || "").trim().slice(0, 120),
+      active: body.active !== false,
+      sortOrder: Number.isFinite(Number(body.sortOrder)) ? Math.floor(Number(body.sortOrder)) : db.listShippingMethodsForZone(zone.id).length,
+      createdAt: now,
+      updatedAt: now
+    }));
+
+    json(response, 200, { ok: true, method });
+    return true;
+  }
+
+  const shippingMethodMatch = pathname.match(/^\/api\/admin\/shipping-methods\/([a-f0-9-]+)$/);
+  if (shippingMethodMatch && request.method === "PUT") {
+    const existing = db.getShippingMethodById(shippingMethodMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Metoda nu exista." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const name = body.name !== undefined ? String(body.name).trim().slice(0, 80) : existing.name;
+    const price = body.price !== undefined ? Number(body.price) : existing.price;
+    if (!name || !Number.isFinite(price) || price < 0) {
+      json(response, 400, { error: "Metoda are nevoie de nume si pret valide." });
+      return true;
+    }
+
+    let zoneId = existing.zoneId;
+    if (body.zoneId !== undefined) {
+      const zone = db.getShippingZoneById(String(body.zoneId));
+      if (!zone) {
+        json(response, 400, { error: "Selecteaza o zona valida." });
+        return true;
+      }
+      zoneId = zone.id;
+    }
+
+    const freeShippingThreshold = body.freeShippingThreshold !== undefined
+      ? (body.freeShippingThreshold === null || body.freeShippingThreshold === "" ? null : Math.max(0, Number(body.freeShippingThreshold)))
+      : existing.freeShippingThreshold;
+
+    const method = await withStockLock(() => db.upsertShippingMethod({
+      ...existing,
+      zoneId,
+      name,
+      description: body.description !== undefined ? String(body.description).trim().slice(0, 300) : existing.description,
+      price: Math.round(price * 100) / 100,
+      freeShippingThreshold,
+      estimatedDeliveryText: body.estimatedDeliveryText !== undefined ? String(body.estimatedDeliveryText).trim().slice(0, 120) : existing.estimatedDeliveryText,
+      active: body.active !== undefined ? Boolean(body.active) : existing.active,
+      sortOrder: body.sortOrder !== undefined ? (Math.floor(Number(body.sortOrder)) || 0) : existing.sortOrder,
+      updatedAt: new Date().toISOString()
+    }));
+
+    json(response, 200, { ok: true, method });
+    return true;
+  }
+
+  if (shippingMethodMatch && request.method === "DELETE") {
+    const existing = db.getShippingMethodById(shippingMethodMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Metoda nu exista." });
+      return true;
+    }
+    await withStockLock(() => db.deleteShippingMethod(shippingMethodMatch[1]));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  const shippingMethodPricesMatch = pathname.match(/^\/api\/admin\/shipping-methods\/([a-f0-9-]+)\/prices$/);
+  if (shippingMethodPricesMatch && request.method === "GET") {
+    const method = db.getShippingMethodById(shippingMethodPricesMatch[1]);
+    if (!method) {
+      json(response, 404, { error: "Metoda nu exista." });
+      return true;
+    }
+    json(response, 200, { prices: db.listShippingMethodPrices(method.id) });
+    return true;
+  }
+
+  if (shippingMethodPricesMatch && request.method === "PUT") {
+    const methodId = shippingMethodPricesMatch[1];
+    if (!db.getShippingMethodById(methodId)) {
+      json(response, 404, { error: "Metoda nu exista." });
+      return true;
+    }
+    const body = await readBody(request);
+    let entries;
+    try {
+      entries = sanitizeCountryPriceEntries(body.prices, { withFreeShippingThreshold: true });
+    } catch (error) {
+      json(response, error.statusCode || 400, { error: error.message });
+      return true;
+    }
+    const now = new Date().toISOString();
+    const saved = await withStockLock(() => db.replaceShippingMethodPrices(
+      methodId,
+      entries.map((entry) => ({ ...entry, id: crypto.randomUUID(), createdAt: now, updatedAt: now }))
+    ));
+    json(response, 200, { ok: true, prices: saved });
+    return true;
+  }
+
+  if (pathname === "/api/admin/shipping-methods/reorder" && request.method === "POST") {
+    const body = await readBody(request);
+    const zoneId = String(body.zoneId || "");
+    const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+    if (!zoneId || !ids.length) {
+      json(response, 400, { error: "Lipseste ordinea metodelor." });
+      return true;
+    }
+
+    await withStockLock(() => db.withTransaction(() => {
+      ids.forEach((id, index) => {
+        const method = db.getShippingMethodById(id);
+        if (method && method.zoneId === zoneId) {
+          db.upsertShippingMethod({ ...method, sortOrder: index, updatedAt: new Date().toISOString() });
+        }
+      });
+    }));
+
+    json(response, 200, { ok: true, reordered: ids.length });
+    return true;
+  }
+
+  if (pathname === "/api/admin/tax-rates" && request.method === "GET") {
+    json(response, 200, { taxRates: db.listTaxRates() });
+    return true;
+  }
+
+  if (pathname === "/api/admin/tax-rates" && request.method === "POST") {
+    const body = await readBody(request);
+    const name = String(body.name || "").trim().slice(0, 80);
+    const country = String(body.country || "").trim().toUpperCase();
+    const rate = Number(body.rate);
+
+    if (!name || !/^[A-Z]{2}$/.test(country) || !Number.isFinite(rate) || rate < 0) {
+      json(response, 400, { error: "Nume, tara si cota de taxa valide sunt obligatorii." });
+      return true;
+    }
+
+    const now = new Date().toISOString();
+    const taxRate = await withStockLock(() => db.upsertTaxRate({
+      id: crypto.randomUUID(),
+      name,
+      country,
+      region: String(body.region || "").trim().slice(0, 80),
+      rate: Math.round(rate * 100) / 100,
+      inclusive: body.inclusive !== false,
+      priority: Number.isFinite(Number(body.priority)) ? Math.floor(Number(body.priority)) : 0,
+      active: body.active !== false,
+      createdAt: now,
+      updatedAt: now
+    }));
+
+    json(response, 200, { ok: true, taxRate });
+    return true;
+  }
+
+  const taxRateMatch = pathname.match(/^\/api\/admin\/tax-rates\/([a-f0-9-]+)$/);
+  if (taxRateMatch && request.method === "PUT") {
+    const existing = db.getTaxRateById(taxRateMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Taxa nu exista." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const name = body.name !== undefined ? String(body.name).trim().slice(0, 80) : existing.name;
+    const country = body.country !== undefined ? String(body.country).trim().toUpperCase() : existing.country;
+    const rate = body.rate !== undefined ? Number(body.rate) : existing.rate;
+
+    if (!name || !/^[A-Z]{2}$/.test(country) || !Number.isFinite(rate) || rate < 0) {
+      json(response, 400, { error: "Nume, tara si cota de taxa valide sunt obligatorii." });
+      return true;
+    }
+
+    const taxRate = await withStockLock(() => db.upsertTaxRate({
+      ...existing,
+      name,
+      country,
+      region: body.region !== undefined ? String(body.region).trim().slice(0, 80) : existing.region,
+      rate: Math.round(rate * 100) / 100,
+      inclusive: body.inclusive !== undefined ? Boolean(body.inclusive) : existing.inclusive,
+      priority: body.priority !== undefined ? (Math.floor(Number(body.priority)) || 0) : existing.priority,
+      active: body.active !== undefined ? Boolean(body.active) : existing.active,
+      updatedAt: new Date().toISOString()
+    }));
+
+    json(response, 200, { ok: true, taxRate });
+    return true;
+  }
+
+  if (taxRateMatch && request.method === "DELETE") {
+    const existing = db.getTaxRateById(taxRateMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Taxa nu exista." });
+      return true;
+    }
+    await withStockLock(() => db.deleteTaxRate(taxRateMatch[1]));
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  // Merges the fixed, code-defined template slots (EMAIL_TEMPLATE_DEFS) with
+  // whatever's actually saved in the DB - a slot with no saved row still
+  // shows up, pre-filled with the default starter text, so the admin sees
+  // all 8 customizable emails even before touching any of them.
+  if (pathname === "/api/admin/email-templates" && request.method === "GET") {
+    const target = new URL(request.url, `http://${request.headers.host}`);
+    const requestedLang = String(target.searchParams.get("lang") || "").trim().toLowerCase();
+    const languageCode = (requestedLang && db.getLanguageByCode(requestedLang)) ? requestedLang : db.getDefaultLanguageCode();
+    const savedById = new Map(db.listEmailTemplates(languageCode).map((row) => [row.id, row]));
+    const templates = EMAIL_TEMPLATE_DEFS.map((def) => {
+      const saved = savedById.get(def.id);
+      return {
+        id: def.id,
+        languageCode,
+        name: def.name,
+        description: def.description,
+        variables: def.variables,
+        subject: saved ? saved.subject : def.defaultSubject,
+        body: saved ? saved.body : def.defaultBody,
+        active: saved ? saved.active : false,
+        isCustomized: Boolean(saved),
+        updatedAt: saved ? saved.updatedAt : null
+      };
+    });
+    json(response, 200, { templates, languageCode });
+    return true;
+  }
+
+  const emailTemplatePreviewMatch = pathname.match(/^\/api\/admin\/email-templates\/([a-z0-9-]+)\/preview$/);
+  if (emailTemplatePreviewMatch && request.method === "POST") {
+    const def = EMAIL_TEMPLATE_DEF_BY_ID.get(emailTemplatePreviewMatch[1]);
+    if (!def) {
+      json(response, 404, { error: "Sablonul nu exista." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const variables = orderEmailVariables(EMAIL_TEMPLATE_SAMPLE_ORDER, def.sampleExtra);
+    json(response, 200, {
+      ok: true,
+      subject: interpolateEmailTemplate(String(body.subject ?? def.defaultSubject), variables),
+      text: interpolateEmailTemplate(String(body.body ?? def.defaultBody), variables)
+    });
+    return true;
+  }
+
+  const emailTemplateTestSendMatch = pathname.match(/^\/api\/admin\/email-templates\/([a-z0-9-]+)\/test-send$/);
+  if (emailTemplateTestSendMatch && request.method === "POST") {
+    const def = EMAIL_TEMPLATE_DEF_BY_ID.get(emailTemplateTestSendMatch[1]);
+    if (!def) {
+      json(response, 404, { error: "Sablonul nu exista." });
+      return true;
+    }
+
+    if (isRateLimited(`email-template-test:${session.user.id}`, 5, 60000)) {
+      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const variables = orderEmailVariables(EMAIL_TEMPLATE_SAMPLE_ORDER, def.sampleExtra);
+    const result = await email.sendMail({
+      to: session.user.email,
+      subject: `[TEST] ${interpolateEmailTemplate(String(body.subject ?? def.defaultSubject), variables)}`,
+      text: interpolateEmailTemplate(String(body.body ?? def.defaultBody), variables)
+    });
+
+    const failureMessages = {
+      "invalid-recipient": "Adresa de email a contului tau de admin nu este valida.",
+      "smtp-not-configured": "Niciun serviciu de email (SMTP/Resend) nu este configurat pe acest server.",
+      "send-failed": "Serverul SMTP a refuzat trimiterea.",
+      "resend-send-failed": "Resend a refuzat trimiterea."
+    };
+    json(response, result.ok ? 200 : 502, {
+      ok: result.ok,
+      reason: result.reason || null,
+      error: result.ok ? undefined : (failureMessages[result.reason] || "Trimiterea a esuat.")
+    });
+    return true;
+  }
+
+  const emailTemplateMatch = pathname.match(/^\/api\/admin\/email-templates\/([a-z0-9-]+)$/);
+  if (emailTemplateMatch && request.method === "PUT") {
+    const def = EMAIL_TEMPLATE_DEF_BY_ID.get(emailTemplateMatch[1]);
+    if (!def) {
+      json(response, 404, { error: "Sablonul nu exista." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const subject = String(body.subject || "").trim().slice(0, 200);
+    const templateBody = String(body.body || "").trim().slice(0, 5000);
+    if (!subject || !templateBody) {
+      json(response, 400, { error: "Subiectul si continutul sunt obligatorii." });
+      return true;
+    }
+    const requestedLang = String(body.languageCode || "").trim().toLowerCase();
+    const language = requestedLang ? db.getLanguageByCode(requestedLang) : null;
+    if (requestedLang && !language) {
+      json(response, 400, { error: "Limba selectata nu exista." });
+      return true;
+    }
+    const languageCode = language ? language.code : db.getDefaultLanguageCode();
+
+    // Deactivating (rather than deleting) is the "reset" path: an inactive
+    // row still exists with its custom text intact, but buildEmailWithTemplateOverride
+    // treats it exactly like no row at all and falls back through to the
+    // default language's own row, then the original hardcoded email -
+    // re-activating later restores the custom text with no re-typing needed.
+    const saved = await withStockLock(() => db.upsertEmailTemplate({
+      id: def.id,
+      languageCode,
+      name: def.name,
+      subject,
+      body: templateBody,
+      active: body.active !== false,
+      updatedAt: new Date().toISOString(),
+      updatedBy: session.user.email
+    }));
+
+    json(response, 200, { ok: true, template: saved });
+    return true;
+  }
+
+  if (pathname === "/api/admin/tags" && request.method === "GET") {
+    json(response, 200, { tags: db.listTags() });
+    return true;
+  }
+
+  if (pathname === "/api/admin/tags" && request.method === "POST") {
+    const body = await readBody(request);
+    const name = String(body.name || "").trim().slice(0, 40);
+    const slug = toSlug(name);
+
+    if (!name || !slug) {
+      json(response, 400, { error: "Eticheta are nevoie de un nume." });
+      return true;
+    }
+
+    // Checked under the lock (both against a concurrent create and against
+    // itself) rather than relying on the UNIQUE constraint throwing, so a
+    // duplicate name gets a clean 409 instead of a raw SQL error.
+    const outcome = await withStockLock(() => {
+      if (db.listTags().some((tag) => tag.slug === slug)) return { conflict: true };
+      return { tag: db.insertTag({ id: crypto.randomUUID(), name, slug, createdAt: new Date().toISOString() }) };
+    });
+
+    if (outcome.conflict) {
+      json(response, 409, { error: "Exista deja o eticheta cu acest nume." });
+      return true;
+    }
+
+    json(response, 200, { ok: true, tag: outcome.tag });
+    return true;
+  }
+
+  const tagMatch = pathname.match(/^\/api\/admin\/tags\/([a-f0-9-]+)$/);
+  if (tagMatch && request.method === "PUT") {
+    const existing = db.getTagById(tagMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Eticheta nu exista." });
+      return true;
+    }
+
+    const body = await readBody(request);
+    const name = String(body.name || "").trim().slice(0, 40);
+    const slug = toSlug(name);
+    if (!name || !slug) {
+      json(response, 400, { error: "Eticheta are nevoie de un nume." });
+      return true;
+    }
+
+    const outcome = await withStockLock(() => {
+      if (db.listTags().some((tag) => tag.slug === slug && tag.id !== tagMatch[1])) return { conflict: true };
+      return { tag: db.renameTag(tagMatch[1], name, slug) };
+    });
+
+    if (outcome.conflict) {
+      json(response, 409, { error: "Exista deja o eticheta cu acest nume." });
+      return true;
+    }
+
+    json(response, 200, { ok: true, tag: outcome.tag });
+    return true;
+  }
+
+  if (tagMatch && request.method === "DELETE") {
+    const existing = db.getTagById(tagMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Eticheta nu exista." });
+      return true;
+    }
+    // ON DELETE CASCADE removes this tag from every product that had it;
+    // the products themselves are untouched.
+    await withStockLock(() => db.deleteTag(tagMatch[1]));
     json(response, 200, { ok: true });
     return true;
   }
@@ -3689,17 +5574,18 @@ async function handleAdminApi(request, response, pathname) {
 
   if (pathname === "/api/admin/products" && request.method === "POST") {
     const body = await readProductPayload(request);
-    const product = sanitizeProduct(body);
+    const product = applyProductCategory(sanitizeProduct(body));
 
     if (!product.name) {
       json(response, 400, { error: "Produsul are nevoie de nume." });
       return true;
     }
 
-    await withStockLock(() => {
-      db.upsertProduct(product);
-    });
-    json(response, 200, { ok: true, product });
+    // Responds with the saved-and-reloaded row (tags joined in), not the
+    // pre-save sanitized object - that one only carries tagIds, not the
+    // tag name/slug objects the admin UI needs to render immediately.
+    const saved = await withStockLock(() => db.upsertProduct(product));
+    json(response, 200, { ok: true, product: saved });
     return true;
   }
 
@@ -3707,11 +5593,11 @@ async function handleAdminApi(request, response, pathname) {
     const body = await readBody(request);
     const imageUrl = saveDataUrlImage(body.previewImage || "", "studio-product");
     const textureUrl = saveDataUrlImage(body.textureImage || "", "studio-texture");
-    const product = sanitizeProduct({
+    const product = applyProductCategory(sanitizeProduct({
       ...body,
       imageUrl: imageUrl || body.imageUrl || "",
       status: body.status || "draft"
-    });
+    }));
 
     if (!product.name) {
       json(response, 400, { error: "Produsul are nevoie de nume." });
@@ -3735,10 +5621,8 @@ async function handleAdminApi(request, response, pathname) {
       shirtColor: String(body.shirtColor || "#ffffff").slice(0, 24)
     };
 
-    await withStockLock(() => {
-      db.upsertProduct(product);
-    });
-    json(response, 200, { ok: true, product });
+    const saved = await withStockLock(() => db.upsertProduct(product));
+    json(response, 200, { ok: true, product: saved });
     return true;
   }
 
@@ -3770,6 +5654,115 @@ async function handleAdminApi(request, response, pathname) {
     return true;
   }
 
+  const BULK_PRODUCT_ACTIONS = new Set([
+    "publish", "unpublish", "archive", "delete", "feature", "unfeature", "setCategory", "addTags", "removeTags"
+  ]);
+
+  if (pathname === "/api/admin/products/bulk" && request.method === "POST") {
+    const body = await readBody(request);
+    const requestedIds = Array.isArray(body.ids) ? [...new Set(body.ids.map(String))] : [];
+    const action = String(body.action || "");
+
+    if (!requestedIds.length) {
+      json(response, 400, { error: "Selecteaza cel putin un produs." });
+      return true;
+    }
+    if (!BULK_PRODUCT_ACTIONS.has(action)) {
+      json(response, 400, { error: "Actiune necunoscuta." });
+      return true;
+    }
+
+    let tagIdsForAction = [];
+    if (action === "addTags" || action === "removeTags") {
+      tagIdsForAction = Array.isArray(body.tagIds) ? body.tagIds.map(String) : [];
+      // A garbage/manipulated tag id in the batch is dropped, not fatal -
+      // same "silently ignore unknown ids" rule sanitizeProduct already
+      // applies to a single product's tagIds.
+      tagIdsForAction = tagIdsForAction.filter((id) => db.getTagById(id));
+      if (!tagIdsForAction.length) {
+        json(response, 400, { error: "Selecteaza cel putin o eticheta valida." });
+        return true;
+      }
+    }
+
+    let category = "";
+    if (action === "setCategory") {
+      category = String(body.category || "").trim().slice(0, 60);
+    }
+
+    // Every id is checked against the real product table before anything
+    // runs - a stale/guessed/manipulated id is reported back as skipped,
+    // never silently dropped or allowed to error out the whole batch.
+    // Each product's own statement is try/caught (not just the id-exists
+    // check): SQLite fails an individual statement on a constraint
+    // violation without auto-aborting the surrounding transaction, so one
+    // product a customer has actually ordered (delete blocked by the
+    // order_items foreign key) is reported as skipped instead of silently
+    // rolling back every other product already processed in the same batch.
+    const result = await withStockLock(() => db.withTransaction(() => {
+      const applied = [];
+      const skipped = [];
+
+      requestedIds.forEach((id) => {
+        const current = db.getProductById(id);
+        if (!current) {
+          skipped.push({ id, reason: "not_found" });
+          return;
+        }
+
+        try {
+          switch (action) {
+            case "publish":
+              db.updateProduct(id, { status: "live" });
+              break;
+            case "unpublish":
+              db.updateProduct(id, { status: "draft" });
+              break;
+            case "archive":
+              db.updateProduct(id, { status: "archived" });
+              break;
+            case "delete":
+              db.deleteProduct(id);
+              break;
+            case "feature":
+              db.updateProduct(id, { featured: true });
+              break;
+            case "unfeature":
+              db.updateProduct(id, { featured: false });
+              break;
+            case "setCategory": {
+              // Same resolve-or-create as the single-product routes
+              // (applyProductCategory) - a category set in bulk must get
+              // the same categories row/categoryId a normal save would,
+              // or its translations would never resolve on the storefront.
+              const categoryRow = category ? db.resolveOrCreateCategory(category, toSlug(category)) : null;
+              db.updateProduct(id, { category, categoryId: categoryRow?.id || null });
+              break;
+            }
+            case "addTags": {
+              const nextIds = [...new Set([...current.tags.map((tag) => tag.id), ...tagIdsForAction])];
+              db.setProductTags(id, nextIds);
+              break;
+            }
+            case "removeTags": {
+              const nextIds = current.tags.map((tag) => tag.id).filter((tagId) => !tagIdsForAction.includes(tagId));
+              db.setProductTags(id, nextIds);
+              break;
+            }
+          }
+          applied.push(id);
+        } catch (error) {
+          skipped.push({ id, reason: "failed" });
+        }
+      });
+
+      return { applied, skipped };
+    }));
+
+    json(response, 200, { ok: true, applied: result.applied.length, skipped: result.skipped });
+    return true;
+  }
+
   const productMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)$/);
   if (productMatch && request.method === "PUT") {
     const productId = productMatch[1];
@@ -3790,7 +5783,7 @@ async function handleAdminApi(request, response, pathname) {
       if (!current) return null;
 
       const previousStatus = current.status;
-      const updated = db.upsertProduct(sanitizeProduct(body, current));
+      const updated = db.upsertProduct(applyProductCategory(sanitizeProduct(body, current)));
       return { product: updated, previousStatus };
     });
 
@@ -3837,6 +5830,123 @@ async function handleAdminApi(request, response, pathname) {
     await withStockLock(() => {
       db.deleteProduct(productId);
     });
+    json(response, 200, { ok: true });
+    return true;
+  }
+
+  const productPricesMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)\/prices$/);
+  if (productPricesMatch && request.method === "GET") {
+    const product = db.getProductById(productPricesMatch[1]);
+    if (!product) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+    json(response, 200, { prices: product.prices });
+    return true;
+  }
+
+  if (productPricesMatch && request.method === "PUT") {
+    const productId = productPricesMatch[1];
+    if (!db.getProductById(productId)) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+    const body = await readBody(request);
+    let entries;
+    try {
+      entries = sanitizeCountryPriceEntries(body.prices, { withCompareAt: true });
+    } catch (error) {
+      json(response, error.statusCode || 400, { error: error.message });
+      return true;
+    }
+    const now = new Date().toISOString();
+    const saved = await withStockLock(() => db.replaceProductPrices(
+      productId,
+      entries.map((entry) => ({ ...entry, id: crypto.randomUUID(), createdAt: now, updatedAt: now }))
+    ));
+    json(response, 200, { ok: true, prices: saved });
+    return true;
+  }
+
+  const productTranslationsMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)\/translations$/);
+  if (productTranslationsMatch && request.method === "GET") {
+    const product = db.getProductById(productTranslationsMatch[1]);
+    if (!product) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+    json(response, 200, { translations: product.translations });
+    return true;
+  }
+
+  if (productTranslationsMatch && request.method === "PUT") {
+    const productId = productTranslationsMatch[1];
+    if (!db.getProductById(productId)) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+    const body = await readBody(request);
+    let entries;
+    try {
+      entries = sanitizeProductTranslationEntries(body.translations);
+    } catch (error) {
+      json(response, error.statusCode || 400, { error: error.message });
+      return true;
+    }
+    const now = new Date().toISOString();
+    const saved = await withStockLock(() => db.replaceProductTranslations(
+      productId,
+      entries.map((entry) => ({ ...entry, id: crypto.randomUUID(), createdAt: now, updatedAt: now }))
+    ));
+    json(response, 200, { ok: true, translations: saved });
+    return true;
+  }
+
+  if (pathname === "/api/admin/categories" && request.method === "GET") {
+    json(response, 200, { categories: db.listCategories() });
+    return true;
+  }
+
+  const categoryMatch = pathname.match(/^\/api\/admin\/categories\/([a-f0-9-]+)$/);
+  if (categoryMatch && request.method === "PUT") {
+    const existing = db.getCategoryById(categoryMatch[1]);
+    if (!existing) {
+      json(response, 404, { error: "Categoria nu exista." });
+      return true;
+    }
+    const body = await readBody(request);
+    const defaultName = body.defaultName !== undefined ? String(body.defaultName).trim().slice(0, 60) : existing.defaultName;
+    if (!defaultName) {
+      json(response, 400, { error: "Numele categoriei este obligatoriu." });
+      return true;
+    }
+    let translationEntries;
+    try {
+      translationEntries = sanitizeCategoryTranslationEntries(body.translations);
+    } catch (error) {
+      json(response, error.statusCode || 400, { error: error.message });
+      return true;
+    }
+
+    const now = new Date().toISOString();
+    const saved = await withStockLock(() => db.withTransaction(() => {
+      const category = db.updateCategory(existing.id, { defaultName, updatedAt: now });
+      db.replaceCategoryTranslations(
+        existing.id,
+        translationEntries.map((entry) => ({ ...entry, id: crypto.randomUUID(), createdAt: now, updatedAt: now }))
+      );
+      return db.getCategoryById(existing.id) || category;
+    }));
+    json(response, 200, { ok: true, category: saved });
+    return true;
+  }
+
+  if (categoryMatch && request.method === "DELETE") {
+    if (!db.getCategoryById(categoryMatch[1])) {
+      json(response, 404, { error: "Categoria nu exista." });
+      return true;
+    }
+    await withStockLock(() => db.deleteCategory(categoryMatch[1]));
     json(response, 200, { ok: true });
     return true;
   }
@@ -4025,22 +6135,54 @@ async function handleAdminApi(request, response, pathname) {
     let emailResult = { ok: false };
 
     if (isTransition && sendEmailRequested) {
-      const orderUrl = orderAccessUrl("thank-you.html", updatedOrder.id, phase1.accessToken);
+      const orderUrl = orderAccessUrl("order-confirmation", updatedOrder.id, phase1.accessToken);
 
       if (status === "processing") {
         attemptedEmail = true;
-        emailResult = await email.sendOrderProcessingEmail(updatedOrder, orderUrl);
+        emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+          "order-processing", updatedOrder.customerEmail,
+          orderEmailVariables(updatedOrder, { orderUrl, customerNote: updatedOrder.fulfillment?.customerNote || "" }),
+          (lang) => email.buildOrderProcessingEmail(updatedOrder, orderUrl, lang),
+          orderLanguage(updatedOrder)
+        ));
       } else if (status === "shipped") {
         attemptedEmail = true;
-        emailResult = await email.sendOrderShippedEmail(updatedOrder, orderUrl);
+        const fulfillment = updatedOrder.fulfillment || {};
+        emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+          "order-shipped", updatedOrder.customerEmail,
+          orderEmailVariables(updatedOrder, {
+            orderUrl,
+            courierName: fulfillment.courierName || "",
+            trackingNumber: fulfillment.trackingNumber || "",
+            trackingUrl: fulfillment.trackingUrl || "",
+            estimatedDeliveryDate: fulfillment.estimatedDeliveryDate || "",
+            customerNote: fulfillment.customerNote || ""
+          }),
+          (lang) => email.buildOrderShippedEmail(updatedOrder, orderUrl, lang),
+          orderLanguage(updatedOrder)
+        ));
       } else if (status === "delivered") {
         attemptedEmail = true;
         const singleProductId = updatedOrder.items.length === 1 ? updatedOrder.items[0].productId : null;
         const reviewUrl = singleProductId ? `${SITE_ORIGIN}/product.html?id=${singleProductId}` : null;
-        emailResult = await email.sendOrderDeliveredEmail(updatedOrder, orderUrl, reviewUrl);
+        emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+          "order-delivered", updatedOrder.customerEmail,
+          orderEmailVariables(updatedOrder, { orderUrl, reviewUrl: reviewUrl || "" }),
+          (lang) => email.buildOrderDeliveredEmail(updatedOrder, orderUrl, reviewUrl, lang),
+          orderLanguage(updatedOrder)
+        ));
       } else if (status === "cancelled") {
         attemptedEmail = true;
-        emailResult = await email.sendOrderCancelledEmail(updatedOrder, orderUrl);
+        emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+          "order-cancelled", updatedOrder.customerEmail,
+          orderEmailVariables(updatedOrder, {
+            orderUrl,
+            cancellationReason: updatedOrder.cancellationReason ? `Motiv: ${updatedOrder.cancellationReason}` : "",
+            supportEmail: BRAND.supportEmail || ""
+          }),
+          (lang) => email.buildOrderCancelledEmail(updatedOrder, orderUrl, lang),
+          orderLanguage(updatedOrder)
+        ));
       }
     }
 
@@ -4049,8 +6191,17 @@ async function handleAdminApi(request, response, pathname) {
     // "received" email: the payment-history entry inserted in phase1 above is
     // the authoritative record of the refund, this is only a courtesy notice.
     if (squareRefundResult && sendEmailRequested) {
-      const refundOrderUrl = orderAccessUrl("thank-you.html", updatedOrder.id, phase1.accessToken);
-      email.sendRefundConfirmedEmail(updatedOrder, squareRefundResult.chargePayment.amount, refundOrderUrl).catch(() => {});
+      const refundOrderUrl = orderAccessUrl("order-confirmation", updatedOrder.id, phase1.accessToken);
+      email.sendMail(buildEmailWithTemplateOverride(
+        "refund-confirmed", updatedOrder.customerEmail,
+        orderEmailVariables(updatedOrder, {
+          orderUrl: refundOrderUrl,
+          refundAmount: `${squareRefundResult.chargePayment.amount} ${updatedOrder.currency}`,
+          supportEmail: BRAND.supportEmail || ""
+        }),
+        (lang) => email.buildRefundConfirmedEmail(updatedOrder, squareRefundResult.chargePayment.amount, refundOrderUrl, lang),
+        orderLanguage(updatedOrder)
+      )).catch(() => {});
     }
 
     if (!isTransition) {
@@ -4102,20 +6253,62 @@ async function handleAdminApi(request, response, pathname) {
     let emailResult;
 
     if (order.status === "processing") {
-      emailResult = await email.sendOrderProcessingEmail(order, orderUrl);
+      emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+        "order-processing", order.customerEmail,
+        orderEmailVariables(order, { orderUrl, customerNote: order.fulfillment?.customerNote || "" }),
+        (lang) => email.buildOrderProcessingEmail(order, orderUrl, lang),
+        orderLanguage(order)
+      ));
     } else if (order.status === "shipped") {
-      emailResult = await email.sendOrderShippedEmail(order, orderUrl);
+      const fulfillment = order.fulfillment || {};
+      emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+        "order-shipped", order.customerEmail,
+        orderEmailVariables(order, {
+          orderUrl,
+          courierName: fulfillment.courierName || "",
+          trackingNumber: fulfillment.trackingNumber || "",
+          trackingUrl: fulfillment.trackingUrl || "",
+          estimatedDeliveryDate: fulfillment.estimatedDeliveryDate || "",
+          customerNote: fulfillment.customerNote || ""
+        }),
+        (lang) => email.buildOrderShippedEmail(order, orderUrl, lang),
+        orderLanguage(order)
+      ));
     } else if (order.status === "delivered") {
       const singleProductId = order.items.length === 1 ? order.items[0].productId : null;
       const reviewUrl = singleProductId ? `${SITE_ORIGIN}/product.html?id=${singleProductId}` : null;
-      emailResult = await email.sendOrderDeliveredEmail(order, orderUrl, reviewUrl);
+      emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+        "order-delivered", order.customerEmail,
+        orderEmailVariables(order, { orderUrl, reviewUrl: reviewUrl || "" }),
+        (lang) => email.buildOrderDeliveredEmail(order, orderUrl, reviewUrl, lang),
+        orderLanguage(order)
+      ));
     } else if (order.status === "cancelled") {
-      emailResult = await email.sendOrderCancelledEmail(order, orderUrl);
+      emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+        "order-cancelled", order.customerEmail,
+        orderEmailVariables(order, {
+          orderUrl,
+          cancellationReason: order.cancellationReason ? `Motiv: ${order.cancellationReason}` : "",
+          supportEmail: BRAND.supportEmail || ""
+        }),
+        (lang) => email.buildOrderCancelledEmail(order, orderUrl, lang),
+        orderLanguage(order)
+      ));
     } else if (order.status === "confirmed") {
-      emailResult = await email.sendMail(email.buildOrderConfirmationEmail(order, orderUrl, invoiceUrl));
+      emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+        "order-confirmed", order.customerEmail,
+        orderEmailVariables(order, { orderUrl, invoiceUrl }),
+        (lang) => email.buildOrderConfirmationEmail(order, orderUrl, invoiceUrl, lang),
+        orderLanguage(order)
+      ));
     } else {
       // pending: the order is only received, not confirmed - say exactly that.
-      emailResult = await email.sendMail(email.buildOrderReceivedEmail(order, orderUrl, invoiceUrl));
+      emailResult = await email.sendMail(buildEmailWithTemplateOverride(
+        "order-received", order.customerEmail,
+        orderEmailVariables(order, { orderUrl, invoiceUrl }),
+        (lang) => email.buildOrderReceivedEmail(order, orderUrl, invoiceUrl, lang),
+        orderLanguage(order)
+      ));
     }
 
     const historyEntry = {
@@ -4142,32 +6335,6 @@ async function handleAdminApi(request, response, pathname) {
     }
 
     json(response, 200, { ok: emailResult.ok, order: finalOrder, reason: emailResult.reason || null });
-    return true;
-  }
-
-  // TEMPORARY - verification endpoint for the new Resend integration
-  // (lib/resend.js). Not wired into any order-lifecycle flow yet; exists
-  // only so this can be tested end-to-end with a real RESEND_API_KEY before
-  // that wiring happens. Admin-gated (handleAdminApi's own session+CSRF
-  // checks already ran above) so it can't become a public mail-relay. Safe
-  // to delete once the real templates are built and confirmed working.
-  if (pathname === "/api/admin/resend-test-email" && request.method === "POST") {
-    const body = await readBody(request);
-    const to = String(body.to || session.user.email || "").trim();
-
-    if (!to || !to.includes("@")) {
-      json(response, 400, { error: "Adresa de test lipseste sau este invalida." });
-      return true;
-    }
-
-    const result = await resend.sendEmail({
-      to,
-      subject: "Test Resend - BECA",
-      text: `Acesta este un email de test trimis prin Resend din panoul admin BECA, de catre ${session.user.email}, la ${new Date().toISOString()}.`,
-      html: `<p>Acesta este un email de test trimis prin Resend din panoul admin BECA, de catre <strong>${session.user.email}</strong>, la ${new Date().toISOString()}.</p>`
-    });
-
-    json(response, result.ok ? 200 : 502, result);
     return true;
   }
 
@@ -4537,6 +6704,26 @@ function start() {
       // that page - brands without one keep their normal 404.
       if (/^\/archive\/\d{1,6}$/.test(pathname) && resolveStaticFilePath("archive-piece.html")) {
         serveFile(request, response, "/archive-piece.html");
+        return;
+      }
+
+      // Clean URLs for the shop funnel. Each renders a dedicated static
+      // page shell (the page itself calls the JSON APIs below), same
+      // rewrite shape as /archive/:id above. Query strings such as
+      // ?order=...&token=... pass through untouched - only the path is
+      // rewritten, not the full URL.
+      if (pathname === "/cart" && resolveStaticFilePath("cart.html")) {
+        serveFile(request, response, "/cart.html");
+        return;
+      }
+
+      if (pathname === "/checkout" && resolveStaticFilePath("checkout.html")) {
+        serveFile(request, response, "/checkout.html");
+        return;
+      }
+
+      if (pathname === "/order-confirmation" && resolveStaticFilePath("order-confirmation.html")) {
+        serveFile(request, response, "/order-confirmation.html");
         return;
       }
 

@@ -44,10 +44,10 @@ function getGlassDisplacementFilter({ height, width, radius, depth, strength, ch
 }
 
 function applyLiquidGlass() {
-  const glassElements = document.querySelectorAll(".beca-hero-copy, .beca-actions a, .language-switch, .floating-cart-button, .cart-drawer-panel, .product-card");
+  const glassElements = document.querySelectorAll(".beca-hero-copy, .beca-actions a, .language-switch, .cart-panel, .product-card");
 
   glassElements.forEach((element) => {
-    const isButton = element.matches(".beca-actions a, .language-switch, .floating-cart-button");
+    const isButton = element.matches(".beca-actions a, .language-switch");
     const value = `blur(${isButton ? 16 : 22}px) saturate(${isButton ? 1.28 : 1.38}) brightness(${isButton ? 1.08 : 1.04})`;
     element.classList.add("liquid-glass-real");
     element.style.backdropFilter = value;
@@ -91,7 +91,7 @@ const defaultCopy = {
     "cart.payLater": "I'll pay later",
     "cart.cardDetails": "Card details",
     "cart.payNow": "Pay now",
-    "checkout.trustNote": "Orders are recorded in GBP; prices shown in other currencies are indicative. Your details are used only to process this order.",
+    "checkout.trustNote": "Your order is recorded in the currency shown at checkout. Your details are used only to process this order.",
     "checkout.paymentTrustNote": "Card details are entered directly with Square and never reach our servers.",
     "previewOnly": "preview",
     "notifyMe": "Notify me when available",
@@ -204,6 +204,10 @@ const defaultCopy = {
     "account.wishlist": "Wishlist",
     "account.wishlistTitle": "Saved pieces",
     "account.wishlistEmpty": "No saved pieces yet.",
+    "account.dangerZone": "Danger zone",
+    "account.deleteAccount": "Delete my account",
+    "account.deleteAccountNote": "This permanently removes your login and profile. Past orders are kept for legal/accounting records, exactly as described in our privacy policy.",
+    "account.deleteAccountButton": "Delete my account",
     "faq.hero.kicker": "Quick help",
     "faq.hero.title": "Frequently asked questions.",
     "faq.hero.lede": "Answers to what our customers ask us most often.",
@@ -231,6 +235,38 @@ const defaultCopy = {
     "auth.reset.newPassword": "New password",
     "auth.reset.button": "Set new password",
     "cart.coupon": "Discount code (optional)",
+
+    // --- cart / checkout / order-confirmation pages ---
+    "cart.goToCart": "Go to cart",
+    "steps.cart": "Cart",
+    "steps.checkout": "Checkout",
+    "steps.confirmation": "Confirmation",
+    "cart.pageTitle": "Your cart",
+    "cart.summary": "Order summary",
+    "cart.subtotal": "Subtotal",
+    "cart.shipping": "Shipping",
+    "cart.shippingFree": "Free",
+    "cart.discount": "Discount",
+    "cart.total": "Total",
+    "cart.proceedToCheckout": "Proceed to checkout",
+    "cart.continueShopping": "Continue shopping",
+    "cart.emptyTitle": "Your cart is empty",
+    "cart.emptyBody": "You don't have any pieces selected yet. Explore the latest drop and find something you'll wear on repeat.",
+    "cart.clearCart": "Clear cart",
+    "checkout.pageTitle": "Checkout",
+    "checkout.contactInfo": "Contact information",
+    "checkout.shippingAddress": "Shipping address",
+    "checkout.delivery": "Delivery",
+    "checkout.payment": "Payment",
+    "checkout.country": "Country",
+    "checkout.fullName": "Full name",
+    "checkout.apartment": "Apartment / suite (optional)",
+    "checkout.city": "City",
+    "checkout.county": "County / State",
+    "checkout.postalCode": "Postal code",
+    "checkout.deliveryStandardName": "Standard shipping",
+    "confirmation.title": "Order confirmed",
+    "confirmation.message": "Thank you — your order has been placed successfully. A confirmation email is on its way.",
     "privacy.hero.kicker": "Legal",
     "privacy.hero.title": "Privacy policy.",
     "privacy.hero.lede": "Last updated: 5 July 2026. We explain what data we collect, why, and what rights you have over it.",
@@ -351,7 +387,7 @@ const defaultCopy = {
     "cart.payLater": "Platesc mai tarziu",
     "cart.cardDetails": "Detalii card",
     "cart.payNow": "Plateste acum",
-    "checkout.trustNote": "Comanda se inregistreaza in GBP; preturile afisate in alte monede sunt orientative. Datele tale sunt folosite doar pentru procesarea acestei comenzi.",
+    "checkout.trustNote": "Comanda ta se inregistreaza in moneda afisata la finalizarea comenzii. Datele tale sunt folosite doar pentru procesarea acestei comenzi.",
     "checkout.paymentTrustNote": "Detaliile cardului sunt introduse direct la Square si nu ajung niciodata pe serverele noastre.",
     "previewOnly": "preview",
     "notifyMe": "Anunta-ma cand e disponibil",
@@ -464,6 +500,10 @@ const defaultCopy = {
     "account.wishlist": "Favorite",
     "account.wishlistTitle": "Piese salvate",
     "account.wishlistEmpty": "Nicio piesa salvata inca.",
+    "account.dangerZone": "Zona de risc",
+    "account.deleteAccount": "Sterge contul meu",
+    "account.deleteAccountNote": "Aceasta actiune iti sterge permanent datele de login si profilul. Comenzile anterioare raman pastrate pentru evidenta contabila/legala, exact cum este descris in politica de confidentialitate.",
+    "account.deleteAccountButton": "Sterge contul meu",
     "faq.hero.kicker": "Ajutor rapid",
     "faq.hero.title": "Intrebari frecvente.",
     "faq.hero.lede": "Raspunsuri la ce ne intreaba cel mai des clientii nostri.",
@@ -491,6 +531,38 @@ const defaultCopy = {
     "auth.reset.newPassword": "Parola noua",
     "auth.reset.button": "Seteaza parola noua",
     "cart.coupon": "Cod de reducere (optional)",
+
+    // --- cart / checkout / order-confirmation pages ---
+    "cart.goToCart": "Mergi la cos",
+    "steps.cart": "Cos",
+    "steps.checkout": "Checkout",
+    "steps.confirmation": "Confirmare",
+    "cart.pageTitle": "Cosul tau",
+    "cart.summary": "Sumar comanda",
+    "cart.subtotal": "Subtotal",
+    "cart.shipping": "Livrare",
+    "cart.shippingFree": "Gratuita",
+    "cart.discount": "Reducere",
+    "cart.total": "Total",
+    "cart.proceedToCheckout": "Continua spre checkout",
+    "cart.continueShopping": "Continua cumparaturile",
+    "cart.emptyTitle": "Cosul tau este gol",
+    "cart.emptyBody": "Nu ai nicio piesa selectata inca. Descopera cel mai nou drop si gaseste ceva ce vei purta des.",
+    "cart.clearCart": "Goleste cosul",
+    "checkout.pageTitle": "Checkout",
+    "checkout.contactInfo": "Informatii de contact",
+    "checkout.shippingAddress": "Adresa de livrare",
+    "checkout.delivery": "Livrare",
+    "checkout.payment": "Plata",
+    "checkout.country": "Tara",
+    "checkout.fullName": "Nume complet",
+    "checkout.apartment": "Apartament / bloc (optional)",
+    "checkout.city": "Oras",
+    "checkout.county": "Judet / Regiune",
+    "checkout.postalCode": "Cod postal",
+    "checkout.deliveryStandardName": "Livrare standard",
+    "confirmation.title": "Comanda confirmata",
+    "confirmation.message": "Multumim — comanda ta a fost plasata cu succes. Un email de confirmare este pe drum.",
     "privacy.hero.kicker": "Legal",
     "privacy.hero.title": "Politica de confidentialitate.",
     "privacy.hero.lede": "Ultima actualizare: 5 iulie 2026. Explicam ce date colectam, de ce, si ce drepturi ai asupra lor.",
@@ -592,18 +664,72 @@ if (window.__BRAND_COPY__) {
   });
 }
 
+// Active languages, fetched once below - lets detectLanguage()/setLanguage()
+// generalize beyond the old hardcoded "en"/"ro" checks. Until the fetch
+// resolves, isKnownLanguageCode()/defaultLanguageCode() fall back to
+// exactly today's behavior, so nothing regresses before it loads.
+let languagesCache = null;
+
+function isKnownLanguageCode(code) {
+  if (!code) return false;
+  if (languagesCache) return languagesCache.some((entry) => entry.code === code && entry.active);
+  return code === "en" || code === "ro";
+}
+
+function defaultLanguageCode() {
+  const found = languagesCache?.find((entry) => entry.isDefault);
+  return found?.code || "en";
+}
+
+// Replaces the static per-page [data-lang] EN/RO buttons inside every
+// [aria-label="Language"] container (.language-switch, .mobile-language-row
+// - both already share this attribute across every page, so no HTML edit
+// is needed here) with one button per active language. A no-op until
+// languagesCache has loaded, and a no-op again once the rendered buttons
+// already match the active set (avoids rebuilding - and losing focus/
+// animation state on - a switcher that hasn't actually changed).
+function renderLanguageSwitchers() {
+  if (!languagesCache) return;
+  const activeLanguages = languagesCache.filter((entry) => entry.active);
+  document.querySelectorAll('[aria-label="Language"]').forEach((container) => {
+    if (!container.querySelector("[data-lang]")) return;
+    const currentCodes = [...container.querySelectorAll("[data-lang]")].map((button) => button.dataset.lang);
+    const activeCodes = activeLanguages.map((entry) => entry.code);
+    if (currentCodes.length === activeCodes.length && activeCodes.every((code) => currentCodes.includes(code))) return;
+    container.innerHTML = "";
+    activeLanguages.forEach((entry) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.lang = entry.code;
+      button.setAttribute("aria-pressed", "false");
+      button.textContent = entry.code.toUpperCase();
+      container.appendChild(button);
+    });
+  });
+}
+
+// Sales open Monday at midnight, Romania time - same hardcoded-offset
+// convention as product.js's PRODUCT_DROP_UNLOCK_AT, so every visitor's
+// countdown hits zero at the same real instant regardless of their own
+// timezone.
+const GLOBAL_DROP_LIVE_AT = new Date("2026-08-17T00:00:00+03:00").getTime();
+
 function updateHeroGlitchCountdown() {
   const pad = (value) => String(value).padStart(2, "0");
-  const glitchValue = (max) => pad(Math.floor(Math.random() * (max + 1)));
+  const remaining = Math.max(0, GLOBAL_DROP_LIVE_AT - Date.now());
+  const totalSeconds = Math.floor(remaining / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
 
   document.querySelectorAll("[data-glitch-hours]").forEach((element) => {
-    element.textContent = glitchValue(99);
+    element.textContent = pad(hours);
   });
   document.querySelectorAll("[data-glitch-minutes]").forEach((element) => {
-    element.textContent = glitchValue(59);
+    element.textContent = pad(minutes);
   });
   document.querySelectorAll("[data-glitch-seconds]").forEach((element) => {
-    element.textContent = glitchValue(59);
+    element.textContent = pad(seconds);
   });
 }
 
@@ -613,22 +739,22 @@ function detectLanguage() {
   // used by single-language brand instances (e.g. ÆTHER ORIGIN is
   // English-only). Brands without the attribute behave as before.
   const forced = document.documentElement.dataset.forceLang;
-  if (forced === "ro" || forced === "en") return forced;
+  if (isKnownLanguageCode(forced)) return forced;
 
   const saved = localStorage.getItem("beca-language");
   const source = localStorage.getItem("beca-language-source");
-  if (source === "manual" && (saved === "ro" || saved === "en")) {
+  if (source === "manual" && isKnownLanguageCode(saved)) {
     return saved;
   }
 
   const profile = window.BecaRegion?.detect?.();
   if (profile?.language) return profile.language;
 
-  return "en";
+  return defaultLanguageCode();
 }
 
 function setLanguage(language, options = {}) {
-  const activeLanguage = copy[language] ? language : "en";
+  const activeLanguage = copy[language] ? language : defaultLanguageCode();
   document.documentElement.lang = activeLanguage;
 
   document.querySelectorAll("[data-i18n]").forEach((element) => {
@@ -662,7 +788,7 @@ function setLanguage(language, options = {}) {
 
 setLanguage(detectLanguage(), { source: "auto" });
 updateHeroGlitchCountdown();
-window.setInterval(updateHeroGlitchCountdown, 120);
+window.setInterval(updateHeroGlitchCountdown, 1000);
 applyLiquidGlass();
 
 function applyBrandingImages(branding) {
@@ -673,28 +799,54 @@ function applyBrandingImages(branding) {
   });
 }
 
-fetch("/api/content")
-  .then((response) => (response.ok ? response.json() : null))
-  .then((data) => {
+Promise.all([
+  fetch("/api/languages").then((response) => (response.ok ? response.json() : null)).catch(() => null),
+  fetch("/api/content").then((response) => (response.ok ? response.json() : null)).catch(() => null)
+])
+  .then(async ([languagesData, data]) => {
+    languagesCache = Array.isArray(languagesData?.languages) ? languagesData.languages : null;
+    renderLanguageSwitchers();
+
     if (!data) return;
-    // Brand copy overrides stay on top of admin-edited content too - the
-    // brand voice keys (trust strip, scarcity wording) are fixed rules,
-    // not editable copy. Keys the brand doesn't override behave as before.
-    copy = {
-      en: { ...defaultCopy.en, ...data.en, ...(window.__BRAND_COPY__?.en || {}) },
-      ro: { ...defaultCopy.ro, ...data.ro, ...(window.__BRAND_COPY__?.ro || {}) }
-    };
+
+    // One override fetch per active language (falls back to en/ro if the
+    // languages list itself failed to load) - the translations table is a
+    // flat key/value layer on top of content.json's structured per-section
+    // fields, for copy that schema doesn't cover (see lib/db.js's
+    // translations table comment). Brand copy overrides stay on top of
+    // both - the brand voice keys (trust strip, scarcity wording) are
+    // fixed rules, not editable copy.
+    const activeCodes = languagesCache?.filter((entry) => entry.active).map((entry) => entry.code) || ["en", "ro"];
+    const translationsByLang = {};
+    await Promise.all(activeCodes.map((code) =>
+      fetch(`/api/translations?lang=${encodeURIComponent(code)}`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((payload) => { translationsByLang[code] = (payload && payload.translations) || {}; })
+        .catch(() => { translationsByLang[code] = {}; })
+    ));
+
+    const nextCopy = {};
+    activeCodes.forEach((code) => {
+      nextCopy[code] = {
+        ...(defaultCopy[code] || defaultCopy.en),
+        ...(data[code] || {}),
+        ...(translationsByLang[code] || {}),
+        ...(window.__BRAND_COPY__?.[code] || {})
+      };
+    });
+    copy = nextCopy;
+
     setLanguage(detectLanguage(), { source: "auto" });
     applyBrandingImages(data.branding);
   })
   .catch(() => {});
 let glassResizeTimer;
 
-document.querySelectorAll("[data-lang]").forEach((button) => {
-  button.addEventListener("click", () => {
-    setLanguage(button.dataset.lang, { source: "manual" });
-    requestAnimationFrame(applyLiquidGlass);
-  });
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-lang]");
+  if (!button) return;
+  setLanguage(button.dataset.lang, { source: "manual" });
+  requestAnimationFrame(applyLiquidGlass);
 });
 
 const heroAccess = document.querySelector("#heroAccess");

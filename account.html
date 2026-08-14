@@ -6,7 +6,7 @@
   <title>Account / BeCa</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23050706%27/%3E%3Ctext x=%2732%27 y=%2746%27 font-family=%27Georgia,serif%27 font-size=%2742%27 font-weight=%27700%27 fill=%27%23e8b84b%27 text-anchor=%27middle%27%3EB%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=2026-08-01">
+  <link rel="stylesheet" href="styles.css?v=2026-08-14-1">
 </head>
 <body class="beca-minimal account-page">
   <div class="cursor-glow" aria-hidden="true"></div>
@@ -23,6 +23,7 @@
     <div class="account-topbar-actions">
       <a class="account-home-link" href="/" data-i18n="account.home">Home</a>
       <a class="account-home-link" href="/orders.html" data-i18n="account.orders">My orders</a>
+      <a class="account-home-link" href="/cart"><span data-i18n="cart.goToCart">Go to cart</span> <span class="header-cart-badge" data-cart-badge hidden>0</span></a>
       <a class="account-home-link" href="/admin/dashboard.html" data-admin-only hidden data-i18n="account.admin">Admin Panel</a>
       <button type="button" data-logout data-i18n="account.logout">Logout</button>
     </div>
@@ -100,6 +101,20 @@
         </form>
       </article>
 
+      <article class="account-panel account-settings account-danger-zone" data-client-only>
+        <p data-i18n="account.dangerZone">Danger zone</p>
+        <h2 data-i18n="account.deleteAccount">Delete my account</h2>
+        <p class="account-danger-note" data-i18n="account.deleteAccountNote">This permanently removes your login and profile. Past orders are kept for legal/accounting records, exactly as described in our privacy policy.</p>
+        <form data-delete-account-form>
+          <label>
+            <span data-i18n="account.currentPassword">Current password</span>
+            <input name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit" class="account-danger-button" data-i18n="account.deleteAccountButton">Delete my account</button>
+          <span class="form-message" data-delete-account-message></span>
+        </form>
+      </article>
+
       <article class="account-panel account-drop-card">
         <p data-i18n="account.nextDrop">Next drop</p>
         <h2 data-i18n="account.nextTitle">Oversized statement tee</h2>
@@ -139,12 +154,14 @@
     </section>
   </main>
 
-  <script src="security.js?v=2026-08-01"></script>
-  <script src="locale.js?v=2026-08-01"></script>
-  <script src="script.js?v=2026-08-01"></script>
-  <script src="auth.js?v=2026-08-01"></script>
+  <script src="security.js?v=2026-08-13"></script>
+  <script src="currency.js?v=2026-08-14-1"></script>
+  <script src="locale.js?v=2026-08-14-1"></script>
+  <script src="cart-widget.js?v=2026-08-13"></script>
+  <script src="script.js?v=2026-08-14-2"></script>
+  <script src="auth.js?v=2026-08-13"></script>
   <script src="wishlist.js"></script>
-  <script src="editor.js?v=2026-08-01" defer></script>
+  <script src="editor.js?v=2026-08-13" defer></script>
   <div class="floating-shop-actions" aria-label="Language">
     <div class="language-switch" aria-label="Language">
       <button type="button" data-lang="en" aria-pressed="true">EN</button>

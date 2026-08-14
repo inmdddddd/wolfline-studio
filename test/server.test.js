@@ -266,13 +266,14 @@ test("sanitizeCheckout prefers explicit input then session fallbacks", () => {
   const session = { user: { name: "Session Name", email: "session@test.co" } };
 
   const explicit = server.sanitizeCheckout(
-    { customerName: "  Buyer  ", email: "Buyer@Test.CO", phone: "123", address: "St 1", notes: "hi" },
+    { customerName: "  Buyer  ", email: "Buyer@Test.CO", phone: "123", address: "St 1", country: " ro ", notes: "hi" },
     session
   );
   assert.equal(explicit.customerName, "Buyer");
   assert.equal(explicit.customerEmail, "buyer@test.co");
   assert.equal(explicit.customerPhone, "123");
   assert.equal(explicit.customerAddress, "St 1");
+  assert.equal(explicit.customerCountry, "RO", "trims and uppercases the country code");
   assert.equal(explicit.notes, "hi");
 
   const fallback = server.sanitizeCheckout({}, session);

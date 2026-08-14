@@ -73,6 +73,18 @@ async function productRequest(url, options = {}) {
   return payload;
 }
 
+// Header cart badge (desktop nav + mobile menu link) - this page has no
+// cart contents to render, just the count.
+function applyCartBadge(cart) {
+  document.querySelectorAll("[data-cart-badge]").forEach((element) => {
+    const count = Number(cart?.count || 0);
+    element.textContent = String(count);
+    element.hidden = count === 0;
+  });
+}
+
+productRequest("/api/cart").then(({ cart }) => applyCartBadge(cart)).catch(() => {});
+
 function waitForProductModelReady(viewer, attemptsLeft = 40) {
   return new Promise((resolve, reject) => {
     const check = (remaining) => {
@@ -157,12 +169,16 @@ async function initProductPage() {
   const display = productDisplay(product);
   const brandName = productBrandName();
   const siteOrigin = productSiteOrigin();
-  document.title = `${display.displayName} / ${brandName}`;
-  const metaDescription = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
+  const pageUrl = `${siteOrigin}/product.html?slug=${encodeURIComponent(slug)}`;
+  // An admin-set SEO title/description overrides the generated default;
+  // leaving them blank keeps today's behavior exactly as it was.
+  document.title = product.seoTitle || `${display.displayName} / ${brandName}`;
+  const metaDescription = product.seoDescription || display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
   document.querySelector("[data-product-meta-description]")?.setAttribute("content", metaDescription);
-  document.querySelector("[data-product-og-title]")?.setAttribute("content", `${display.displayName} / ${brandName}`);
+  document.querySelector("[data-product-og-title]")?.setAttribute("content", product.seoTitle || `${display.displayName} / ${brandName}`);
   document.querySelector("[data-product-og-description]")?.setAttribute("content", metaDescription);
-  document.querySelector("[data-product-og-url]")?.setAttribute("content", `${siteOrigin}/product.html?slug=${encodeURIComponent(slug)}`);
+  document.querySelector("[data-product-og-url]")?.setAttribute("content", pageUrl);
+  document.querySelector("[data-product-canonical]")?.setAttribute("href", product.canonicalUrl || pageUrl);
   const ogImage = productImageSrc(product);
   if (ogImage && !ogImage.startsWith("data:")) {
     document.querySelector("[data-product-og-image]")?.setAttribute("content", new URL(ogImage, `${siteOrigin}/`).href);
@@ -174,6 +190,17 @@ async function initProductPage() {
   document.querySelector("[data-product-price]").textContent = isPreviewProduct(product)
     ? productText("unknownYet", "Unknown yet")
     : productMoney(product.price, product.currency);
+  const comparePriceEl = document.querySelector("[data-product-compare-price]");
+  if (comparePriceEl) {
+    // publicProduct() only sends compareAtPrice when it's genuinely higher
+    // than price, so no re-check is needed here.
+    if (!isPreviewProduct(product) && product.compareAtPrice) {
+      comparePriceEl.textContent = productMoney(product.compareAtPrice, product.currency);
+      comparePriceEl.hidden = false;
+    } else {
+      comparePriceEl.hidden = true;
+    }
+  }
   document.querySelector("[data-product-description]").textContent = display.displayDescription || productText("limitedFallback", "Limited piece from the latest drop.");
 
   // Fixed-edition state (brands whose product page has the element and
@@ -294,10 +321,11 @@ async function initProductPage() {
         return;
       }
 
-      await productRequest("/api/cart/add", {
+      const { cart } = await productRequest("/api/cart/add", {
         method: "POST",
         body: JSON.stringify({ productId: product.id, qty: 1, size: sizes.dataset.selectedSize || "" })
       });
+      applyCartBadge(cart);
       message.dataset.type = "success";
       message.textContent = productText("addedToCart", "Added to cart.");
     } catch (error) {

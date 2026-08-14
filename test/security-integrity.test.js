@@ -116,6 +116,13 @@ async function placeCheckout(baseUrl, { cookie = "", couponCode } = {}) {
       customerEmail: `buyer-${Math.random().toString(16).slice(2)}@example.com`,
       customerPhone: "0700000000",
       customerAddress: "Str. Test 1, Iasi",
+      customerCountry: "RO",
+      // Explicit, not incidental: some tests in this file assert on the
+      // Romanian hardcoded email subject (e.g. /primita/i) as a proxy for
+      // "the right email was sent" - customerLanguage is now a real,
+      // validated checkout field, so it must be set explicitly rather than
+      // relying on whatever the store's default language happens to be.
+      customerLanguage: "ro",
       ...(couponCode ? { couponCode } : {})
     })
   });
@@ -324,6 +331,129 @@ test("beca: orders, checkout, coupons, content and static protections", async (t
         body: { code: "BADDATE", type: "fixed", value: 5, expiresAt: "not-a-date" }
       });
       assert.equal(badDate.status, 400);
+    });
+
+    await t.test("coupons: a minOrderValue below the cart total is rejected, at/above it is accepted", async () => {
+      const create = await jsonRequest(baseUrl, "/api/admin/coupons", {
+        method: "POST",
+        cookie: adminCookie,
+        body: { code: "MINSPEND", type: "fixed", value: 5, minOrderValue: 1000 }
+      });
+      assert.equal(create.status, 200);
+      assert.equal(create.payload.coupon.minOrderValue, 1000);
+
+      // placeCheckout's single-item cart is far under 1000 for this catalog.
+      const tooLow = await placeCheckout(baseUrl, { couponCode: "MINSPEND" });
+      assert.equal(tooLow.status, 400);
+      assert.match(tooLow.error, /minima/i);
+
+      const create2 = await jsonRequest(baseUrl, "/api/admin/coupons", {
+        method: "POST",
+        cookie: adminCookie,
+        body: { code: "MINSPEND0", type: "fixed", value: 5, minOrderValue: 0 }
+      });
+      assert.equal(create2.status, 200);
+      assert.equal(create2.payload.coupon.minOrderValue, null, "a 0 minimum is stored as no minimum, not enforced as $0");
+    });
+
+    await t.test("cart: an item that stops being purchasable is dropped and surfaced once, then pruned", async () => {
+      const { payload: productsPayload } = await jsonRequest(baseUrl, "/api/products");
+      const product = productsPayload.products[0];
+      const size = (product.sizes || [])[0] || "";
+
+      const addResponse = await fetch(`${baseUrl}/api/cart/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: baseUrl },
+        body: JSON.stringify({ productId: product.id, size, qty: 1 })
+      });
+      assert.equal(addResponse.status, 200);
+      const cartCookie = cookiesFrom(addResponse);
+
+      const before = await jsonRequest(baseUrl, "/api/cart", { cookie: cartCookie });
+      assert.equal(before.payload.cart.count, 1);
+      assert.equal(before.payload.cart.droppedCount, 0);
+
+      // Draft = no longer purchasable, without deleting the product outright.
+      const archive = await jsonRequest(baseUrl, `/api/admin/products/${product.id}`, {
+        method: "PUT",
+        cookie: adminCookie,
+        body: { ...product, status: "draft" }
+      });
+      assert.equal(archive.status, 200);
+
+      const afterArchive = await jsonRequest(baseUrl, "/api/cart", { cookie: cartCookie });
+      assert.equal(afterArchive.payload.cart.count, 0, "the now-unpurchasable item is excluded from the cart total");
+      assert.equal(afterArchive.payload.cart.droppedCount, 1, "surfaced exactly once so the client can message it");
+
+      const afterPrune = await jsonRequest(baseUrl, "/api/cart", { cookie: cartCookie });
+      assert.equal(afterPrune.payload.cart.droppedCount, 0, "stale key is pruned from storage, not re-flagged on every future read");
+
+      // Restore for any later test in this file that assumes full stock.
+      await jsonRequest(baseUrl, `/api/admin/products/${product.id}`, {
+        method: "PUT",
+        cookie: adminCookie,
+        body: { ...product, status: "live" }
+      });
+    });
+
+    await t.test("cart: DELETE /api/cart clears every item in one call", async () => {
+      const { payload: productsPayload } = await jsonRequest(baseUrl, "/api/products");
+      const product = productsPayload.products[0];
+      const size = (product.sizes || [])[0] || "";
+
+      const addResponse = await fetch(`${baseUrl}/api/cart/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: baseUrl },
+        body: JSON.stringify({ productId: product.id, size, qty: 2 })
+      });
+      const cartCookie = cookiesFrom(addResponse);
+      const before = await jsonRequest(baseUrl, "/api/cart", { cookie: cartCookie });
+      assert.equal(before.payload.cart.count, 2);
+
+      const cleared = await jsonRequest(baseUrl, "/api/cart", { method: "DELETE", cookie: cartCookie });
+      assert.equal(cleared.status, 200);
+      assert.equal(cleared.payload.cart.count, 0);
+      assert.deepEqual(cleared.payload.cart.items, []);
+    });
+
+    await t.test("account deletion: anonymizes on correct password, blocks on wrong password, kills every session, and is refused for admins", async () => {
+      const email = `deleteme-${Math.random().toString(16).slice(2)}@example.com`;
+      const { cookie } = await registerUser(baseUrl, email, "Delete Me");
+
+      const wrongPassword = await jsonRequest(baseUrl, "/api/account/delete", {
+        method: "PUT",
+        cookie,
+        body: { password: "not-the-right-password" }
+      });
+      assert.equal(wrongPassword.status, 401);
+
+      const stillLoggedIn = await jsonRequest(baseUrl, "/api/me", { cookie });
+      assert.ok(stillLoggedIn.payload.user, "a failed deletion attempt must not touch the session");
+
+      const deleted = await jsonRequest(baseUrl, "/api/account/delete", {
+        method: "PUT",
+        cookie,
+        body: { password: "integration-pass-123" }
+      });
+      assert.equal(deleted.status, 200);
+
+      const sessionAfter = await jsonRequest(baseUrl, "/api/me", { cookie });
+      assert.equal(sessionAfter.payload.user, null, "the session used to delete the account is itself invalidated");
+
+      const reLogin = await jsonRequest(baseUrl, "/auth/login", {
+        method: "POST",
+        body: { email, password: "integration-pass-123" }
+      });
+      assert.equal(reLogin.status, 401, "the original email/password no longer resolves to any account");
+
+      const adminSelfDelete = await jsonRequest(baseUrl, "/api/account/delete", {
+        method: "PUT",
+        cookie: adminCookie,
+        body: { password: ADMIN_PASSWORD }
+      });
+      assert.equal(adminSelfDelete.status, 403, "self-service deletion must refuse an admin account");
+      const adminStillWorks = await jsonRequest(baseUrl, "/api/me", { cookie: adminCookie });
+      assert.ok(adminStillWorks.payload.user, "the admin session survives its own refused deletion attempt");
     });
 
     await t.test("stored XSS payloads in editor content are neutralized on the server", async () => {

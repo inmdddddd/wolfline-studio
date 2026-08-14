@@ -4,7 +4,7 @@
     {
       "name": "wolfline-studio",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:\\Users\\alexm\\Documents\\Wolfline studio\\brand-platform\\server.js"],
+      "runtimeArgs": ["C:\\Users\\alexm\\Desktop\\beca\\wolfline-studio\\server.js"],
       "port": 4188
     },
     {
