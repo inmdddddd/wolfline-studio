@@ -234,6 +234,9 @@ function shippingMethodRowHtml(method) {
   if (method.freeShippingThreshold != null) bits.push(`gratuit peste ${money({ price: method.freeShippingThreshold, currency: defaultCurrency })}`);
   if (method.estimatedDeliveryText) bits.push(escapeHtml(method.estimatedDeliveryText));
 
+  // Was silently "" (no editor, no explanation) when no country was
+  // configured yet - looked like the per-country price feature didn't
+  // exist at all rather than just needing its one prerequisite set up.
   const pricesEditor = countryConfigState.length > 0 ? `
     <details class="admin-price-editor">
       <summary>Preturi pe tari${method.prices?.length ? ` (${method.prices.length} configurate)` : ""}</summary>
@@ -245,7 +248,7 @@ function shippingMethodRowHtml(method) {
         <span class="form-message" data-shipping-method-prices-message="${method.id}"></span>
       </div>
     </details>
-  ` : "";
+  ` : `<p class="admin-form-hint">Adauga cel putin o tara in "Limbi &amp; Monede" ca sa poti seta preturi de livrare pe tari.</p>`;
 
   return `
     <div class="admin-shipping-method-row">
@@ -1034,6 +1037,14 @@ function renderProducts(products) {
         </div>
       `;
       item.appendChild(pricesDetails);
+    } else {
+      // Was silently absent (no section, no explanation) when no country
+      // was configured yet - looked like there was no way at all to price a
+      // product per country/currency, rather than one missing prerequisite.
+      const hint = document.createElement("p");
+      hint.className = "admin-form-hint";
+      hint.textContent = "Adauga cel putin o tara in \"Limbi & Monede\" (ex: Romania -> RON) ca sa poti seta aici un pret separat pentru acea tara.";
+      item.appendChild(hint);
     }
 
     const nonDefaultLanguages = languagesState.filter((language) => language.active && !language.isDefault);
