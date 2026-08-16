@@ -939,6 +939,12 @@ function renderProducts(products) {
     const saveButton = document.createElement("button");
 
     item.className = "admin-product";
+    // Explicit class, not ":last-child" - the price-editor/translations/hint
+    // sections appended after info+controls below would otherwise silently
+    // steal the "last child" match and leave this column unstyled the
+    // moment any of them exists (which is effectively always, since "ro"
+    // is a seeded active non-default language from day one).
+    controls.className = "admin-product-controls";
     select.className = "admin-product-select";
     selectInput.type = "checkbox";
     selectInput.dataset.bulkProductSelect = product.id;

@@ -4703,10 +4703,20 @@ button.checkout-back:hover {
   margin-top: 8px;
 }
 
-.admin-product > div:last-child {
+.admin-product-controls {
   display: grid;
   gap: 8px;
   justify-items: end;
+}
+
+/* The price-editor/translations <details> and the "add a country/language
+   first" hint all get appended as extra grid children AFTER info+controls
+   (see admin.js) - without this, grid-template-columns: 1fr auto's implicit
+   row-auto-placement crams them into a half-width column instead of a
+   full-width row underneath. */
+.admin-product > .admin-price-editor,
+.admin-product > .admin-form-hint {
+  grid-column: 1 / -1;
 }
 
 .admin-order select {
@@ -4850,7 +4860,7 @@ button.checkout-back:hover {
     justify-content: flex-start;
   }
 
-  .admin-product > div:last-child {
+  .admin-product-controls {
     justify-items: start;
   }
 
@@ -6472,7 +6482,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
     gap: 10px;
   }
 
-  .admin-product > div:last-child {
+  .admin-product-controls {
     justify-items: stretch;
   }
 
