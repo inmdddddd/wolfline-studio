@@ -32,6 +32,7 @@
 
   const changes = new Map();      // key -> { t: "text"|"img", v }
   let editing = false;
+  let cachedBranding = null;      // last-known content.branding, re-applied on locale change
 
   /* ---------- stable element key (a real CSS selector) ---------- */
   function cssPath(el) {
@@ -365,6 +366,10 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Salvare esuata.");
+      // Keep the re-assert cache in sync so a later locale-change (without an
+      // intervening page reload) re-applies what was just saved, not what was
+      // cached at boot.
+      cachedBranding = Object.assign({}, cachedBranding, branding);
       changes.clear();
       markDirty();
       toast("Salvat ✓");
@@ -532,9 +537,16 @@
       const res = await fetch("/api/content", { headers: { "Accept": "application/json" } });
       if (res.ok) {
         const content = await res.json();
-        applyOverrides(content && content.branding);
+        cachedBranding = (content && content.branding) || {};
+        applyOverrides(cachedBranding);
       }
     } catch (_) { /* non-fatal */ }
+
+    // script.js re-scans every [data-i18n] element (and overwrites .textContent
+    // from its own hardcoded dictionary) on every language switch, which would
+    // silently clobber an oed:: override living on the same element. Re-assert
+    // our overrides after every such re-scan so a saved edit always wins.
+    window.addEventListener("beca:locale-change", () => applyOverrides(cachedBranding));
 
     // 2) admin-only editor
     try {
