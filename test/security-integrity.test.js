@@ -166,9 +166,12 @@ test("beca: orders, checkout, coupons, content and static protections", async (t
       assert.notEqual(stored.publicAccessTokenHash, publicAccessToken, "plain token is not stored");
       assert.ok(stored.reservation?.expiresAt, "stock reservation carries an expiry");
 
-      // The received email says "primita", never "confirmata".
+      // The received email says "primita", never "confirmata". Scoped to
+      // the customer's own address: the same checkout also fires an
+      // internal "Comanda noua" alert to admin accounts, which shares the
+      // order number in its subject but is a different email entirely.
       const outbox = JSON.parse(fs.readFileSync(path.join(tempDir, "email-outbox.json"), "utf8"));
-      const received = outbox.find((entry) => entry.subject.includes(order.number));
+      const received = outbox.find((entry) => entry.subject.includes(order.number) && entry.to === order.customerEmail);
       assert.ok(received, "order received email saved to outbox");
       assert.match(received.subject, /primita/i);
       assert.doesNotMatch(received.subject, /confirmata/i);

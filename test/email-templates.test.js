@@ -263,7 +263,9 @@ test("email templates: admin CRUD, interpolation safety, preview/test-send, and 
 
       const order = await placeOrder(baseUrl);
       const outbox = readOutbox();
-      const sent = outbox.find((entry) => entry.subject.includes(order.number));
+      // Scoped to the customer's own address: the same checkout also fires
+      // an internal "Comanda noua" admin alert sharing the order number.
+      const sent = outbox.find((entry) => entry.subject.includes(order.number) && entry.to === order.customerEmail);
       assert.ok(sent, "an email was actually captured for this order");
       assert.equal(sent.subject, `OVERRIDE ${order.number}`);
       assert.match(sent.text, /OVERRIDDEN BODY for Template Test Buyer, total/);
@@ -279,7 +281,7 @@ test("email templates: admin CRUD, interpolation safety, preview/test-send, and 
 
       const order = await placeOrder(baseUrl);
       const outbox = readOutbox();
-      const sent = outbox.find((entry) => entry.subject.includes(order.number));
+      const sent = outbox.find((entry) => entry.subject.includes(order.number) && entry.to === order.customerEmail);
       assert.ok(sent, "an email was still sent");
       assert.doesNotMatch(sent.subject, /^OVERRIDE/, "inactive template must not be used");
       assert.match(sent.subject, /primita/, "falls back to the real buildOrderReceivedEmail wording");
@@ -366,7 +368,7 @@ test("email templates: admin CRUD, interpolation safety, preview/test-send, and 
       // default-language (en) override is used - better than an
       // unconditional Romanian default for a language with no row at all.
       const roOrderRung2 = await placeOrder(baseUrl, { customerLanguage: "ro" });
-      const sent1 = readOutbox().find((entry) => entry.subject.includes(roOrderRung2.number));
+      const sent1 = readOutbox().find((entry) => entry.subject.includes(roOrderRung2.number) && entry.to === roOrderRung2.customerEmail);
       assert.equal(sent1.subject, `EN DEFAULT LANG OVERRIDE ${roOrderRung2.number}`, "falls through to the default-language override (rung 2)");
 
       // Rung 1: now a ro-specific row exists too - it must win over the
@@ -376,13 +378,13 @@ test("email templates: admin CRUD, interpolation safety, preview/test-send, and 
         body: { subject: "RO SPECIFIC OVERRIDE {{orderNumber}}", body: "ro specific body", active: true, languageCode: "ro" }
       });
       const roOrderRung1 = await placeOrder(baseUrl, { customerLanguage: "ro" });
-      const sent2 = readOutbox().find((entry) => entry.subject.includes(roOrderRung1.number));
+      const sent2 = readOutbox().find((entry) => entry.subject.includes(roOrderRung1.number) && entry.to === roOrderRung1.customerEmail);
       assert.equal(sent2.subject, `RO SPECIFIC OVERRIDE ${roOrderRung1.number}`, "the customer's own language row wins over the default-language row (rung 1)");
 
       // An English customer's rung 1 is the en row saved above, distinct
       // from the ro-specific row.
       const enOrder = await placeOrder(baseUrl, { customerLanguage: "en" });
-      const sent3 = readOutbox().find((entry) => entry.subject.includes(enOrder.number));
+      const sent3 = readOutbox().find((entry) => entry.subject.includes(enOrder.number) && entry.to === enOrder.customerEmail);
       assert.equal(sent3.subject, `EN DEFAULT LANG OVERRIDE ${enOrder.number}`, "an English customer's own-language row (rung 1) is used, not the ro row");
 
       // Rung 3: deactivate both rows - only the hardcoded original is left,
@@ -397,11 +399,11 @@ test("email templates: admin CRUD, interpolation safety, preview/test-send, and 
       });
 
       const roHardcoded = await placeOrder(baseUrl, { customerLanguage: "ro" });
-      const roSent = readOutbox().find((entry) => entry.subject.includes(roHardcoded.number));
+      const roSent = readOutbox().find((entry) => entry.subject.includes(roHardcoded.number) && entry.to === roHardcoded.customerEmail);
       assert.match(roSent.subject, /primita/, "rung 3, Romanian customer: the hardcoded Romanian original");
 
       const enHardcoded = await placeOrder(baseUrl, { customerLanguage: "en" });
-      const enSent = readOutbox().find((entry) => entry.subject.includes(enHardcoded.number));
+      const enSent = readOutbox().find((entry) => entry.subject.includes(enHardcoded.number) && entry.to === enHardcoded.customerEmail);
       assert.match(enSent.subject, /has been received/i, "rung 3, English customer: the hardcoded English variant, not a Romanian default");
     });
 
@@ -415,8 +417,72 @@ test("email templates: admin CRUD, interpolation safety, preview/test-send, and 
       // test, and no fr-specific row exists, so this genuinely reaches
       // rung 3 with a language the hardcoded fallback doesn't know.
       const frOrder = await placeOrder(baseUrl, { customerLanguage: "fr" });
-      const frSent = readOutbox().find((entry) => entry.subject.includes(frOrder.number));
+      const frSent = readOutbox().find((entry) => entry.subject.includes(frOrder.number) && entry.to === frOrder.customerEmail);
       assert.match(frSent.subject, /primita/, "documents actual behavior: rung 3 has no French variant, so it speaks Romanian, not French or English");
+    });
+  } finally {
+    stopServer(httpServer);
+  }
+});
+
+// New order -> internal alert to every admin account, separate from the
+// customer-facing order-received email above (own test block since it
+// isn't part of the admin-editable template/language-fallback system the
+// rest of this file covers).
+test("admin new-order alert: fires once per admin account, independent of the customer email", async (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "beca-admin-alert-test-"));
+  const { httpServer, baseUrl } = await startServer({ DATA_DIR: path.join(tempRoot, "data") });
+  const adminCookie = await adminLogin(baseUrl);
+  await ensureAmpleStock(baseUrl, adminCookie);
+
+  try {
+    await t.test("the bootstrap admin receives a new-order alert with the order number, total and a link to admin", async () => {
+      const order = await placeOrder(baseUrl);
+
+      const outbox = readOutbox();
+      const alert = outbox.find((entry) => entry.to === ADMIN_EMAIL && entry.subject.includes(order.number));
+      assert.ok(alert, `expected an admin alert addressed to ${ADMIN_EMAIL} for order ${order.number}`);
+      assert.match(alert.subject, /Comanda noua/i);
+      assert.match(alert.text, new RegExp(order.customerName));
+      assert.match(alert.text, new RegExp(String(order.total)));
+      assert.match(alert.text, /\/admin\/dashboard\.html/);
+
+      // The pre-existing customer email must still be sent, unaffected by
+      // the new admin alert running alongside it.
+      const customerMail = outbox.find((entry) => entry.to === order.customerEmail && entry.subject.includes(order.number));
+      assert.ok(customerMail, "the customer's own order-received email must still be sent");
+    });
+
+    await t.test("a second admin account also gets its own copy of the alert", async () => {
+      const registerRes = await jsonRequest(baseUrl, "/auth/register", {
+        method: "POST",
+        body: { name: "Second Admin", email: "second-admin@email-templates-test.local", password: "adminpass1234" }
+      });
+      assert.equal(registerRes.status, 200, JSON.stringify(registerRes.payload));
+      const promote = await jsonRequest(baseUrl, `/api/admin/users/${registerRes.payload.user.id}/role`, {
+        method: "PUT", cookie: adminCookie, body: { role: "admin" }
+      });
+      assert.equal(promote.status, 200, JSON.stringify(promote.payload));
+
+      const order = await placeOrder(baseUrl);
+      const outbox = readOutbox();
+      const firstAdminAlert = outbox.find((entry) => entry.to === ADMIN_EMAIL && entry.subject.includes(order.number));
+      const secondAdminAlert = outbox.find((entry) => entry.to === "second-admin@email-templates-test.local" && entry.subject.includes(order.number));
+      assert.ok(firstAdminAlert, "the original admin must still get their own copy");
+      assert.ok(secondAdminAlert, "the newly-promoted admin must also get a copy");
+    });
+
+    await t.test("a plain customer (non-admin) account never receives the alert", async () => {
+      const registerRes = await jsonRequest(baseUrl, "/auth/register", {
+        method: "POST",
+        body: { name: "Regular Customer", email: "regular-customer@email-templates-test.local", password: "customerpass1234" }
+      });
+      assert.equal(registerRes.status, 200, JSON.stringify(registerRes.payload));
+
+      const order = await placeOrder(baseUrl);
+      const outbox = readOutbox();
+      const wrongRecipient = outbox.find((entry) => entry.to === "regular-customer@email-templates-test.local" && entry.subject.includes(order.number));
+      assert.equal(wrongRecipient, undefined, "a non-admin account must never be treated as an alert recipient");
     });
   } finally {
     stopServer(httpServer);

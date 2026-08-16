@@ -235,7 +235,9 @@ test("cross-cutting integration: a Romanian customer's purchase resolves currenc
       // is Romanian, it must render in Romanian, matching this store's
       // historical (pre-i18n) behavior exactly. ---
       const outbox = readOutbox();
-      const sent = outbox.find((entry) => entry.subject.includes(order.number));
+      // Scoped to the customer's own address: checkout also fires an
+      // internal "Comanda noua" admin alert sharing the order number.
+      const sent = outbox.find((entry) => entry.subject.includes(order.number) && entry.to === order.customerEmail);
       assert.ok(sent, "an order-received email must have been sent");
       assert.match(sent.subject, /primita/, "a Romanian customer with no admin override gets the Romanian hardcoded original");
       assert.match(sent.text, /Salut Ana Popescu/, "the email body itself must be Romanian, not the store's English default");

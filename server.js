@@ -3217,6 +3217,18 @@ async function handleShopApi(request, response, pathname) {
       orderLanguage(outcome.order)
     )).catch(() => {});
 
+    // Internal ops alert, one copy per admin account - not the customer
+    // template override system above (nothing customer-facing to reword
+    // here), fire-and-forget same as every other email on this path so a
+    // slow/broken mail provider can never delay or fail the checkout
+    // response itself.
+    const adminNotice = email.buildAdminNewOrderEmail(outcome.order, `${SITE_ORIGIN}/admin/dashboard.html`);
+    db.listUsers()
+      .filter((user) => user.role === "admin")
+      .forEach((admin) => {
+        email.sendMail({ to: admin.email, subject: adminNotice.subject, text: adminNotice.text }).catch(() => {});
+      });
+
     // The cart was emptied and saved inside the lock above, so re-reading
     // carts.json here would parse the whole file again to learn what this
     // closure already holds.
@@ -4106,6 +4118,35 @@ function resolveShippingZoneForCountry(country) {
     || null;
 }
 
+// Second-tier fallback behind an explicit product_prices override: an
+// admin-set exchange rate (currencies.display_rate_from_default, the same
+// field the "~298 lei" secondary-currency hint already reads) times the
+// product's own base price. Only fires when the product's base currency IS
+// the store's default - the rate is defined as "from the default", so a
+// product priced in anything else has no defined conversion path here.
+// Returns null (never a fabricated number) when no rate is configured -
+// the caller falls through to the base price/currency exactly as before,
+// same "never guess a real charged amount" rule product_prices itself
+// follows.
+function autoConvertedPrice(product, countryConfig) {
+  if (!countryConfig || countryConfig.currencyCode === product.currency) return null;
+  if (product.currency !== db.getDefaultCurrencyCode()) return null;
+
+  const targetCurrency = db.getCurrencyByCode(countryConfig.currencyCode);
+  const rate = Number(targetCurrency?.displayRateFromDefault);
+  if (!targetCurrency || !Number.isFinite(rate) || rate <= 0) return null;
+
+  const decimals = Number.isInteger(targetCurrency.decimalPlaces) ? targetCurrency.decimalPlaces : 2;
+  const factor = 10 ** decimals;
+  const convert = (amount) => Math.round(amount * rate * factor) / factor;
+
+  return {
+    price: convert(product.price),
+    compareAtPrice: product.compareAtPrice ? convert(product.compareAtPrice) : null,
+    currency: targetCurrency.code
+  };
+}
+
 // product must be a RAW db product row (product.prices embedded by
 // rowToProduct) - never a publicProduct()-shaped object, which strips
 // .prices. Falls back to the product's own base price/currency whenever no
@@ -4115,13 +4156,18 @@ function resolveShippingZoneForCountry(country) {
 // (e.g. an explicit "United Kingdom" price alongside "Romania") - full
 // independent control per country is the whole point, so there is no
 // currency-equality shortcut here the way there was in the old
-// currency-keyed design.
+// currency-keyed design. Between the explicit override and the base-price
+// fallback sits autoConvertedPrice's exchange-rate conversion - checked
+// second, so a real per-country price an admin bothered to set always wins
+// over a generic computed one.
 function resolveProductPrice(product, countryCode) {
   if (countryCode) {
     const override = (product.prices || []).find((entry) => entry.countryCode === countryCode && entry.active);
     if (override) {
       return { price: override.price, compareAtPrice: override.compareAtPrice, currency: override.currencyCode };
     }
+    const auto = autoConvertedPrice(product, db.getCountryConfig(countryCode));
+    if (auto) return auto;
   }
   return { price: product.price, compareAtPrice: product.compareAtPrice, currency: product.currency };
 }
@@ -4159,9 +4205,15 @@ function resolveOrderPricing(countryCode, cartItems, baseShippingCost, baseShipp
   const everyItemPriced = cartItems.every((item) => {
     const product = db.getProductById(item.productId);
     if (!product) return false;
-    return (product.prices || []).some(
+    const hasOverride = (product.prices || []).some(
       (entry) => entry.countryCode === code && entry.active && entry.currencyCode === countryConfig.currencyCode
     );
+    // Same fallback resolveProductPrice itself falls back to below - an
+    // exchange-rate conversion counts as "priced" too, so the order that
+    // actually gets charged is the exact same amount buildCartPayload
+    // already showed on the checkout preview, never a silent revert to the
+    // default currency just because nobody set an explicit override.
+    return hasOverride || Boolean(autoConvertedPrice(product, countryConfig));
   });
   if (!everyItemPriced) return fallback;
 

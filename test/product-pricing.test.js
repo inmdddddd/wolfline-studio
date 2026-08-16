@@ -524,3 +524,112 @@ test("country-based pricing: product/shipping price overrides, all-or-nothing re
     stopServer(httpServer);
   }
 });
+
+// Exchange-rate auto-conversion (currencies.displayRateFromDefault) as a
+// fallback price source when no admin has set an explicit per-country
+// product_prices row - the actual point being that the number a customer
+// sees while browsing and the number they get charged at checkout are
+// always the exact same one, never a generic display-only estimate that
+// reverts to the default currency the moment they submit an order.
+test("country-based pricing: exchange-rate auto-conversion fallback", async (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "beca-product-pricing-autoconvert-test-"));
+  const { httpServer, baseUrl } = await startServer({ DATA_DIR: path.join(tempRoot, "data") });
+  const adminCookie = await adminLogin(baseUrl);
+
+  // Currency must exist before a country can be mapped to it.
+  await jsonRequest(baseUrl, "/api/admin/currencies/RON", {
+    method: "PUT", cookie: adminCookie, body: { symbol: "lei", decimalPlaces: 0, active: true }
+  });
+  await jsonRequest(baseUrl, "/api/admin/country-config/RO", {
+    method: "PUT", cookie: adminCookie, body: { languageCode: "ro", currencyCode: "RON" }
+  });
+  const zoneRes = await jsonRequest(baseUrl, "/api/admin/shipping-zones", {
+    method: "POST", cookie: adminCookie, body: { name: "Romania", countries: ["RO"] }
+  });
+  const methodRes = await jsonRequest(baseUrl, "/api/admin/shipping-methods", {
+    method: "POST", cookie: adminCookie, body: { zoneId: zoneRes.payload.zone.id, name: "Standard", price: 0 }
+  });
+  const freeShippingMethodId = methodRes.payload.method.id;
+
+  try {
+    await t.test("with no rate configured, a product with no override still falls back to the base price/currency", async () => {
+      const product = await createProduct(baseUrl, adminCookie, { price: 59 });
+      const res = await jsonRequest(baseUrl, `/api/products?country=RO`);
+      const found = res.payload.products.find((p) => p.id === product.id);
+      assert.equal(found.currency, "GBP");
+      assert.equal(found.price, 59);
+    });
+
+    await t.test("with a rate configured, a product with no override auto-converts on the public API", async () => {
+      await jsonRequest(baseUrl, "/api/admin/currencies/RON", {
+        method: "PUT", cookie: adminCookie, body: { symbol: "lei", decimalPlaces: 0, active: true, displayRateFromDefault: 5 }
+      });
+      const product = await createProduct(baseUrl, adminCookie, { price: 59, compareAtPrice: 79 });
+
+      const list = await jsonRequest(baseUrl, `/api/products?country=RO`);
+      const found = list.payload.products.find((p) => p.id === product.id);
+      assert.equal(found.currency, "RON");
+      assert.equal(found.price, 295, "59 * 5, rounded to RON's 0 decimal places");
+      assert.equal(found.compareAtPrice, 395, "compareAtPrice converts with the same rate");
+
+      const detail = await jsonRequest(baseUrl, `/api/products/${product.id}?country=RO`);
+      assert.equal(detail.payload.product.currency, "RON");
+      assert.equal(detail.payload.product.price, 295);
+    });
+
+    await t.test("an explicit per-country override still wins over the exchange-rate conversion", async () => {
+      const product = await createProduct(baseUrl, adminCookie, { price: 59 });
+      await jsonRequest(baseUrl, `/api/admin/products/${product.id}/prices`, {
+        method: "PUT", cookie: adminCookie, body: { prices: [{ countryCode: "RO", price: 249 }] }
+      });
+
+      const res = await jsonRequest(baseUrl, `/api/products?country=RO`);
+      const found = res.payload.products.find((p) => p.id === product.id);
+      assert.equal(found.price, 249, "the admin-set 249 must win over 59*5=295");
+      assert.equal(found.currency, "RON");
+    });
+
+    await t.test("checkout actually charges the auto-converted amount, matching what checkout-options previewed", async () => {
+      const product = await createProduct(baseUrl, adminCookie, { price: 59 });
+      const cartCookie = await addToCart(baseUrl, product.id, 1);
+
+      const preview = await jsonRequest(baseUrl, "/api/checkout-options?country=RO", { cookie: cartCookie });
+      assert.equal(preview.payload.currency, "RON", "the preview must show the same currency the order will actually charge");
+
+      const { status, payload } = await checkout(baseUrl, cartCookie, { shippingMethodId: freeShippingMethodId });
+      assert.equal(status, 200, JSON.stringify(payload));
+      assert.equal(payload.order.currency, "RON", "the real order must charge in RON, not silently revert to GBP");
+      assert.equal(payload.order.total, 295);
+      assert.equal(payload.order.items[0].currency, "RON");
+      assert.equal(payload.order.items[0].price, 295);
+    });
+
+    await t.test("a product not priced in the store's default currency is never auto-converted", async () => {
+      // EUR is neither the default (GBP) nor RON - displayRateFromDefault is
+      // only ever defined as "from the default currency", so there is no
+      // rate this could apply here even if one existed for RON.
+      const product = await createProduct(baseUrl, adminCookie, { price: 59, currency: "EUR" });
+      const res = await jsonRequest(baseUrl, `/api/products?country=RO`);
+      const found = res.payload.products.find((p) => p.id === product.id);
+      assert.equal(found.currency, "EUR");
+      assert.equal(found.price, 59);
+    });
+
+    await t.test("a currency with 2 decimal places rounds the conversion to cents, not whole units", async () => {
+      await jsonRequest(baseUrl, "/api/admin/currencies/USD", {
+        method: "PUT", cookie: adminCookie, body: { symbol: "$", decimalPlaces: 2, active: true, displayRateFromDefault: 1.27 }
+      });
+      await jsonRequest(baseUrl, "/api/admin/country-config/US", {
+        method: "PUT", cookie: adminCookie, body: { languageCode: "en", currencyCode: "USD" }
+      });
+      const product = await createProduct(baseUrl, adminCookie, { price: 10 });
+
+      const res = await jsonRequest(baseUrl, `/api/products?country=US`);
+      const found = res.payload.products.find((p) => p.id === product.id);
+      assert.equal(found.currency, "USD");
+      assert.equal(found.price, 12.7, "10 * 1.27, rounded to 2 decimal places");
+    });
+  } finally {
+    stopServer(httpServer);
+  }
+});
