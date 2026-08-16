@@ -1070,6 +1070,23 @@ function renderProducts(products) {
       item.appendChild(translationsDetails);
     }
 
+    // Only for products that already went through 3D Studio - there's no
+    // model/position data to apply a texture onto otherwise, and the
+    // backend route rejects it too (see server.js's productTextureMatch).
+    if (product.studio) {
+      const textureDetails = document.createElement("details");
+      textureDetails.className = "admin-price-editor";
+      textureDetails.innerHTML = `
+        <summary>Textura 3D</summary>
+        <div class="admin-price-editor-body">
+          <label>Inlocuieste textura<input type="file" accept="image/png,image/jpeg,image/webp" data-product-texture-input="${product.id}"></label>
+          <p class="admin-form-hint">Pastreaza modelul, pozitia si culoarea existente - se schimba doar imaginea texturii.</p>
+          <span class="form-message" data-product-texture-message="${product.id}"></span>
+        </div>
+      `;
+      item.appendChild(textureDetails);
+    }
+
     list.appendChild(item);
   });
 
@@ -2313,6 +2330,47 @@ document.addEventListener("click", async (event) => {
     message.textContent = error.message;
     button.disabled = false;
   }
+});
+
+document.addEventListener("change", async (event) => {
+  const input = event.target.closest("[data-product-texture-input]");
+  if (!input) return;
+
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const productId = input.dataset.productTextureInput;
+  const message = input.closest(".admin-price-editor-body")?.querySelector("[data-product-texture-message]");
+
+  const reader = new FileReader();
+  reader.onerror = () => {
+    if (message) {
+      message.dataset.type = "";
+      message.textContent = "Nu am putut citi fisierul.";
+    }
+  };
+  reader.onload = async () => {
+    input.disabled = true;
+    if (message) {
+      message.dataset.type = "info";
+      message.textContent = "Se salveaza...";
+    }
+
+    try {
+      await requestJson(`/api/admin/products/${productId}/texture`, {
+        method: "POST",
+        body: JSON.stringify({ textureImage: String(reader.result || "") })
+      });
+      await loadDashboard();
+    } catch (error) {
+      input.disabled = false;
+      if (message) {
+        message.dataset.type = "";
+        message.textContent = error.message;
+      }
+    }
+  };
+  reader.readAsDataURL(file);
 });
 
 document.addEventListener("click", async (event) => {

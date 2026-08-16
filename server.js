@@ -5903,6 +5903,47 @@ async function handleAdminApi(request, response, pathname) {
     return true;
   }
 
+  // Replaces just the 3D texture image on a product 3D Studio already set
+  // up - the only field product.html/shop.js's model-viewer actually reads
+  // (see their applyProductTexture/applyModelViewerTexture calls, both
+  // fed only .studio.textureUrl, never .studio.print/.shirtColor), so
+  // swapping this one field is a complete, correct texture change on its
+  // own. db.updateProduct does a shallow merge onto the CURRENT row, and
+  // .studio itself is merged one level deeper here (not replaced wholesale)
+  // so model/print position/shirtColor - saved the one time this product
+  // went through 3D Studio - survive untouched, same guarantee the
+  // scene-image route above already gives imageUrl/tags.
+  const productTextureMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)\/texture$/);
+  if (productTextureMatch && request.method === "POST") {
+    const productId = productTextureMatch[1];
+    const body = await readBody(request);
+    const textureUrl = saveDataUrlImage(body.textureImage || "", "studio-texture");
+
+    if (!textureUrl) {
+      json(response, 400, { error: "Imaginea texturii lipseste." });
+      return true;
+    }
+
+    const result = await withStockLock(() => {
+      const current = db.getProductById(productId);
+      if (!current) return null;
+      if (!current.studio) {
+        const error = new Error("Acest produs nu are un model 3D - foloseste 3D Studio ca sa il creezi intai.");
+        error.statusCode = 400;
+        throw error;
+      }
+      return db.updateProduct(productId, { studio: { ...current.studio, textureUrl } });
+    });
+
+    if (!result) {
+      json(response, 404, { error: "Produsul nu exista." });
+      return true;
+    }
+
+    json(response, 200, { ok: true, product: result });
+    return true;
+  }
+
   const productSceneMatch = pathname.match(/^\/api\/admin\/products\/([a-f0-9-]+)\/scene-image$/);
   if (productSceneMatch && request.method === "POST") {
     const productId = productSceneMatch[1];
