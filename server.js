@@ -3129,7 +3129,11 @@ async function handleShopApi(request, response, pathname) {
         },
         cancellationReason: "",
         statusHistory: [
-          { from: null, to: "pending", changedAt: createdAt, changedBy: null, emailSent: true }
+          // Not awaited below (fire-and-forget, same as the refund-confirmed
+          // email) - recorded false like every other un-awaited send in this
+          // file (see the Square webhook path) rather than claiming a success
+          // we haven't actually observed.
+          { from: null, to: "pending", changedAt: createdAt, changedBy: null, emailSent: false }
         ],
         createdAt
       };

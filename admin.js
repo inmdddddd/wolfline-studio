@@ -142,7 +142,7 @@ function renderReviewsAdmin(reviews) {
   if (!reviews.length) {
     const empty = document.createElement("div");
     empty.className = "admin-empty-state";
-    empty.innerHTML = "<strong>No reviews yet</strong><span>Customer reviews will appear here for moderation.</span>";
+    empty.innerHTML = "<strong>Nicio recenzie inca</strong><span>Recenziile clientilor vor aparea aici pentru moderare.</span>";
     list.appendChild(empty);
     return;
   }
@@ -187,7 +187,7 @@ function renderCoupons(coupons) {
   if (!coupons.length) {
     const empty = document.createElement("div");
     empty.className = "admin-empty-state";
-    empty.innerHTML = "<strong>No coupons yet</strong><span>Create a discount code above.</span>";
+    empty.innerHTML = "<strong>Niciun cupon inca</strong><span>Creeaza un cod de reducere mai sus.</span>";
     list.appendChild(empty);
     return;
   }
@@ -1176,7 +1176,7 @@ function renderPhotoProducts(products = []) {
   if (!products.length) {
     const empty = document.createElement("div");
     empty.className = "admin-empty-state";
-    empty.innerHTML = "<strong>No products yet</strong><span>Create a product first, then build a scene shot here.</span>";
+    empty.innerHTML = "<strong>Niciun produs inca</strong><span>Creeaza mai intai un produs, apoi construieste o scena aici.</span>";
     list.appendChild(empty);
     syncPhotoControls();
     return;
@@ -1412,7 +1412,7 @@ function renderNotifications(notifications) {
   if (!notifications.length) {
     const empty = document.createElement("div");
     empty.className = "admin-empty-state";
-    empty.innerHTML = "<strong>No waitlist yet</strong><span>Preview product notifications will appear here.</span>";
+    empty.innerHTML = "<strong>Nicio inscriere pe waitlist inca</strong><span>Notificarile pentru produsele in preview vor aparea aici.</span>";
     list.appendChild(empty);
     return;
   }
@@ -1608,7 +1608,7 @@ function renderOrders(orders) {
   if (!orders.length) {
     const empty = document.createElement("div");
     empty.className = "admin-empty-state";
-    empty.innerHTML = "<strong>No orders yet</strong><span>New checkout orders will appear here with customer details, products and status.</span>";
+    empty.innerHTML = "<strong>Nicio comanda inca</strong><span>Comenzile noi vor aparea aici cu detaliile clientului, produsele si statusul.</span>";
     list.appendChild(empty);
     return;
   }
