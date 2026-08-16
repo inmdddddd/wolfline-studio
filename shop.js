@@ -1,4 +1,16 @@
+// Exact mode, not the guess-based BecaRegion.money(): every price on this
+// page now comes from /api/products?country=, already server-resolved for
+// the visitor's detected country (see loadShop below) - GBP when nothing
+// is configured for that country, a real override's own currency when one
+// exists. Formatting the currency the response actually carries, with zero
+// re-conversion, is what BecaCurrency.formatExact is for; re-guessing via
+// money()/convert() here would risk exactly the mislabeling bug that
+// function's own comment warns about (a resolved RON amount getting
+// re-converted as if it were still GBP).
 function shopMoney(value, currency = "GBP") {
+  if (window.BecaCurrency?.formatExact) {
+    return window.BecaCurrency.formatExact(value, currency);
+  }
   if (window.BecaRegion?.money) {
     return window.BecaRegion.money(value, currency);
   }
@@ -303,16 +315,28 @@ function randomizeHeroShirt(products) {
   applyModelViewerTexture(heroViewer, pick.studio.textureUrl);
 }
 
+// The country param is best-effort: whatever detectCountryCode() (via
+// window.BecaRegion.detect()) currently knows, which on first paint is
+// usually still the timezone/browser-language guess (the real geo-IP
+// lookup that beats it is in flight - see loadGeoCountry in locale.js).
+// /api/products resolves prices for it if a country_config + price
+// override exist, and silently falls back to the base price otherwise -
+// never a reason to block this fetch on the geo lookup finishing first.
+function productsUrl() {
+  const country = window.BecaRegion?.detect?.().country;
+  return country ? `/api/products?country=${encodeURIComponent(country)}` : "/api/products";
+}
+
 async function loadShop() {
   const [{ products }, { cart }] = await Promise.all([
-    shopRequest("/api/products"),
+    shopRequest(productsUrl()),
     shopRequest("/api/cart")
   ]);
 
   renderProducts(products);
   applyCartBadge(cart);
   randomizeHeroShirt(products);
-  window.__BECA_SHOP_STATE__ = { products, cart };
+  window.__BECA_SHOP_STATE__ = { products, cart, country: window.BecaRegion?.detect?.().country || null };
 }
 
 async function notifyForProduct(productId, button, preferredSize = "") {
@@ -400,9 +424,29 @@ loadShop().catch(() => {
   }
 });
 
-window.addEventListener("beca:locale-change", () => {
+// A language/rate override only needs a re-render (the same products,
+// reformatted) - but the geo-IP lookup resolving after this page's first
+// paint (see loadGeoCountry in locale.js) changes WHICH country the price
+// itself should be resolved for, which the already-fetched products don't
+// reflect yet. Re-fetching only when the detected country actually moved
+// keeps every other beca:locale-change firing (language switch, rates
+// loading) exactly as cheap as before.
+window.addEventListener("beca:locale-change", async () => {
   const state = window.__BECA_SHOP_STATE__;
   if (!state) return;
+
+  const country = window.BecaRegion?.detect?.().country || null;
+  if (country !== state.country) {
+    try {
+      const { products } = await shopRequest(productsUrl());
+      state.products = products;
+      state.country = country;
+    } catch {
+      // Keep showing the previous (still valid, just not re-resolved for
+      // the new country) product list rather than blanking the page.
+    }
+  }
+
   renderProducts(state.products);
   applyCartBadge(state.cart);
 });

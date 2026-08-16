@@ -347,3 +347,33 @@ test("displayProduct prefers categoryTranslations over the hardcoded tee/piece/d
   const untranslated = ro.displayProduct({ name: "Tee", category: "tee", categoryTranslations: {} });
   assert.equal(untranslated.displayCategory, "Tricou");
 });
+
+test("a resolved geo country overrides the timezone/browser-language guess", () => {
+  // en-GB / non-RO timezone would normally guess GB - the geo result must win.
+  const region = loadRegion({ languages: ["en-GB"], timeZone: "America/New_York" });
+  region.setGeoCountry("RO");
+  assert.equal(region.detect().country, "RO");
+});
+
+test("without a geo result, detect falls back to the original heuristic unchanged", () => {
+  const region = loadRegion({ languages: ["ro-RO"] });
+  assert.equal(region.detect().country, "RO", "heuristic still applies when setGeoCountry was never called");
+});
+
+test("setGeoCountry rejects anything that isn't a real 2-letter code, leaving the heuristic in charge", () => {
+  const region = loadRegion({ languages: ["en-GB"], timeZone: "America/New_York" });
+  region.setGeoCountry("Romania");
+  assert.equal(region.detect().country, "GB", "a malformed geo value must not silently become the detected country");
+
+  region.setGeoCountry("");
+  assert.equal(region.detect().country, "GB");
+
+  region.setGeoCountry(null);
+  assert.equal(region.detect().country, "GB");
+});
+
+test("setGeoCountry is case-insensitive and normalizes to uppercase", () => {
+  const region = loadRegion({ languages: ["en-GB"], timeZone: "America/New_York" });
+  region.setGeoCountry("ro");
+  assert.equal(region.detect().country, "RO");
+});

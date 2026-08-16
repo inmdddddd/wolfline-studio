@@ -42,6 +42,7 @@ const path = require("path");
 
 const email = require("./lib/email");
 const square = require("./lib/square");
+const geoip = require("./lib/geoip");
 const { createStorage } = require("./lib/storage");
 const { createDb } = require("./lib/db");
 const { toSlug } = require("./lib/slug");
@@ -2386,6 +2387,23 @@ async function handleShopApi(request, response, pathname) {
         currencyCode: config.currencyCode
       }))
     });
+    return true;
+  }
+
+  // Real IP-based country guess, layered on top of (not replacing)
+  // locale.js's existing timezone/browser-language heuristic - that
+  // heuristic is what runs while this is in flight or if it fails, and is
+  // still the only signal in lib/geoip.js's own tests/BECA_TEST_MODE.
+  // Rate-limited per IP mainly to protect the free upstream lookup service
+  // from a single misbehaving client, not because this endpoint is
+  // otherwise sensitive - same public trust level as /api/country-config.
+  if (pathname === "/api/geo" && request.method === "GET") {
+    if (isRateLimited(`geo:${clientIp(request)}`, 20, 60000)) {
+      json(response, 429, { country: null });
+      return true;
+    }
+    const country = await geoip.resolveCountry(clientIp(request));
+    json(response, 200, { country });
     return true;
   }
 

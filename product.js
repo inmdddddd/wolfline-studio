@@ -1,4 +1,11 @@
+// Exact mode, not the guess-based BecaRegion.money() - see shop.js's
+// shopMoney for why: this page's product fetch passes ?country= (below),
+// so product.currency is already server-resolved for the visitor's
+// detected country, and must be formatted as-is, never re-converted.
 function productMoney(value, currency = "GBP") {
+  if (window.BecaCurrency?.formatExact) {
+    return window.BecaCurrency.formatExact(value, currency);
+  }
   if (window.BecaRegion?.money) {
     return window.BecaRegion.money(value, currency);
   }
@@ -175,7 +182,22 @@ async function initProductPage() {
 
   if (!slug) throw new Error(productText("productMissing", "Product missing."));
 
-  const { product } = await productRequest(`/api/products/${encodeURIComponent(slug)}`);
+  // Best-effort, same as shop.js's productsUrl(): whatever detectCountryCode()
+  // already knows (real geo-IP once it's resolved, the timezone/language
+  // guess until then) - server resolves a real price for it if one is
+  // configured, base price otherwise. Deliberately not awaited/upgraded
+  // live if the geo lookup resolves just after this fetch: unlike the shop
+  // grid, this page has a single price wired through SEO tags, reviews and
+  // the 3D viewer in one pass, and re-running all of that on a later
+  // beca:locale-change is a larger change than a same-day launch fix
+  // should risk. A visitor who lands on a product page straight from the
+  // shop grid (the common path) already has the real country resolved by
+  // then anyway, since /api/geo is cached server-side per ip.
+  const productCountry = window.BecaRegion?.detect?.().country;
+  const productUrl = productCountry
+    ? `/api/products/${encodeURIComponent(slug)}?country=${encodeURIComponent(productCountry)}`
+    : `/api/products/${encodeURIComponent(slug)}`;
+  const { product } = await productRequest(productUrl);
   const display = productDisplay(product);
   const brandName = productBrandName();
   const siteOrigin = productSiteOrigin();

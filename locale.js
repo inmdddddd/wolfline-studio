@@ -39,6 +39,15 @@
   let languagesCache = null;
   let countryConfigCache = null;
 
+  // Real IP-based country guess (lib/geoip.js via /api/geo), layered on top
+  // of detectCountryCode()'s timezone/browser-language heuristic below -
+  // null until the fetch resolves (or if it fails/times out/the visitor is
+  // on a private/local ip in dev), at which point detectCountryCode() keeps
+  // using the heuristic exactly as before. Same load-then-event shape as
+  // countryConfigCache above: whatever already rendered with the heuristic
+  // upgrades in place once this resolves, it doesn't block first paint.
+  let geoCountryCode = null;
+
   function loadLanguages() {
     if (typeof fetch !== "function") return;
     fetch("/api/languages", { headers: { Accept: "application/json" } })
@@ -53,8 +62,15 @@
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         setCountryConfig(data?.countryConfigs);
-        if (typeof document !== "undefined" && typeof CustomEvent === "function") {
-          document.dispatchEvent(new CustomEvent("beca:locale-change"));
+        // window, not document: every beca:locale-change listener (cart.js,
+        // checkout.js, product.js, shop.js) is registered via
+        // window.addEventListener, matching script.js's own dispatch for a
+        // manual language switch - document.dispatchEvent here would be
+        // silently unheard by all four (a plain, non-bubbling CustomEvent
+        // dispatched on document never reaches a window listener), so this
+        // fetch-then-notify path was never actually live-updating anything.
+        if (typeof window !== "undefined" && typeof window.dispatchEvent === "function" && typeof CustomEvent === "function") {
+          window.dispatchEvent(new CustomEvent("beca:locale-change"));
         }
       })
       .catch(() => {});
@@ -70,6 +86,31 @@
 
   function setCountryConfig(list) {
     countryConfigCache = Array.isArray(list) ? list : null;
+  }
+
+  function setGeoCountry(code) {
+    geoCountryCode = typeof code === "string" && /^[A-Za-z]{2}$/.test(code) ? code.toUpperCase() : null;
+  }
+
+  function loadGeoCountry() {
+    if (typeof fetch !== "function") return;
+    fetch("/api/geo", { headers: { Accept: "application/json" } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!data || !data.country) return;
+        setGeoCountry(data.country);
+        // window, not document: every beca:locale-change listener (cart.js,
+        // checkout.js, product.js, shop.js) is registered via
+        // window.addEventListener, matching script.js's own dispatch for a
+        // manual language switch - document.dispatchEvent here would be
+        // silently unheard by all four (a plain, non-bubbling CustomEvent
+        // dispatched on document never reaches a window listener), so this
+        // fetch-then-notify path was never actually live-updating anything.
+        if (typeof window !== "undefined" && typeof window.dispatchEvent === "function" && typeof CustomEvent === "function") {
+          window.dispatchEvent(new CustomEvent("beca:locale-change"));
+        }
+      })
+      .catch(() => {});
   }
 
   function defaultLanguageCode() {
@@ -100,8 +141,15 @@
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         translationOverrides[lang] = (data && data.translations) || {};
-        if (typeof document !== "undefined" && typeof CustomEvent === "function") {
-          document.dispatchEvent(new CustomEvent("beca:locale-change"));
+        // window, not document: every beca:locale-change listener (cart.js,
+        // checkout.js, product.js, shop.js) is registered via
+        // window.addEventListener, matching script.js's own dispatch for a
+        // manual language switch - document.dispatchEvent here would be
+        // silently unheard by all four (a plain, non-bubbling CustomEvent
+        // dispatched on document never reaches a window listener), so this
+        // fetch-then-notify path was never actually live-updating anything.
+        if (typeof window !== "undefined" && typeof window.dispatchEvent === "function" && typeof CustomEvent === "function") {
+          window.dispatchEvent(new CustomEvent("beca:locale-change"));
         }
       })
       .catch(() => {
@@ -310,14 +358,19 @@
     return -new Date().getTimezoneOffset() / 60;
   }
 
-  // Same narrow two-way heuristic as before ("looks Romanian" vs everything
-  // else) - real geo-IP / a general detectable-country list is explicitly
-  // out of scope (this only ever needs to distinguish one market from the
-  // rest). Returns the real ISO code "GB" now, not "UK" - a genuine bug fix:
-  // shipping_zones/tax_rates/checkout.js/country_config all key on "GB",
-  // so the old label only ever looked right, it never actually matched
-  // anything real.
+  // geoCountryCode (real ip-based lookup, see loadGeoCountry above) wins once
+  // it resolves. Until then - or if the lookup failed/timed out/the visitor
+  // is on a private ip - this falls back to the original narrow two-way
+  // heuristic ("looks Romanian" vs everything else); real geo-IP was out of
+  // scope when that heuristic was written, it no longer is, but the guess
+  // must keep working on its own so a slow/unreachable lookup never blanks
+  // out detection. Returns the real ISO code "GB" now, not "UK" - a genuine
+  // bug fix: shipping_zones/tax_rates/checkout.js/country_config all key on
+  // "GB", so the old label only ever looked right, it never actually
+  // matched anything real.
   function detectCountryCode() {
+    if (geoCountryCode) return geoCountryCode;
+
     const timeZone = getTimeZone();
     const offset = getUtcOffsetHours();
     const languages = navigator.languages || [navigator.language || ""];
@@ -579,10 +632,12 @@
     getRates: () => ({ gbpToRon: gbpToRonRate, gbpToRonUpdatedAt }),
     setLanguages,
     setCountryConfig,
-    setTranslations
+    setTranslations,
+    setGeoCountry
   };
 
   loadRates();
   loadLanguages();
   loadCountryConfig();
+  loadGeoCountry();
 })();
