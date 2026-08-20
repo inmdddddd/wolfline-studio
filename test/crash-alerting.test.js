@@ -35,10 +35,16 @@ function crashingServerScript(message) {
 }
 
 function runCrashingServer(dataDir, message) {
-  const env = { ...process.env };
-  delete env.BECA_TEST_MODE;
-  delete env.NODE_ENV;
-  Object.assign(env, {
+  // A hermetic env, not a filtered copy of the host's: BECA_TEST_MODE must be
+  // unset for the handler under test to even register (see server.js), but
+  // that same unset-ness re-enables server.js's real .env loader - which on
+  // a real deploy (this suite also runs there, not just on a dev machine)
+  // would otherwise hand this test a real RESEND_API_KEY and make it fire an
+  // actual Resend API call on every crash instead of falling through to the
+  // local outbox this test actually asserts against. Every var the child
+  // needs is listed explicitly; nothing is inherited from process.env.
+  const env = {
+    PATH: process.env.PATH,
     PORT: "0",
     HOST: "127.0.0.1",
     ADMIN_EMAIL,
@@ -46,9 +52,9 @@ function runCrashingServer(dataDir, message) {
     DATA_DIR: dataDir,
     SMTP_HOST: "",
     SMTP_USER: "",
-    SMTP_PASS: ""
-  });
-  delete env.BRAND;
+    SMTP_PASS: "",
+    RESEND_API_KEY: ""
+  };
 
   return spawnSync(process.execPath, ["-e", crashingServerScript(message)], { env, timeout: 10000, encoding: "utf8" });
 }
