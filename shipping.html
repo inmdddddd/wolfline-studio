@@ -79,7 +79,7 @@
         <a class="beca-logo mobile-menu-logo" href="/" data-mobile-menu-link aria-label="BeCa">
           <img class="beca-logo-img" src="assets/beca-logo.png?v=2" alt="BeCa" data-content-img="logoUrl">
         </a>
-        <button type="button" data-mobile-menu-close aria-label="Close menu">Inchide</button>
+        <button type="button" data-mobile-menu-close aria-label="Close menu" data-i18n="mobile.close">Inchide</button>
       </div>
       <div class="mobile-menu-section">
         <a href="/#drop" data-mobile-menu-link>Drop</a>
@@ -105,12 +105,11 @@
     </aside>
   </div>
 
-  <!-- Pagina e doar in romana deocamdata; toggle-ul EN/RO nu traduce continutul de mai jos (TODO etapa 2). -->
   <main class="info-page-shell">
     <section class="info-hero">
-      <p class="beca-kicker">Livrare</p>
-      <h1>Cum ajunge piesa la tine.</h1>
-      <p class="info-lede">Ultima actualizare: 5 iulie 2026. Fiecare comanda e pregatita cu grija — iata la ce sa te astepti dupa ce plasezi comanda.</p>
+      <p class="beca-kicker" data-i18n="shipping.hero.kicker">Livrare</p>
+      <h1 data-i18n="shipping.hero.title">Cum ajunge piesa la tine.</h1>
+      <p class="info-lede" data-i18n="shipping.hero.lede">Ultima actualizare: 5 iulie 2026. Fiecare comanda e pregatita cu grija — iata la ce sa te astepti dupa ce plasezi comanda.</p>
     </section>
 
     <section class="info-section info-grid">
@@ -131,30 +130,30 @@
     </section>
 
     <section class="info-section">
-      <h2>1. Procesarea comenzii</h2>
-      <p>Dupa ce comanda este confirmata, o pregatim si o predam curierului in termen de 1-2 zile lucratoare. Vei primi un email cu numarul comenzii imediat dupa checkout.</p>
+      <h2 data-i18n="shipping.s1.title">1. Procesarea comenzii</h2>
+      <p data-i18n="shipping.s1.body">Dupa ce comanda este confirmata, o pregatim si o predam curierului in termen de 1-2 zile lucratoare. Vei primi un email cu numarul comenzii imediat dupa checkout.</p>
     </section>
 
     <section class="info-section">
-      <h2>2. Curieri</h2>
+      <h2 data-i18n="shipping.s2.title">2. Curieri</h2>
       <!-- TODO(legal, inainte de lansare): completeaza curierul/curierii reali folositi. -->
-      <p>Lucram cu [LEGAL_COURIER_PARTNER] pentru livrarea comenzilor. Numarul de urmarire (AWB) iti va fi comunicat pe email dupa ce comanda este expediata.</p>
+      <p><span data-i18n="shipping.s2.bodyPre">Lucram cu </span>[LEGAL_COURIER_PARTNER]<span data-i18n="shipping.s2.bodyPost"> pentru livrarea comenzilor. Numarul de urmarire (AWB) iti va fi comunicat pe email dupa ce comanda este expediata.</span></p>
     </section>
 
     <section class="info-section">
-      <h2>3. Intarzieri</h2>
-      <p>Termenele de mai sus sunt estimative si pot varia in functie de curier, sezon sau locatie. Nu raspundem pentru intarzieri cauzate de evenimente in afara controlului nostru direct.</p>
+      <h2 data-i18n="shipping.s3.title">3. Intarzieri</h2>
+      <p data-i18n="shipping.s3.body">Termenele de mai sus sunt estimative si pot varia in functie de curier, sezon sau locatie. Nu raspundem pentru intarzieri cauzate de evenimente in afara controlului nostru direct.</p>
     </section>
 
     <section class="info-section">
-      <h2>4. Comanda nu a ajuns sau are probleme</h2>
-      <p>Daca AWB-ul arata livrat dar nu ai primit coletul, sau piesa a ajuns deteriorata, scrie-ne cat mai repede la <a href="mailto:contact@beca-wlf.com">contact@beca-wlf.com</a> cu numarul comenzii.</p>
+      <h2 data-i18n="shipping.s4.title">4. Comanda nu a ajuns sau are probleme</h2>
+      <p><span data-i18n="shipping.s4.bodyPre">Daca AWB-ul arata livrat dar nu ai primit coletul, sau piesa a ajuns deteriorata, scrie-ne cat mai repede la </span><a href="mailto:contact@beca-wlf.com">contact@beca-wlf.com</a><span data-i18n="shipping.s4.bodyPost"> cu numarul comenzii.</span></p>
     </section>
 
     <section class="info-section info-cta">
-      <h2>Ai o comanda in drum spre tine?</h2>
+      <h2 data-i18n="shipping.cta.title">Ai o comanda in drum spre tine?</h2>
       <div class="info-cta-actions">
-        <a href="/support.html">Contacteaza-ne</a>
+        <a href="/support.html" data-i18n="shipping.cta.button">Contacteaza-ne</a>
       </div>
     </section>
   </main>
@@ -194,8 +193,8 @@
   </footer>
 
   <script src="currency.js?v=2026-08-14-2"></script>
-  <script src="locale.js?v=2026-08-16-2"></script>
-  <script src="script.js?v=2026-08-14-2"></script>
+  <script src="locale.js?v=2026-08-20-1"></script>
+  <script src="script.js?v=2026-08-20-1"></script>
   <script src="cart-widget.js?v=2026-08-13"></script>
   <script src="security.js?v=2026-08-13"></script>
   <script src="auth.js?v=2026-08-13"></script>

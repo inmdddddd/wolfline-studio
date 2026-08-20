@@ -322,7 +322,7 @@ async function initProductPage() {
   const chapterIsOpen = !product.chapterStatus || product.chapterStatus === "open";
   addButton.disabled = !chapterIsOpen || (!isPreviewProduct(product) && !product.purchasable);
   addButton.textContent = !chapterIsOpen
-    ? (product.chapterStatus === "closed" ? "Chapter closed" : "Chapter sealed")
+    ? (product.chapterStatus === "closed" ? productText("chapterClosed", "Chapter closed") : productText("chapterSealed", "Chapter sealed"))
     : (isPreviewProduct(product)
       ? productText("notifyMe", "Notify me when available")
       : (product.purchasable ? productText("addToCart", "Add to cart") : productText("soldOut", "Sold out")));

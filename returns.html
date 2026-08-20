@@ -79,7 +79,7 @@
         <a class="beca-logo mobile-menu-logo" href="/" data-mobile-menu-link aria-label="BeCa">
           <img class="beca-logo-img" src="assets/beca-logo.png?v=2" alt="BeCa" data-content-img="logoUrl">
         </a>
-        <button type="button" data-mobile-menu-close aria-label="Close menu">Inchide</button>
+        <button type="button" data-mobile-menu-close aria-label="Close menu" data-i18n="mobile.close">Inchide</button>
       </div>
       <div class="mobile-menu-section">
         <a href="/#drop" data-mobile-menu-link>Drop</a>
@@ -105,44 +105,43 @@
     </aside>
   </div>
 
-  <!-- Pagina e doar in romana deocamdata; toggle-ul EN/RO nu traduce continutul de mai jos (TODO etapa 2). -->
   <main class="info-page-shell">
     <section class="info-hero">
-      <p class="beca-kicker">Retur</p>
-      <h1>Politica de retur.</h1>
-      <p class="info-lede">Ultima actualizare: 5 iulie 2026. Vrem sa fii sigur pe alegerea ta — daca o piesa nu e potrivita, iata cum o returnezi.</p>
+      <p class="beca-kicker" data-i18n="returns.hero.kicker">Retur</p>
+      <h1 data-i18n="returns.hero.title">Politica de retur.</h1>
+      <p class="info-lede" data-i18n="returns.hero.lede">Ultima actualizare: 5 iulie 2026. Vrem sa fii sigur pe alegerea ta — daca o piesa nu e potrivita, iata cum o returnezi.</p>
     </section>
 
     <section class="info-section">
-      <h2>1. Dreptul de retur</h2>
-      <p>Ai dreptul de a returna produsele in 14 zile calendaristice de la primirea comenzii, fara sa fie nevoie sa justifici motivul, conform legislatiei privind protectia consumatorului.</p>
+      <h2 data-i18n="returns.s1.title">1. Dreptul de retur</h2>
+      <p data-i18n="returns.s1.body">Ai dreptul de a returna produsele in 14 zile calendaristice de la primirea comenzii, fara sa fie nevoie sa justifici motivul, conform legislatiei privind protectia consumatorului.</p>
     </section>
 
     <section class="info-section">
-      <h2>2. Conditii pentru retur</h2>
-      <p>Produsele trebuie sa fie nepurtate, nespalate, cu toate etichetele originale atasate si in ambalajul original, acolo unde este posibil. Fiind piese in editie limitata, un produs deteriorat sau uzat nu poate fi acceptat la retur.</p>
+      <h2 data-i18n="returns.s2.title">2. Conditii pentru retur</h2>
+      <p data-i18n="returns.s2.body">Produsele trebuie sa fie nepurtate, nespalate, cu toate etichetele originale atasate si in ambalajul original, acolo unde este posibil. Fiind piese in editie limitata, un produs deteriorat sau uzat nu poate fi acceptat la retur.</p>
     </section>
 
     <section class="info-section">
-      <h2>3. Cum initiezi un retur</h2>
-      <p>Scrie-ne la <a href="mailto:contact@beca-wlf.com">contact@beca-wlf.com</a> cu numarul comenzii (format BC-0000) si produsul pe care vrei sa-l returnezi. Iti vom trimite instructiunile de retur in maximum 24 de ore lucratoare.</p>
+      <h2 data-i18n="returns.s3.title">3. Cum initiezi un retur</h2>
+      <p><span data-i18n="returns.s3.bodyPre">Scrie-ne la </span><a href="mailto:contact@beca-wlf.com">contact@beca-wlf.com</a><span data-i18n="returns.s3.bodyPost"> cu numarul comenzii (format BC-0000) si produsul pe care vrei sa-l returnezi. Iti vom trimite instructiunile de retur in maximum 24 de ore lucratoare.</span></p>
     </section>
 
     <section class="info-section">
-      <h2>4. Rambursarea</h2>
-      <p>Dupa ce primim si verificam produsul returnat, rambursarea se face in maximum 14 zile calendaristice, folosind aceeasi metoda de plata utilizata la comanda.</p>
+      <h2 data-i18n="returns.s4.title">4. Rambursarea</h2>
+      <p data-i18n="returns.s4.body">Dupa ce primim si verificam produsul returnat, rambursarea se face in maximum 14 zile calendaristice, folosind aceeasi metoda de plata utilizata la comanda.</p>
     </section>
 
     <section class="info-section">
-      <h2>5. Costul returului</h2>
+      <h2 data-i18n="returns.s5.title">5. Costul returului</h2>
       <!-- TODO(legal, inainte de lansare): confirma cine suporta costul de transport la retur. -->
       <p>[LEGAL_RETURN_SHIPPING_POLICY]</p>
     </section>
 
     <section class="info-section info-cta">
-      <h2>Ai intrebari despre un retur?</h2>
+      <h2 data-i18n="returns.cta.title">Ai intrebari despre un retur?</h2>
       <div class="info-cta-actions">
-        <a href="/support.html">Contacteaza-ne</a>
+        <a href="/support.html" data-i18n="returns.cta.button">Contacteaza-ne</a>
       </div>
     </section>
   </main>
@@ -182,8 +181,8 @@
   </footer>
 
   <script src="currency.js?v=2026-08-14-2"></script>
-  <script src="locale.js?v=2026-08-16-2"></script>
-  <script src="script.js?v=2026-08-14-2"></script>
+  <script src="locale.js?v=2026-08-20-1"></script>
+  <script src="script.js?v=2026-08-20-1"></script>
   <script src="cart-widget.js?v=2026-08-13"></script>
   <script src="security.js?v=2026-08-13"></script>
   <script src="auth.js?v=2026-08-13"></script>
