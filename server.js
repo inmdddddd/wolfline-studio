@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const { DatabaseSync } = require("node:sqlite");
 
 // Minimal local-only .env loader (no npm dependency). Real hosting env vars
 // (e.g. Render's Environment Variables panel) are set before the process
@@ -172,6 +173,58 @@ const storage = createStorage({ dataDir, backupsDir });
 // live in here now - everything else stays on storage's JSON files, above.
 const dbPath = path.join(dataDir, `${BRAND_ID}.db`);
 const db = createDb({ dbPath });
+
+// Without this, a crash mid-request or in a background timer had no visible
+// trace beyond pm2's own log file - nobody finds out until a customer
+// complains. pm2 already restarts the process on its own; this only adds the
+// "someone gets told" half. The cooldown matters more than it looks: a crash
+// LOOP (the exact failure mode that let Aether crash-loop unnoticed) would
+// otherwise resend this on every single restart - potentially thousands of
+// times - so the marker file's mtime (not an in-memory flag, which a fresh
+// process after each restart wouldn't remember) gates it to once per window.
+const CRASH_ALERT_COOLDOWN_MS = 1000 * 60 * 15;
+const crashAlertMarkerPath = path.join(dataDir, ".crash-alert-sent");
+
+function shouldSendCrashAlert() {
+  try {
+    return Date.now() - fs.statSync(crashAlertMarkerPath).mtimeMs > CRASH_ALERT_COOLDOWN_MS;
+  } catch (_) {
+    return true;
+  }
+}
+
+function handleFatalError(error, context) {
+  console.error(`[fatal:${context}]`, error);
+
+  try {
+    if (shouldSendCrashAlert()) {
+      fs.mkdirSync(dataDir, { recursive: true });
+      fs.writeFileSync(crashAlertMarkerPath, String(Date.now()));
+
+      const alert = email.buildCrashAlertEmail(error, context);
+      const admins = db.listUsers().filter((user) => user.role === "admin");
+      Promise.all(
+        admins.map((admin) => email.sendMail({ to: admin.email, subject: alert.subject, text: alert.text }).catch(() => {}))
+      ).finally(() => process.exit(1));
+      // Don't let a slow/hung email send keep a broken process alive.
+      setTimeout(() => process.exit(1), 5000).unref();
+      return;
+    }
+  } catch (_) {
+    // Alerting itself failed (e.g. the crash was DB-related) - fall through
+    // to a plain exit rather than risk this handler throwing again.
+  }
+
+  process.exit(1);
+}
+
+if (!process.env.BECA_TEST_MODE) {
+  process.on("uncaughtException", (error) => handleFatalError(error, "uncaughtException"));
+  process.on("unhandledRejection", (reason) => {
+    handleFatalError(reason instanceof Error ? reason : new Error(String(reason)), "unhandledRejection");
+  });
+}
+
 const uploadDir = brandEnv("UPLOAD_DIR") ? path.resolve(brandEnv("UPLOAD_DIR")) : path.join(publicRoot, "assets", "products");
 const uploadDirResolved = path.resolve(uploadDir);
 const uploadPublicBase = (brandEnv("UPLOAD_PUBLIC_BASE") || "assets/products").replace(/^\/+|\/+$/g, "");
@@ -3710,7 +3763,36 @@ setInterval(runDataMaintenance, 1000 * 60 * 60).unref();
 // backupsDir is defined near the top (sibling of dataDir, brand-suffixed for
 // non-BeCa brands) because the storage layer needs it for corrupt-file
 // restoration as well.
-const MAX_BACKUPS = 14;
+//
+// This predates the SQLite migration and only ever copied *.json - the actual
+// order/product/user data has lived in dbPath since then, so every one of
+// these snapshots was silently missing the one file that mattered most. Fixed
+// by also writing a VACUUM INTO snapshot of the live database alongside the
+// JSON files. VACUUM INTO (not a plain copy) matters because the app runs in
+// WAL mode: copying dbPath directly can catch a write mid-flight or miss data
+// still sitting in the -wal file, producing a backup that looks fine but is
+// actually torn. VACUUM INTO takes its own consistent read snapshot instead,
+// safe to run against the live connection while the app keeps serving
+// requests. A fresh integrity_check on the result means a torn/truncated
+// backup is caught immediately, not discovered during a real emergency.
+const MAX_BACKUPS = 56; // 6-hourly cadence -> 14 days of history, not 3.5
+
+function backupDatabase(target) {
+  const dbBackupPath = path.join(target, path.basename(dbPath));
+  db.raw.prepare("VACUUM INTO ?").run(dbBackupPath);
+
+  const verify = new DatabaseSync(dbBackupPath, { readOnly: true });
+  let integrity;
+  try {
+    integrity = verify.prepare("PRAGMA integrity_check").get();
+  } finally {
+    verify.close();
+  }
+  if (!integrity || integrity.integrity_check !== "ok") {
+    fs.unlinkSync(dbBackupPath);
+    throw new Error(`db backup failed integrity check: ${JSON.stringify(integrity)}`);
+  }
+}
 
 function backupDataFiles() {
   try {
@@ -3723,6 +3805,8 @@ function backupDataFiles() {
       if (!fileName.endsWith(".json")) continue;
       fs.copyFileSync(path.join(dataDir, fileName), path.join(target, fileName));
     }
+
+    backupDatabase(target);
 
     const existing = fs.readdirSync(backupsDir)
       .filter((name) => fs.statSync(path.join(backupsDir, name)).isDirectory())
