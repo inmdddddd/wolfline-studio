@@ -8277,11 +8277,13 @@ body[data-hero-auth="login"] .beca-hero-copy {
    equivalent, no extra breakpoint handling needed for it.
    ========================================================================== */
 
-.header nav a.header-cart-button {
+.header nav a.header-cart-button,
+.header nav a.header-call-button {
   gap: 7px;
 }
 
-.header-cart-icon {
+.header-cart-icon,
+.header-call-icon {
   width: 15px;
   height: 15px;
   flex-shrink: 0;
@@ -8304,7 +8306,8 @@ body[data-hero-auth="login"] .beca-hero-copy {
   display: none;
 }
 
-.mobile-cart-link {
+.mobile-cart-link,
+.mobile-call-link {
   display: flex;
   align-items: center;
   gap: 8px;
