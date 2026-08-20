@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const zlib = require("zlib");
 const { DatabaseSync } = require("node:sqlite");
 
 // Minimal local-only .env loader (no npm dependency). Real hosting env vars
@@ -965,6 +966,60 @@ const CONTENT_SECURITY_POLICY = [
   "form-action 'self'",
   "frame-ancestors 'none'"
 ].join("; ");
+
+// Every text response (HTML, script.js, styles.css, JSON, sitemap.xml) goes
+// through send()/json() or a direct writeHead+end pair (confirmed - nothing
+// in this file streams via response.write), so wrapping the response object
+// once here catches all of them without touching send()'s many call sites.
+// Deferring writeHead's actual headers until end() is what makes it possible
+// to compress the body first and only then write a correct Content-Length.
+const COMPRESSIBLE_CONTENT_TYPE = /^(text\/|application\/json|application\/xml|application\/javascript|image\/svg)/i;
+const MIN_COMPRESS_BYTES = 1024; // below this, compression overhead can exceed the savings
+
+function wrapResponseWithCompression(request, response) {
+  const acceptEncoding = String(request.headers["accept-encoding"] || "");
+  const supportsBrotli = acceptEncoding.includes("br");
+  const supportsGzip = acceptEncoding.includes("gzip");
+  if (!supportsBrotli && !supportsGzip) return;
+
+  const realWriteHead = response.writeHead.bind(response);
+  const realEnd = response.end.bind(response);
+  let pendingStatus = 200;
+  let pendingHeaders = {};
+
+  response.writeHead = (status, headers) => {
+    pendingStatus = status;
+    pendingHeaders = headers || {};
+    return response;
+  };
+
+  response.end = (body) => {
+    const contentType = String(pendingHeaders["Content-Type"] || pendingHeaders["content-type"] || "");
+    const bodyBuffer = body === undefined ? Buffer.alloc(0) : Buffer.from(body);
+
+    if (!COMPRESSIBLE_CONTENT_TYPE.test(contentType) || bodyBuffer.length < MIN_COMPRESS_BYTES) {
+      realWriteHead(pendingStatus, pendingHeaders);
+      realEnd(bodyBuffer);
+      return;
+    }
+
+    try {
+      const encoding = supportsBrotli ? "br" : "gzip";
+      const compressed = supportsBrotli ? zlib.brotliCompressSync(bodyBuffer) : zlib.gzipSync(bodyBuffer);
+      realWriteHead(pendingStatus, {
+        ...pendingHeaders,
+        "Content-Encoding": encoding,
+        "Content-Length": compressed.length,
+        Vary: "Accept-Encoding"
+      });
+      realEnd(compressed);
+    } catch (error) {
+      // A compression failure must not take the response down with it.
+      realWriteHead(pendingStatus, pendingHeaders);
+      realEnd(bodyBuffer);
+    }
+  };
+}
 
 function send(response, status, body, headers = {}) {
   response.writeHead(status, {
@@ -6894,6 +6949,7 @@ function start() {
   setInterval(backupDataFiles, 1000 * 60 * 60 * 6).unref();
 
   return http.createServer(async (request, response) => {
+    wrapResponseWithCompression(request, response);
     const url = new URL(request.url, `http://${request.headers.host || `127.0.0.1:${port}`}`);
     const pathname = decodeURIComponent(url.pathname);
 
