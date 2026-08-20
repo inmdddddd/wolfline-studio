@@ -8277,8 +8277,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
    equivalent, no extra breakpoint handling needed for it.
    ========================================================================== */
 
-.header nav a.header-cart-button,
-.header nav a.header-call-button {
+.header nav a.header-cart-button {
   gap: 7px;
 }
 
@@ -8287,6 +8286,16 @@ body[data-hero-auth="login"] .beca-hero-copy {
   width: 15px;
   height: 15px;
   flex-shrink: 0;
+}
+
+/* Icon-only on the desktop nav (unlike cart, which pairs an icon with a
+   label + badge) - the nav was already tight with 5 items before this one
+   was added, and a text label here was the one that lost the fight and
+   wrapped mid-word. The mobile menu version keeps its label; there's no
+   crowding in a vertical list. */
+.header nav a.header-call-button {
+  padding: 0 9px;
+  white-space: nowrap;
 }
 
 .header-cart-badge {
