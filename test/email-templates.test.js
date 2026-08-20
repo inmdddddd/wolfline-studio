@@ -442,7 +442,7 @@ test("admin new-order alert: fires once per admin account, independent of the cu
       const outbox = readOutbox();
       const alert = outbox.find((entry) => entry.to === ADMIN_EMAIL && entry.subject.includes(order.number));
       assert.ok(alert, `expected an admin alert addressed to ${ADMIN_EMAIL} for order ${order.number}`);
-      assert.match(alert.subject, /Comanda noua/i);
+      assert.match(alert.subject, /new .* order/i);
       assert.match(alert.text, new RegExp(order.customerName));
       assert.match(alert.text, new RegExp(String(order.total)));
       assert.match(alert.text, /\/admin\/dashboard\.html/);

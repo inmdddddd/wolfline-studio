@@ -21,9 +21,9 @@
   function renderNotFound() {
     root.innerHTML = `
       <div class="invoice-error">
-        <h1>Factura nu a fost gasita.</h1>
-        <p>Linkul poate fi incomplet sau comanda nu mai exista.</p>
-        <a href="/">Inapoi acasa</a>
+        <h1>Invoice not found.</h1>
+        <p>The link may be incomplete or the order no longer exists.</p>
+        <a href="/">Back home</a>
       </div>
     `;
   }
@@ -36,9 +36,17 @@
     return document.querySelector('meta[name="brand-support-email"]')?.content || "contact@beca-wlf.com";
   }
 
+  // Falls back to the same English text script.js's own dictionary carries
+  // for this key (see defaultCopy.en["support.merchant.body"]) if no
+  // content.json override exists - this file has no locale.js on the page
+  // to read that dictionary directly, so the fallback is kept in sync by
+  // hand rather than duplicating the whole i18n resolution chain for one
+  // string.
+  const MERCHANT_BODY_FALLBACK = "BeCa Online shop, a company registered in the United Kingdom, with its registered office at 59 Woodward Road, Rock Ferry, Birkenhead, CH42 1QE, United Kingdom.";
+
   function renderInvoice(order, content) {
-    const merchantBody = (content.ro && content.ro["support.merchant.body"]) || "";
-    const supportEmail = (content.ro && content.ro["support.email"]) || brandSupportEmail();
+    const merchantBody = (content.en && content.en["support.merchant.body"]) || MERCHANT_BODY_FALLBACK;
+    const supportEmail = (content.en && content.en["support.email"]) || brandSupportEmail();
     const subtotal = (order.items || []).reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
 
     const itemsRows = (order.items || []).map((item) => `
@@ -54,9 +62,9 @@
       <div class="invoice-doc">
         <div class="invoice-doc-head">
           <div>
-            <h1>Factura</h1>
-            <p>Numar: <strong>${escapeHtml(order.number)}</strong></p>
-            <p>Data: ${escapeHtml(new Date(order.createdAt).toLocaleDateString("ro-RO"))}</p>
+            <h1>Invoice</h1>
+            <p>Number: <strong>${escapeHtml(order.number)}</strong></p>
+            <p>Date: ${escapeHtml(new Date(order.createdAt).toLocaleDateString())}</p>
             <p>Status: ${escapeHtml(order.status)}</p>
           </div>
           <div class="invoice-doc-from">
@@ -67,7 +75,7 @@
         </div>
 
         <div class="invoice-doc-to">
-          <strong>Facturat catre</strong>
+          <strong>Billed to</strong>
           <p>${escapeHtml(order.customerName)}</p>
           <p>${escapeHtml(order.customerEmail || "")}</p>
           <p>${escapeHtml(order.customerPhone || "")}</p>
@@ -76,18 +84,18 @@
 
         <table class="invoice-doc-table">
           <thead>
-            <tr><th>Produs</th><th>Cant.</th><th>Pret</th><th>Subtotal</th></tr>
+            <tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
           </thead>
           <tbody>${itemsRows}</tbody>
         </table>
 
         <div class="invoice-doc-totals">
           <div><span>Subtotal</span><strong>${escapeHtml(money(subtotal, order.currency))}</strong></div>
-          ${order.discount ? `<div><span>Reducere${order.couponCode ? ` (${escapeHtml(order.couponCode)})` : ""}</span><strong>-${escapeHtml(money(order.discount, order.currency))}</strong></div>` : ""}
+          ${order.discount ? `<div><span>Discount${order.couponCode ? ` (${escapeHtml(order.couponCode)})` : ""}</span><strong>-${escapeHtml(money(order.discount, order.currency))}</strong></div>` : ""}
           <div class="invoice-doc-total-final"><span>Total</span><strong>${escapeHtml(money(order.total, order.currency))}</strong></div>
         </div>
 
-        <p class="invoice-doc-note">Acest document este generat automat si serveste ca dovada a comenzii. Daca ai nevoie de o factura fiscala completa, contacteaza-ne la ${escapeHtml(supportEmail)}.</p>
+        <p class="invoice-doc-note">This document is generated automatically and serves as proof of order. If you need a full tax invoice, contact us at ${escapeHtml(supportEmail)}.</p>
       </div>
     `;
   }

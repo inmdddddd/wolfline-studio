@@ -236,7 +236,7 @@ test("bulk product actions: every action, manipulated ids, partial-failure resil
         body: { ids: [product.id], action: "addTags", tagIds: ["00000000-0000-4000-8000-000000000000"] }
       });
       assert.equal(status, 400);
-      assert.match(payload.error, /eticheta/i);
+      assert.match(payload.error, /tag/i);
     });
 
     await t.test("a manipulated/stale product id is reported as skipped, not fatal to the rest of the batch", async () => {

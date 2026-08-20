@@ -169,7 +169,7 @@ test("shipping zones/methods: admin CRUD, reorder, cascade delete", async (t) =>
         body: { countries: ["FR"] }
       });
       assert.equal(status, 400);
-      assert.match(payload.error, /nume/i);
+      assert.match(payload.error, /name/i);
     });
 
     await t.test("method create rejects an unknown zoneId", async () => {
@@ -179,7 +179,7 @@ test("shipping zones/methods: admin CRUD, reorder, cascade delete", async (t) =>
         body: { zoneId: "does-not-exist", name: "Ghost", price: 10 }
       });
       assert.equal(status, 400);
-      assert.match(payload.error, /zona/i);
+      assert.match(payload.error, /zone/i);
     });
 
     await t.test("method create rejects a negative price", async () => {
@@ -190,7 +190,7 @@ test("shipping zones/methods: admin CRUD, reorder, cascade delete", async (t) =>
         body: { zoneId: zone.id, name: "Bad", price: -5 }
       });
       assert.equal(status, 400);
-      assert.match(payload.error, /pret/i);
+      assert.match(payload.error, /price/i);
     });
 
     await t.test("update zone renames, recounties and toggles active", async () => {
@@ -290,7 +290,7 @@ test("tax rates: admin CRUD and validation", async (t) => {
         body: { name: "Bad", country: "Romania", rate: 19 }
       });
       assert.equal(status, 400);
-      assert.match(payload.error, /tara|taxa/i);
+      assert.match(payload.error, /country|tax/i);
     });
 
     await t.test("rejects a negative rate", async () => {
@@ -382,7 +382,7 @@ test("checkout: server-side shipping + tax calculation", async (t) => {
     await t.test("rejects checkout with no country submitted", async () => {
       const { status, payload } = await placeCheckout(baseUrl, { customerCountry: "" });
       assert.equal(status, 400);
-      assert.match(payload.error, /tara/i);
+      assert.match(payload.error, /country/i);
     });
 
     await t.test("a country with no configured zone falls back to free shipping (no regression)", async () => {
@@ -464,7 +464,7 @@ test("checkout: server-side shipping + tax calculation", async (t) => {
         shippingMethodId: frMethod.id
       });
       assert.equal(status, 400);
-      assert.match(payload.error, /livrare/i);
+      assert.match(payload.error, /shipping/i);
     });
 
     await t.test("rejects an inactive method's id when an active alternative exists in the same zone", async () => {
@@ -477,7 +477,7 @@ test("checkout: server-side shipping + tax calculation", async (t) => {
         shippingMethodId: disabled.id
       });
       assert.equal(status, 400);
-      assert.match(payload.error, /livrare/i);
+      assert.match(payload.error, /shipping/i);
     });
 
     await t.test("a zone whose only method is inactive degrades to free shipping, like an unconfigured zone", async () => {

@@ -49,15 +49,15 @@ document.querySelectorAll("[data-auth-form]").forEach((form) => {
     event.preventDefault();
     const submit = form.querySelector("button[type='submit']");
     submit.disabled = true;
-    setMessage(message, "Se verifica...", "info");
+    setMessage(message, "Checking...", "info");
 
     try {
       const payload = await postJson(form.action, getFormData(form));
       if (form.dataset.authForm === "no-redirect") {
-        setMessage(message, form.dataset.successMessage || "Gata.", "success");
+        setMessage(message, form.dataset.successMessage || "Done.", "success");
         form.reset();
       } else {
-        setMessage(message, "Gata, intri imediat.", "success");
+        setMessage(message, "Done, logging you in now.", "success");
         window.location.href = payload.redirect || "/";
       }
     } catch (error) {
@@ -72,11 +72,11 @@ document.querySelector("[data-resend-verification]")?.addEventListener("click", 
   const button = event.currentTarget;
   const message = document.querySelector("[data-resend-message]");
   button.disabled = true;
-  setMessage(message, "Se trimite...", "info");
+  setMessage(message, "Sending...", "info");
 
   try {
     const payload = await postJson("/auth/resend-verification", {});
-    setMessage(message, payload.alreadyVerified ? "Contul este deja verificat." : "Email retrimis. Verifica inbox-ul.", "success");
+    setMessage(message, payload.alreadyVerified ? "Account is already verified." : "Email resent. Check your inbox.", "success");
   } catch (error) {
     setMessage(message, error.message);
   } finally {
@@ -233,7 +233,7 @@ document.querySelectorAll("[data-settings-form]").forEach((form) => {
     event.preventDefault();
     const submit = form.querySelector("button[type='submit']");
     submit.disabled = true;
-    setMessage(message, "Se salveaza...", "info");
+    setMessage(message, "Saving...", "info");
 
     try {
       const payload = await putJson(form.action, getFormData(form));
@@ -241,7 +241,7 @@ document.querySelectorAll("[data-settings-form]").forEach((form) => {
         hydrateHeader(payload.user);
         await hydrateAccount();
       }
-      setMessage(message, "Salvat.", "success");
+      setMessage(message, "Saved.", "success");
       form.querySelectorAll("input[type='password']").forEach((input) => {
         input.value = "";
       });
@@ -267,7 +267,7 @@ document.querySelector("[data-delete-account-form]")?.addEventListener("submit",
   if (!window.confirm("Delete your account? This cannot be undone.")) return;
 
   submit.disabled = true;
-  setMessage(message, "Se sterge contul...", "info");
+  setMessage(message, "Deleting account...", "info");
 
   try {
     await putJson("/api/account/delete", getFormData(form));

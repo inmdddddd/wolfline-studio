@@ -25,9 +25,9 @@
   function renderEmpty() {
     root.innerHTML = `
       <div class="orders-empty">
-        <strong>Nu ai nicio comanda inca.</strong>
-        <p>Cand plasezi o comanda, o vei vedea aici, cu status si factura.</p>
-        <a href="/#drop">Vezi dropul curent</a>
+        <strong>${escapeHtml(text("orders.emptyTitle", "You don't have any orders yet."))}</strong>
+        <p>${escapeHtml(text("orders.emptyBody", "Once you place an order, you'll see it here with its status and invoice."))}</p>
+        <a href="/#drop">${escapeHtml(text("orders.emptyCta", "See the current drop"))}</a>
       </div>
     `;
   }
@@ -49,8 +49,8 @@
             <p class="order-row-meta">${escapeHtml(new Date(order.createdAt).toLocaleDateString())} &middot; ${escapeHtml(money(order.total, order.currency))}</p>
             <p class="order-row-items">${(order.items || []).map((item) => `${escapeHtml(item.qty)}x ${escapeHtml(item.name)}${item.size ? ` (${escapeHtml(item.size)})` : ""}`).join(", ")}</p>
             <div class="order-row-actions">
-              <a href="/thank-you.html?order=${encodeURIComponent(order.id)}">Detalii comanda</a>
-              <a href="/invoice.html?order=${encodeURIComponent(order.id)}">Vezi factura</a>
+              <a href="/thank-you.html?order=${encodeURIComponent(order.id)}">${escapeHtml(text("orders.viewDetails", "Order details"))}</a>
+              <a href="/invoice.html?order=${encodeURIComponent(order.id)}">${escapeHtml(text("orders.viewInvoice", "View invoice"))}</a>
             </div>
           </article>
         `).join("")}

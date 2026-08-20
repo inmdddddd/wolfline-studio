@@ -425,7 +425,7 @@ test("country-based pricing: product/shipping price overrides, all-or-nothing re
         couponCode: "MINVAL"
       });
       assert.equal(status, 400, "the 20 GBP base subtotal must fail the 40 GBP minimum, regardless of the much larger RON number");
-      assert.match(payload.error, /minima/i);
+      assert.match(payload.error, /minimum/i);
     });
 
     await t.test("public GET /api/products?country= resolves prices without leaking cost/prices internals", async () => {
@@ -501,7 +501,7 @@ test("country-based pricing: product/shipping price overrides, all-or-nothing re
       });
       const del = await jsonRequest(baseUrl, "/api/admin/country-config/AT", { method: "DELETE", cookie: adminCookie });
       assert.equal(del.status, 400);
-      assert.match(del.payload.error, /pret/i);
+      assert.match(del.payload.error, /price/i);
 
       // Clearing the price row first must let the deletion succeed.
       await jsonRequest(baseUrl, `/api/admin/products/${product.id}/prices`, {

@@ -138,7 +138,7 @@ test("languages/currencies/country-config: admin CRUD, default invariant, deleti
         method: "DELETE", cookie: adminCookie
       });
       assert.equal(status, 400);
-      assert.match(payload.error, /implicit/i);
+      assert.match(payload.error, /default/i);
     });
 
     await t.test("reassigning default back to 'en', then deleting 'fr', succeeds", async () => {

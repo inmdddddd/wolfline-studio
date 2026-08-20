@@ -342,7 +342,7 @@ test("saveDataUrlImage returns empty string for non-matching data urls", () => {
 
 test("saveDataUrlImage rejects a well-formed data url whose payload isn't an image", () => {
   const forged = `data:image/png;base64,${Buffer.from("<?php echo 1; ?>").toString("base64")}`;
-  assert.throws(() => server.saveDataUrlImage(forged), /Imagine invalida/);
+  assert.throws(() => server.saveDataUrlImage(forged), /Invalid image/);
 });
 
 test("parseMultipart splits fields and files from a multipart buffer", () => {

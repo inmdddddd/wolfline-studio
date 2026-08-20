@@ -645,10 +645,10 @@ const COMMON_WEAK_PASSWORDS = new Set([
 
 function passwordPolicyError(password) {
   const value = String(password || "");
-  if (value.length < 10) return "Parola trebuie sa aiba minimum 10 caractere.";
-  if (/^(.)\1+$/.test(value)) return "Parola nu poate fi un singur caracter repetat.";
-  if (COMMON_WEAK_PASSWORDS.has(value.toLowerCase())) return "Parola este prea comuna. Alege una mai greu de ghicit.";
-  if (/^\d+$/.test(value)) return "Parola nu poate fi formata doar din cifre.";
+  if (value.length < 10) return "Password must be at least 10 characters.";
+  if (/^(.)\1+$/.test(value)) return "Password cannot be a single repeated character.";
+  if (COMMON_WEAK_PASSWORDS.has(value.toLowerCase())) return "Password is too common. Choose one that's harder to guess.";
+  if (/^\d+$/.test(value)) return "Password cannot consist of digits only.";
   return null;
 }
 
@@ -801,7 +801,7 @@ function saveProductImage(file) {
   const detected = detectImageType(file.body);
 
   if (!detected) {
-    const error = new Error("Imagine invalida. Foloseste PNG, JPG, WEBP sau GIF.");
+    const error = new Error("Invalid image. Use PNG, JPG, WEBP or GIF.");
     error.statusCode = 400;
     throw error;
   }
@@ -829,7 +829,7 @@ function saveDataUrlImage(dataUrl, prefix = "studio") {
   const buffer = Buffer.from(match[2], "base64");
 
   if (!buffer.length || buffer.length > 20 * 1024 * 1024) {
-    const error = new Error("Imaginea generata este prea mare.");
+    const error = new Error("The generated image is too large.");
     error.statusCode = 400;
     throw error;
   }
@@ -838,7 +838,7 @@ function saveDataUrlImage(dataUrl, prefix = "studio") {
   // stored extension comes from the decoded bytes, not from what the URL says.
   const detected = detectImageType(buffer);
   if (!detected) {
-    const error = new Error("Imagine invalida. Foloseste PNG, JPG sau WEBP.");
+    const error = new Error("Invalid image. Use PNG, JPG or WEBP.");
     error.statusCode = 400;
     throw error;
   }
@@ -2103,7 +2103,7 @@ async function handleAuth(request, response, pathname) {
     }
 
     if (isRateLimited(`profile:${session.user.id}`, 10, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2112,18 +2112,18 @@ async function handleAuth(request, response, pathname) {
     const nextEmail = normalizeEmail(body.email);
 
     if (nextName.length < 2 || !nextEmail.includes("@")) {
-      json(response, 400, { error: "Completeaza nume si email valid." });
+      json(response, 400, { error: "Enter a valid name and email." });
       return true;
     }
 
     const currentUser = db.getUserById(session.user.id);
     if (!currentUser) {
-      json(response, 404, { error: "Contul nu exista." });
+      json(response, 404, { error: "Account does not exist." });
       return true;
     }
 
     if (db.emailInUse(nextEmail, session.user.id)) {
-      json(response, 409, { error: "Emailul este deja folosit." });
+      json(response, 409, { error: "Email is already in use." });
       return true;
     }
 
@@ -2165,7 +2165,7 @@ async function handleAuth(request, response, pathname) {
     }
 
     if (isRateLimited(`password-change:${session.user.id}`, 5, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2175,7 +2175,7 @@ async function handleAuth(request, response, pathname) {
     const currentUser = db.getUserById(session.user.id);
 
     if (!currentUser || !verifyPassword(currentPassword, currentUser.passwordHash)) {
-      json(response, 401, { error: "Parola actuala nu este corecta." });
+      json(response, 401, { error: "Current password is incorrect." });
       return true;
     }
 
@@ -2214,7 +2214,7 @@ async function handleAuth(request, response, pathname) {
     }
 
     if (isRateLimited(`account-delete:${session.user.id}`, 5, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2224,14 +2224,14 @@ async function handleAuth(request, response, pathname) {
     // leave should be handled deliberately by another admin, not this
     // one-click self-service path.
     if (session.user.role !== "client") {
-      json(response, 403, { error: "Contul de admin nu poate fi sters din acest ecran." });
+      json(response, 403, { error: "The admin account cannot be deleted from this screen." });
       return true;
     }
 
     const body = await readBody(request);
     const currentUser = db.getUserById(session.user.id);
     if (!currentUser || !verifyPassword(String(body.password || ""), currentUser.passwordHash)) {
-      json(response, 401, { error: "Parola nu este corecta." });
+      json(response, 401, { error: "Password is incorrect." });
       return true;
     }
 
@@ -2262,7 +2262,7 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
     if (isRateLimited(`forgot:${clientIp(request)}`, 5, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2295,7 +2295,7 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
     if (isRateLimited(`reset:${clientIp(request)}`, 8, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2313,13 +2313,13 @@ async function handleAuth(request, response, pathname) {
     const entry = resets.find((item) => item.token === token);
 
     if (!entry || entry.usedAt || Date.now() > entry.expiresAt) {
-      json(response, 400, { error: "Linkul de resetare este invalid sau a expirat." });
+      json(response, 400, { error: "Reset link is invalid or has expired." });
       return true;
     }
 
     const resetUser = db.getUserById(entry.userId);
     if (!resetUser) {
-      json(response, 404, { error: "Contul nu mai exista." });
+      json(response, 404, { error: "Account no longer exists." });
       return true;
     }
 
@@ -2342,7 +2342,7 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
     if (isRateLimited(`verify-email:${clientIp(request)}`, 10, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2352,13 +2352,13 @@ async function handleAuth(request, response, pathname) {
     const entry = verifications.find((item) => item.token === token);
 
     if (!entry || Date.now() > entry.expiresAt) {
-      json(response, 400, { error: "Linkul de verificare este invalid sau a expirat." });
+      json(response, 400, { error: "Verification link is invalid or has expired." });
       return true;
     }
 
     const verifyUser = db.getUserById(entry.userId);
     if (!verifyUser) {
-      json(response, 404, { error: "Contul nu mai exista." });
+      json(response, 404, { error: "Account no longer exists." });
       return true;
     }
 
@@ -2385,7 +2385,7 @@ async function handleAuth(request, response, pathname) {
       return true;
     }
     if (isRateLimited(`resend-verify:${session.user.id}`, 3, 300000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2402,7 +2402,7 @@ async function handleAuth(request, response, pathname) {
 
   if (pathname === "/auth/register") {
     if (isRateLimited(`register:${clientIp(request)}`, 5, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2412,7 +2412,7 @@ async function handleAuth(request, response, pathname) {
     const name = String(body.name || "").trim();
 
     if (!email.includes("@") || name.length < 2) {
-      json(response, 400, { error: "Completeaza nume si email valid." });
+      json(response, 400, { error: "Enter a valid name and email." });
       return true;
     }
 
@@ -2423,7 +2423,7 @@ async function handleAuth(request, response, pathname) {
     }
 
     if (db.emailInUse(email)) {
-      json(response, 409, { error: "Exista deja un cont cu emailul acesta." });
+      json(response, 409, { error: "An account with this email already exists." });
       return true;
     }
 
@@ -2436,7 +2436,7 @@ async function handleAuth(request, response, pathname) {
 
   if (pathname === "/auth/login" || pathname === "/admin/login") {
     if (isRateLimited(`login:${clientIp(request)}`, 8, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -2446,12 +2446,12 @@ async function handleAuth(request, response, pathname) {
     const user = db.getUserByEmail(email);
 
     if (!user || !verifyPassword(password, user.passwordHash)) {
-      json(response, 401, { error: "Email sau parola gresita." });
+      json(response, 401, { error: "Wrong email or password." });
       return true;
     }
 
     if (pathname === "/admin/login" && user.role !== "admin") {
-      json(response, 403, { error: "Contul acesta nu are acces admin." });
+      json(response, 403, { error: "This account does not have admin access." });
       return true;
     }
 
@@ -2567,7 +2567,7 @@ async function handleShopApi(request, response, pathname) {
     const country = String(target.searchParams.get("country") || "").trim().toUpperCase();
 
     if (!/^[A-Z]{2}$/.test(country)) {
-      json(response, 400, { error: "Tara este invalida." });
+      json(response, 400, { error: "Country is invalid." });
       return true;
     }
 
@@ -2694,7 +2694,7 @@ async function handleShopApi(request, response, pathname) {
     const product = db.getProductBySlugOrId(key);
 
     if (!product || (product.status !== "live" && product.status !== "preview")) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
 
@@ -2763,7 +2763,7 @@ async function handleShopApi(request, response, pathname) {
     const product = db.getProductById(productId);
 
     if (!product || (product.status !== "preview" && product.status !== "live") || !productBelongsToOpenChapter(product)) {
-      json(response, 404, { error: "Produsul nu este disponibil pentru notificari." });
+      json(response, 404, { error: "Product is not available for notifications." });
       return true;
     }
 
@@ -2821,7 +2821,7 @@ async function handleShopApi(request, response, pathname) {
     const productId = String(body.productId || "");
     const product = db.getProductById(productId);
     if (!product) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
 
@@ -2862,7 +2862,7 @@ async function handleShopApi(request, response, pathname) {
     const key = decodeURIComponent(reviewsMatch[1]);
     const product = db.getProductBySlugOrId(key);
     if (!product) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
 
@@ -2892,7 +2892,7 @@ async function handleShopApi(request, response, pathname) {
     const key = decodeURIComponent(reviewsMatch[1]);
     const product = db.getProductBySlugOrId(key);
     if (!product) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
 
@@ -2901,7 +2901,7 @@ async function handleShopApi(request, response, pathname) {
     const text = String(body.text || "").trim().slice(0, 600);
 
     if (!rating || text.length < 3) {
-      json(response, 400, { error: "Adauga o nota si un text de minimum 3 caractere." });
+      json(response, 400, { error: "Add a rating and a review of at least 3 characters." });
       return true;
     }
 
@@ -2934,7 +2934,7 @@ async function handleShopApi(request, response, pathname) {
     // Runs on every shop page load and still reads carts.json off disk, so it
     // carries the same per-IP ceiling as the pages that call it.
     if (isRateLimited(`cart-read:${clientIp(request)}`, 90, 60000)) {
-      json(response, 429, { error: "Prea multe cereri. Mai asteapta putin." });
+      json(response, 429, { error: "Too many requests. Please wait a moment." });
       return true;
     }
     const cartSession = getSession(request);
@@ -2970,17 +2970,17 @@ async function handleShopApi(request, response, pathname) {
     const product = db.getProductById(productId);
 
     if (!product || !productCanBePurchased(product)) {
-      json(response, 404, { error: "Produsul nu este disponibil." });
+      json(response, 404, { error: "Product is not available." });
       return true;
     }
 
     if (Array.isArray(product.sizes) && product.sizes.length && !product.sizes.includes(size)) {
-      json(response, 400, { error: "Alege o marime valida." });
+      json(response, 400, { error: "Choose a valid size." });
       return true;
     }
 
     if (availableStock(product, size) <= 0) {
-      json(response, 409, { error: "Produsul este sold out." });
+      json(response, 409, { error: "Product is sold out." });
       return true;
     }
 
@@ -3068,7 +3068,7 @@ async function handleShopApi(request, response, pathname) {
     // without ever paying. This doesn't fix the missing payment step, but it
     // closes the easiest automated-abuse path against it.
     if (isRateLimited(`checkout:${clientIp(request)}`, 10, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -3077,12 +3077,12 @@ async function handleShopApi(request, response, pathname) {
     const customer = sanitizeCheckout(body, session);
 
     if (!customer.customerName || !customer.customerEmail.includes("@") || !customer.customerPhone || !customer.customerAddress) {
-      json(response, 400, { error: "Completeaza nume, email, telefon si adresa." });
+      json(response, 400, { error: "Enter name, email, phone and address." });
       return true;
     }
 
     if (!/^[A-Z]{2}$/.test(customer.customerCountry)) {
-      json(response, 400, { error: "Selecteaza o tara valida." });
+      json(response, 400, { error: "Select a valid country." });
       return true;
     }
 
@@ -3092,7 +3092,7 @@ async function handleShopApi(request, response, pathname) {
     // letters at all) needs to be rejected here too.
     const hasLetter = /[A-Za-zÀ-ÖØ-öø-ÿĂăÂâÎîȘșȚț]/;
     if (!hasLetter.test(customer.customerName) || !hasLetter.test(customer.customerAddress)) {
-      json(response, 400, { error: "Introdu un nume si o adresa valide." });
+      json(response, 400, { error: "Enter a valid name and address." });
       return true;
     }
 
@@ -3106,7 +3106,7 @@ async function handleShopApi(request, response, pathname) {
       const basePayload = buildCartPayload(cart);
 
       if (!basePayload.items.length) {
-        return { error: "Cartul este gol." };
+        return { error: "Your cart is empty." };
       }
 
       let discount = 0;
@@ -3186,7 +3186,7 @@ async function handleShopApi(request, response, pathname) {
       for (const item of payload.items) {
         const current = db.getProductById(item.product.id);
         if (!current || !productCanBePurchased(current) || availableStock(current, item.size) < item.qty) {
-          return { error: `Stoc insuficient pentru ${item.product.name}.` };
+          return { error: `Insufficient stock for ${item.product.name}.` };
         }
 
         if (!editionMeta.has(current.id)) {
@@ -3335,7 +3335,15 @@ async function handleShopApi(request, response, pathname) {
     });
 
     if (outcome.error) {
-      const isBadRequest = /gol|cupon|reducere|livrare/i.test(outcome.error);
+      // Which of this block's own error returns count as a 400 (a bad
+      // request) vs. 409 (a real conflict, e.g. stock changed under the
+      // customer - see the uncaught "Insufficient stock" return above,
+      // deliberately not matched here). Match on the English text now that
+      // every error above is translated - this used to match Romanian word
+      // fragments (gol/cupon/reducere/livrare) and broke silently when
+      // those messages were translated to English (nothing here changed
+      // behavior, only which language decided the status code).
+      const isBadRequest = /empty|discount code|shipping method/i.test(outcome.error);
       json(response, isBadRequest ? 400 : 409, { error: outcome.error });
       return true;
     }
@@ -3383,7 +3391,7 @@ async function handleShopApi(request, response, pathname) {
     // Card-decline scripting/guessing target, same reasoning as checkout's
     // own limit - tighter here since a real card auth is on the other end.
     if (isRateLimited(`pay:${clientIp(request)}`, 5, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -3395,7 +3403,7 @@ async function handleShopApi(request, response, pathname) {
     // Same 404-for-both-missing-and-forbidden shape as the order detail GET
     // route, so an order id can't be probed for existence via this endpoint.
     if (!order || !canViewOrder(order, session, token)) {
-      json(response, 404, { error: "Comanda nu exista." });
+      json(response, 404, { error: "Order does not exist." });
       return true;
     }
 
@@ -3405,18 +3413,18 @@ async function handleShopApi(request, response, pathname) {
     }
 
     if (order.status === "cancelled" || order.paymentStatus === "refunded") {
-      json(response, 409, { error: "Comanda nu mai poate fi platita." });
+      json(response, 409, { error: "Order can no longer be paid." });
       return true;
     }
 
     if (!square.isConfigured()) {
-      json(response, 503, { error: "Plata cu cardul nu este momentan disponibila." });
+      json(response, 503, { error: "Card payment is not currently available." });
       return true;
     }
 
     const sourceId = String(body.sourceId || "");
     if (!sourceId) {
-      json(response, 400, { error: "Lipseste tokenul de plata." });
+      json(response, 400, { error: "Payment token is missing." });
       return true;
     }
 
@@ -3450,7 +3458,7 @@ async function handleShopApi(request, response, pathname) {
       if (result.ambiguous) {
         json(response, 502, {
           ambiguous: true,
-          error: "Nu am putut confirma plata din cauza unei erori de retea. Nu incerca imediat din nou - verifica peste cateva minute statusul comenzii inainte de a reincerca cardul."
+          error: "We couldn't confirm the payment due to a network error. Don't retry immediately - check the order status again in a few minutes before retrying the card."
         });
       } else {
         json(response, 402, { error: result.errors?.[0]?.detail || result.errors?.[0]?.code || "Plata a fost refuzata." });
@@ -3468,7 +3476,7 @@ async function handleShopApi(request, response, pathname) {
     });
 
     if (settled.error) {
-      json(response, 404, { error: "Comanda nu mai exista." });
+      json(response, 404, { error: "Order no longer exists." });
       return true;
     }
 
@@ -3617,7 +3625,7 @@ async function handleShopApi(request, response, pathname) {
   const orderDetailMatch = pathname.match(/^\/api\/orders\/([0-9a-f-]{36})$/);
   if (orderDetailMatch && request.method === "GET") {
     if (isRateLimited(`order-view:${clientIp(request)}`, 30, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -3628,7 +3636,7 @@ async function handleShopApi(request, response, pathname) {
     // Same 404 whether the order is missing or the caller isn't allowed to
     // see it, so order ids can't be probed for existence.
     if (!order || !canViewOrder(order, session, token)) {
-      json(response, 404, { error: "Comanda nu exista." });
+      json(response, 404, { error: "Order does not exist." });
       return true;
     }
 
@@ -3905,15 +3913,15 @@ function resolveCoupon(rawCode, total) {
 
   const coupons = readJson("coupons.json", []);
   const index = coupons.findIndex((coupon) => coupon.code === code);
-  if (index === -1) return { error: "Cod de reducere invalid." };
+  if (index === -1) return { error: "Invalid discount code." };
 
   const coupon = coupons[index];
-  if (!coupon.active) return { error: "Codul de reducere nu mai este activ." };
+  if (!coupon.active) return { error: "Discount code is no longer active." };
   if (coupon.expiresAt) {
     const expiresAtMs = new Date(coupon.expiresAt).getTime();
     // An unparseable expiry date must fail closed, not act as "never expires".
     if (!Number.isFinite(expiresAtMs) || Date.now() > expiresAtMs) {
-      return { error: "Codul de reducere a expirat." };
+      return { error: "Discount code has expired." };
     }
   }
 
@@ -3922,7 +3930,7 @@ function resolveCoupon(rawCode, total) {
     // resolved currency - see resolveOrderPricing's isFixedCouponApplied/
     // percent-recompute handling in the checkout route), so the default
     // currency's own code is never a guess here.
-    return { error: `Comanda minima pentru acest cupon este ${db.getDefaultCurrencyCode()} ${coupon.minOrderValue.toFixed(2)}.` };
+    return { error: `The minimum order for this discount code is ${db.getDefaultCurrencyCode()} ${coupon.minOrderValue.toFixed(2)}.` };
   }
 
   if (coupon.maxUses) {
@@ -3931,7 +3939,7 @@ function resolveCoupon(rawCode, total) {
     // could all pass this check and push usage past maxUses on confirm.
     const pendingHolds = db.countPendingCouponHolds(code);
     if ((coupon.usedCount || 0) + pendingHolds >= coupon.maxUses) {
-      return { error: "Codul de reducere a fost folosit de maximum de ori." };
+      return { error: "Discount code has been used the maximum number of times." };
     }
   }
 
@@ -3961,14 +3969,14 @@ function computeCouponDiscount(coupon, total) {
 function sanitizeLanguage(input, existing = {}) {
   const code = String(input.code || existing.code || "").trim().toLowerCase();
   if (!/^[a-z]{2,3}$/.test(code)) {
-    const error = new Error("Codul limbii trebuie sa aiba 2-3 litere (ex: en, ro).");
+    const error = new Error("Language code must be 2-3 letters (e.g. en, ro).");
     error.statusCode = 400;
     throw error;
   }
   const name = String(input.name ?? existing.name ?? "").trim().slice(0, 60);
   const nativeName = String(input.nativeName ?? existing.nativeName ?? "").trim().slice(0, 60);
   if (!name || !nativeName) {
-    const error = new Error("Numele limbii (si numele nativ) sunt obligatorii.");
+    const error = new Error("Language name (and native name) are required.");
     error.statusCode = 400;
     throw error;
   }
@@ -3985,25 +3993,25 @@ function sanitizeLanguage(input, existing = {}) {
 function sanitizeCurrency(input, existing = {}) {
   const code = String(input.code || existing.code || "").trim().toUpperCase();
   if (!/^[A-Z]{3}$/.test(code)) {
-    const error = new Error("Codul monedei trebuie sa aiba 3 litere (ISO 4217, ex: GBP).");
+    const error = new Error("Currency code must be 3 letters (ISO 4217, e.g. GBP).");
     error.statusCode = 400;
     throw error;
   }
   const symbol = String(input.symbol ?? existing.symbol ?? "").trim().slice(0, 8);
   if (!symbol) {
-    const error = new Error("Simbolul monedei este obligatoriu.");
+    const error = new Error("Currency symbol is required.");
     error.statusCode = 400;
     throw error;
   }
   const decimalPlaces = input.decimalPlaces !== undefined ? Math.floor(Number(input.decimalPlaces)) : (existing.decimalPlaces ?? 2);
   if (!Number.isFinite(decimalPlaces) || decimalPlaces < 0 || decimalPlaces > 4) {
-    const error = new Error("Numarul de zecimale trebuie sa fie intre 0 si 4.");
+    const error = new Error("Decimal places must be between 0 and 4.");
     error.statusCode = 400;
     throw error;
   }
   const symbolPosition = input.symbolPosition || existing.symbolPosition || "before";
   if (symbolPosition !== "before" && symbolPosition !== "after") {
-    const error = new Error("Pozitia simbolului trebuie sa fie 'before' sau 'after'.");
+    const error = new Error("Symbol position must be 'before' or 'after'.");
     error.statusCode = 400;
     throw error;
   }
@@ -4022,7 +4030,7 @@ function sanitizeCurrency(input, existing = {}) {
     } else {
       const parsed = Number(raw);
       if (!Number.isFinite(parsed) || parsed <= 0) {
-        const error = new Error("Cursul de afisare trebuie sa fie un numar pozitiv, sau gol pentru a-l dezactiva.");
+        const error = new Error("Display rate must be a positive number, or empty to disable it.");
         error.statusCode = 400;
         throw error;
       }
@@ -4030,7 +4038,7 @@ function sanitizeCurrency(input, existing = {}) {
     }
   }
   if (isDefault && displayRateFromDefault !== null) {
-    const error = new Error("Moneda implicita nu poate avea propriul ei curs de afisare secundar.");
+    const error = new Error("The default currency cannot have its own secondary display rate.");
     error.statusCode = 400;
     throw error;
   }
@@ -4053,13 +4061,13 @@ function sanitizeCurrency(input, existing = {}) {
 // the storefront always needs at least one usable language and currency.
 function assertCanRemoveOrDeactivate(rows, target, label) {
   if (target.isDefault) {
-    const error = new Error(`Nu poti sterge sau dezactiva ${label} implicita. Seteaza alta ${label} ca implicita mai intai.`);
+    const error = new Error(`You cannot delete or deactivate the default ${label}. Set another ${label} as default first.`);
     error.statusCode = 400;
     throw error;
   }
   const activeCount = rows.filter((row) => row.active).length;
   if (target.active && activeCount <= 1) {
-    const error = new Error(`Cel putin o ${label} activa este obligatorie.`);
+    const error = new Error(`At least one active ${label} is required.`);
     error.statusCode = 400;
     throw error;
   }
@@ -4083,12 +4091,12 @@ function sanitizeCountryPriceEntries(rawEntries, { withCompareAt = false, withFr
     const countryCode = String(raw?.countryCode || "").trim().toUpperCase();
     const countryConfig = db.getCountryConfig(countryCode);
     if (!countryConfig) {
-      const error = new Error(`Tara "${countryCode}" nu are limba/moneda configurata (vezi tabul Limbi & Monede).`);
+      const error = new Error(`Country "${countryCode}" has no language/currency configured (see the Languages & Currencies tab).`);
       error.statusCode = 400;
       throw error;
     }
     if (seenCountries.has(countryCode)) {
-      const error = new Error(`Tara "${countryCode}" apare de mai multe ori.`);
+      const error = new Error(`Country "${countryCode}" appears more than once.`);
       error.statusCode = 400;
       throw error;
     }
@@ -4096,7 +4104,7 @@ function sanitizeCountryPriceEntries(rawEntries, { withCompareAt = false, withFr
 
     const price = Number(raw?.price);
     if (!Number.isFinite(price) || price < 0) {
-      const error = new Error(`Pretul pentru ${countryCode} trebuie sa fie un numar pozitiv.`);
+      const error = new Error(`The price for ${countryCode} must be a positive number.`);
       error.statusCode = 400;
       throw error;
     }
@@ -4138,12 +4146,12 @@ function sanitizeProductTranslationEntries(rawEntries) {
     const languageCode = String(raw?.languageCode || "").trim().toLowerCase();
     const language = db.getLanguageByCode(languageCode);
     if (!language) {
-      const error = new Error(`Limba "${languageCode}" nu exista.`);
+      const error = new Error(`Language "${languageCode}" does not exist.`);
       error.statusCode = 400;
       throw error;
     }
     if (seenLanguages.has(languageCode)) {
-      const error = new Error(`Limba "${languageCode}" apare de mai multe ori.`);
+      const error = new Error(`Language "${languageCode}" appears more than once.`);
       error.statusCode = 400;
       throw error;
     }
@@ -4171,12 +4179,12 @@ function sanitizeCategoryTranslationEntries(rawEntries) {
       const languageCode = String(raw?.languageCode || "").trim().toLowerCase();
       const language = db.getLanguageByCode(languageCode);
       if (!language) {
-        const error = new Error(`Limba "${languageCode}" nu exista.`);
+        const error = new Error(`Language "${languageCode}" does not exist.`);
         error.statusCode = 400;
         throw error;
       }
       if (seenLanguages.has(languageCode)) {
-        const error = new Error(`Limba "${languageCode}" apare de mai multe ori.`);
+        const error = new Error(`Language "${languageCode}" appears more than once.`);
         error.statusCode = 400;
         throw error;
       }
@@ -4238,7 +4246,7 @@ function resolveShipping({ country, shippingMethodId, subtotal, priceCountryCode
   // method was chosen.
   const method = methods.find((candidate) => candidate.id === String(shippingMethodId || ""));
   if (!method) {
-    return { error: "Selecteaza o metoda de livrare valida." };
+    return { error: "Select a valid shipping method." };
   }
 
   let price = method.price;
@@ -4452,56 +4460,56 @@ const EMAIL_TEMPLATE_SAMPLE_ORDER = {
 const EMAIL_TEMPLATE_DEFS = [
   {
     id: "order-received",
-    name: "Comanda primita",
-    description: "Trimis imediat dupa checkout - comanda este inregistrata, nu inca confirmata.",
+    name: "Order received",
+    description: "Sent immediately after checkout - the order is recorded, not yet confirmed.",
     variables: ["customerName", "orderNumber", "total", "items", "shippingAddress", "brandName", "orderUrl", "invoiceUrl"],
-    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost primita",
-    defaultBody: "Salut {{customerName}},\n\nAm primit comanda ta {{brandName}}. Comanda va fi verificata si confirmata de echipa noastra.\n\nNumar comanda: {{orderNumber}}\nTotal: {{total}}\n\nProduse:\n{{items}}\n\nLivrare la: {{shippingAddress}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nMultumim ca ai ales {{brandName}}.\nEchipa {{brandName}}",
+    defaultSubject: "Your {{brandName}} order {{orderNumber}} has been received",
+    defaultBody: "Hi {{customerName}},\n\nWe've received your {{brandName}} order. It will be checked and confirmed by our team.\n\nOrder number: {{orderNumber}}\nTotal: {{total}}\n\nProducts:\n{{items}}\n\nShipping to: {{shippingAddress}}\n\nYou can view your order details anytime here:\n{{orderUrl}}\n\nThank you for choosing {{brandName}}.\nThe {{brandName}} team",
     sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", invoiceUrl: "https://example.com/invoice.html?order=sample" }
   },
   {
     id: "order-confirmed",
-    name: "Comanda confirmata",
-    description: "Trimis cand un admin confirma manual o comanda (fara plata online).",
+    name: "Order confirmed",
+    description: "Sent when an admin manually confirms an order (no online payment).",
     variables: ["customerName", "orderNumber", "total", "items", "shippingAddress", "brandName", "orderUrl", "invoiceUrl"],
-    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost confirmata",
-    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} a fost confirmata.\n\nNumar comanda: {{orderNumber}}\nTotal: {{total}}\n\nProduse:\n{{items}}\n\nLivrare la: {{shippingAddress}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nMultumim ca ai ales {{brandName}}.\nEchipa {{brandName}}",
+    defaultSubject: "Your {{brandName}} order {{orderNumber}} has been confirmed",
+    defaultBody: "Hi {{customerName}},\n\nYour {{brandName}} order has been confirmed.\n\nOrder number: {{orderNumber}}\nTotal: {{total}}\n\nProducts:\n{{items}}\n\nShipping to: {{shippingAddress}}\n\nYou can view your order details anytime here:\n{{orderUrl}}\n\nThank you for choosing {{brandName}}.\nThe {{brandName}} team",
     sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", invoiceUrl: "https://example.com/invoice.html?order=sample" }
   },
   {
     id: "payment-confirmed",
-    name: "Plata confirmata",
-    description: "Trimis cand o plata cu cardul (Square) se confirma.",
+    name: "Payment confirmed",
+    description: "Sent when a card payment (Square) is confirmed.",
     variables: ["customerName", "orderNumber", "total", "items", "shippingAddress", "brandName", "orderUrl", "invoiceUrl"],
-    defaultSubject: "Plata confirmata - comanda {{brandName}} {{orderNumber}}",
-    defaultBody: "Salut {{customerName}},\n\nAm primit plata pentru comanda ta {{brandName}} {{orderNumber}}. Comanda este confirmata si intra in pregatire.\n\nTotal platit: {{total}}\n\nProduse:\n{{items}}\n\nLivrare la: {{shippingAddress}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nMultumim ca ai ales {{brandName}}.\nEchipa {{brandName}}",
+    defaultSubject: "Payment confirmed - {{brandName}} order {{orderNumber}}",
+    defaultBody: "Hi {{customerName}},\n\nWe've received payment for your {{brandName}} order {{orderNumber}}. The order is confirmed and being prepared.\n\nTotal paid: {{total}}\n\nProducts:\n{{items}}\n\nShipping to: {{shippingAddress}}\n\nYou can view your order details anytime here:\n{{orderUrl}}\n\nThank you for choosing {{brandName}}.\nThe {{brandName}} team",
     sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", invoiceUrl: "https://example.com/invoice.html?order=sample" }
   },
   {
     id: "refund-confirmed",
-    name: "Rambursare procesata",
-    description: "Trimis cand un admin proceseaza o rambursare Square.",
+    name: "Refund processed",
+    description: "Sent when an admin processes a Square refund.",
     variables: ["customerName", "orderNumber", "brandName", "orderUrl", "refundAmount", "supportEmail"],
-    defaultSubject: "Rambursare procesata - comanda {{brandName}} {{orderNumber}}",
-    defaultBody: "Salut {{customerName}},\n\nAm procesat o rambursare pentru comanda ta {{brandName}} {{orderNumber}}.\n\nSuma rambursata: {{refundAmount}}\n\nRambursarea poate dura cateva zile lucratoare pana apare pe cont, in functie de banca.\n\nDaca ai intrebari, scrie-ne la {{supportEmail}}.\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    defaultSubject: "Refund processed - {{brandName}} order {{orderNumber}}",
+    defaultBody: "Hi {{customerName}},\n\nWe've processed a refund for your {{brandName}} order {{orderNumber}}.\n\nAmount refunded: {{refundAmount}}\n\nThe refund may take a few business days to appear on your account, depending on your bank.\n\nIf you have any questions, write to us at {{supportEmail}}.\n\nYou can view your order details anytime here:\n{{orderUrl}}\n\nThe {{brandName}} team",
     sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", refundAmount: "59 GBP", supportEmail: BRAND.supportEmail || "" }
   },
   {
     id: "order-processing",
-    name: "Comanda in procesare",
-    description: "Trimis cand admin schimba statusul comenzii la 'in procesare'.",
+    name: "Order processing",
+    description: "Sent when an admin changes the order status to 'processing'.",
     variables: ["customerName", "orderNumber", "total", "items", "brandName", "orderUrl", "customerNote"],
-    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} este in procesare",
-    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} {{orderNumber}} este in curs de procesare - o pregatim pentru expediere.\n\nProduse:\n{{items}}\n\nTotal: {{total}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    defaultSubject: "Your {{brandName}} order {{orderNumber}} is being processed",
+    defaultBody: "Hi {{customerName}},\n\nYour {{brandName}} order {{orderNumber}} is being processed - we're getting it ready to ship.\n\nProducts:\n{{items}}\n\nTotal: {{total}}\n\nYou can view your order details anytime here:\n{{orderUrl}}\n\nThe {{brandName}} team",
     sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", customerNote: "" }
   },
   {
     id: "order-shipped",
-    name: "Comanda expediata",
-    description: "Trimis cand admin schimba statusul comenzii la 'expediata'.",
+    name: "Order shipped",
+    description: "Sent when an admin changes the order status to 'shipped'.",
     variables: ["customerName", "orderNumber", "items", "brandName", "orderUrl", "courierName", "trackingNumber", "trackingUrl", "estimatedDeliveryDate", "customerNote"],
-    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost expediata",
-    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} {{orderNumber}} a fost expediata.\n\nCurier: {{courierName}}\nAWB / tracking: {{trackingNumber}}\nLink tracking: {{trackingUrl}}\nData estimata de livrare: {{estimatedDeliveryDate}}\n\nProduse:\n{{items}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    defaultSubject: "Your {{brandName}} order {{orderNumber}} has shipped",
+    defaultBody: "Hi {{customerName}},\n\nYour {{brandName}} order {{orderNumber}} has shipped.\n\nCourier: {{courierName}}\nTracking number: {{trackingNumber}}\nTracking link: {{trackingUrl}}\nEstimated delivery date: {{estimatedDeliveryDate}}\n\nProducts:\n{{items}}\n\nYou can view your order details anytime here:\n{{orderUrl}}\n\nThe {{brandName}} team",
     sampleExtra: {
       orderUrl: "https://example.com/order-confirmation?order=sample",
       courierName: "Sameday", trackingNumber: "AWB123456789", trackingUrl: "https://example.com/track/AWB123456789",
@@ -4510,21 +4518,21 @@ const EMAIL_TEMPLATE_DEFS = [
   },
   {
     id: "order-delivered",
-    name: "Comanda livrata",
-    description: "Trimis cand admin schimba statusul comenzii la 'livrata'.",
+    name: "Order delivered",
+    description: "Sent when an admin changes the order status to 'delivered'.",
     variables: ["customerName", "orderNumber", "brandName", "orderUrl", "reviewUrl"],
-    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost livrata",
-    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} {{orderNumber}} a fost livrata cu succes. Multumim ca ai ales {{brandName}}!\n\nNe-ar ajuta enorm o recenzie despre piesa primita:\n{{reviewUrl}}\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
+    defaultSubject: "Your {{brandName}} order {{orderNumber}} has been delivered",
+    defaultBody: "Hi {{customerName}},\n\nYour {{brandName}} order {{orderNumber}} has been delivered successfully. Thank you for choosing {{brandName}}!\n\nIt would really help us if you left a review for the piece you received:\n{{reviewUrl}}\n\nYou can view your order details anytime here:\n{{orderUrl}}\n\nThe {{brandName}} team",
     sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", reviewUrl: "https://example.com/product.html?id=sample" }
   },
   {
     id: "order-cancelled",
-    name: "Comanda anulata",
-    description: "Trimis cand admin schimba statusul comenzii la 'anulata'.",
+    name: "Order cancelled",
+    description: "Sent when an admin changes the order status to 'cancelled'.",
     variables: ["customerName", "orderNumber", "brandName", "orderUrl", "cancellationReason", "supportEmail"],
-    defaultSubject: "Comanda ta {{brandName}} {{orderNumber}} a fost anulata",
-    defaultBody: "Salut {{customerName}},\n\nComanda ta {{brandName}} {{orderNumber}} a fost anulata.\n{{cancellationReason}}\n\nDaca ai intrebari, scrie-ne la {{supportEmail}}.\n\nPoti vedea oricand detaliile comenzii aici:\n{{orderUrl}}\n\nEchipa {{brandName}}",
-    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", cancellationReason: "Motiv: stoc epuizat.", supportEmail: BRAND.supportEmail || "" }
+    defaultSubject: "Your {{brandName}} order {{orderNumber}} has been cancelled",
+    defaultBody: "Hi {{customerName}},\n\nYour {{brandName}} order {{orderNumber}} has been cancelled.\n{{cancellationReason}}\n\nIf you have any questions, write to us at {{supportEmail}}.\n\nYou can view your order details anytime here:\n{{orderUrl}}\n\nThe {{brandName}} team",
+    sampleExtra: { orderUrl: "https://example.com/order-confirmation?order=sample", cancellationReason: "Reason: out of stock.", supportEmail: BRAND.supportEmail || "" }
   }
 ];
 
@@ -4649,14 +4657,14 @@ async function handleAdminApi(request, response, pathname) {
   if (pathname === "/api/admin/content/image" && request.method === "POST") {
     const contentType = request.headers["content-type"] || "";
     if (!contentType.includes("multipart/form-data")) {
-      json(response, 400, { error: "Trimite imaginea ca multipart/form-data." });
+      json(response, 400, { error: "Send the image as multipart/form-data." });
       return true;
     }
 
     const parsed = parseMultipart(await readBuffer(request), contentType);
     const url = saveProductImage(parsed.files.image);
     if (!url) {
-      json(response, 400, { error: "Imagine invalida." });
+      json(response, 400, { error: "Invalid image." });
       return true;
     }
 
@@ -4786,8 +4794,8 @@ async function handleAdminApi(request, response, pathname) {
 
     const result = await email.sendMail({
       to: session.user.email,
-      subject: `Test SMTP ${BRAND.brandShortName}`,
-      text: `Acesta este un email de test trimis din panoul admin ${BRAND.brandShortName} pentru a confirma ca SMTP-ul functioneaza.`
+      subject: `SMTP test ${BRAND.brandShortName}`,
+      text: `This is a test email sent from the ${BRAND.brandShortName} admin panel to confirm SMTP is working.`
     });
 
     json(response, 200, { ...result, configured: true });
@@ -4810,7 +4818,7 @@ async function handleAdminApi(request, response, pathname) {
   const userRoleMatch = pathname.match(/^\/api\/admin\/users\/([a-f0-9-]+)\/role$/);
   if (userRoleMatch && request.method === "PUT") {
     if (!session.user.isPrimaryAdmin) {
-      json(response, 403, { error: "Doar admin-ul principal poate modifica roluri." });
+      json(response, 403, { error: "Only the primary admin can change roles." });
       return true;
     }
 
@@ -4818,19 +4826,19 @@ async function handleAdminApi(request, response, pathname) {
     const role = String(body.role || "").trim();
 
     if (!["admin", "client"].includes(role)) {
-      json(response, 400, { error: "Rol invalid." });
+      json(response, 400, { error: "Invalid role." });
       return true;
     }
 
     const targetUser = db.getUserById(userRoleMatch[1]);
 
     if (!targetUser) {
-      json(response, 404, { error: "Userul nu exista." });
+      json(response, 404, { error: "User does not exist." });
       return true;
     }
 
     if (targetUser.isPrimaryAdmin && role !== "admin") {
-      json(response, 400, { error: "Admin-ul principal trebuie sa ramana admin." });
+      json(response, 400, { error: "The primary admin must remain an admin." });
       return true;
     }
 
@@ -4864,7 +4872,7 @@ async function handleAdminApi(request, response, pathname) {
     const products = db.listProducts();
     const reviews = readJson("reviews.json", []).map((review) => ({
       ...review,
-      productName: products.find((product) => product.id === review.productId)?.name || "Produs sters"
+      productName: products.find((product) => product.id === review.productId)?.name || "Deleted product"
     }));
     const { items, page, pageSize, total } = paginate(request, reviews);
     json(response, 200, { reviews: items, page, pageSize, total });
@@ -4877,7 +4885,7 @@ async function handleAdminApi(request, response, pathname) {
     const reviews = readJson("reviews.json", []);
     const index = reviews.findIndex((review) => review.id === reviewMatch[1]);
     if (index === -1) {
-      json(response, 404, { error: "Recenzia nu exista." });
+      json(response, 404, { error: "Review does not exist." });
       return true;
     }
     reviews[index] = { ...reviews[index], approved: Boolean(body.approved), updatedAt: new Date().toISOString() };
@@ -4906,17 +4914,17 @@ async function handleAdminApi(request, response, pathname) {
     const value = Math.max(0, Number(body.value) || 0);
 
     if (!code || !value) {
-      json(response, 400, { error: "Cod si valoare sunt obligatorii." });
+      json(response, 400, { error: "Code and value are required." });
       return true;
     }
 
     if (type === "percent" && (value <= 0 || value > 100)) {
-      json(response, 400, { error: "Cuponul procentual trebuie sa fie intre 0 si 100." });
+      json(response, 400, { error: "Percentage coupon must be between 0 and 100." });
       return true;
     }
 
     if (body.expiresAt && !Number.isFinite(new Date(body.expiresAt).getTime())) {
-      json(response, 400, { error: "Data de expirare este invalida." });
+      json(response, 400, { error: "Expiry date is invalid." });
       return true;
     }
 
@@ -4944,7 +4952,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (outcome.conflict) {
-      json(response, 409, { error: "Exista deja un cupon cu acest cod." });
+      json(response, 409, { error: "A coupon with this code already exists." });
       return true;
     }
 
@@ -4967,7 +4975,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (!updated) {
-      json(response, 404, { error: "Cuponul nu exista." });
+      json(response, 404, { error: "Coupon does not exist." });
       return true;
     }
 
@@ -5003,7 +5011,7 @@ async function handleAdminApi(request, response, pathname) {
     // exactly as risky as deleting it - same guard, same rules, checked
     // against the row's CURRENT state before the new values are written.
     if (existing && ((existing.active && !language.active) || (existing.isDefault && !language.isDefault))) {
-      assertCanRemoveOrDeactivate(db.listLanguages(), existing, "limba");
+      assertCanRemoveOrDeactivate(db.listLanguages(), existing, "language");
     }
     const now = new Date().toISOString();
     const saved = await withStockLock(() => db.upsertLanguage({
@@ -5018,10 +5026,10 @@ async function handleAdminApi(request, response, pathname) {
   if (languageMatch && request.method === "DELETE") {
     const existing = db.getLanguageByCode(languageMatch[1].toLowerCase());
     if (!existing) {
-      json(response, 404, { error: "Limba nu exista." });
+      json(response, 404, { error: "Language does not exist." });
       return true;
     }
-    assertCanRemoveOrDeactivate(db.listLanguages(), existing, "limba");
+    assertCanRemoveOrDeactivate(db.listLanguages(), existing, "language");
     await withStockLock(() => db.deleteLanguage(existing.code));
     json(response, 200, { ok: true });
     return true;
@@ -5038,7 +5046,7 @@ async function handleAdminApi(request, response, pathname) {
     const body = await readBody(request);
     const currency = sanitizeCurrency({ ...body, code: currencyMatch[1] }, existing || {});
     if (existing && ((existing.active && !currency.active) || (existing.isDefault && !currency.isDefault))) {
-      assertCanRemoveOrDeactivate(db.listCurrencies(), existing, "moneda");
+      assertCanRemoveOrDeactivate(db.listCurrencies(), existing, "currency");
     }
     const now = new Date().toISOString();
     const saved = await withStockLock(() => db.upsertCurrency({
@@ -5053,10 +5061,10 @@ async function handleAdminApi(request, response, pathname) {
   if (currencyMatch && request.method === "DELETE") {
     const existing = db.getCurrencyByCode(currencyMatch[1].toUpperCase());
     if (!existing) {
-      json(response, 404, { error: "Moneda nu exista." });
+      json(response, 404, { error: "Currency does not exist." });
       return true;
     }
-    assertCanRemoveOrDeactivate(db.listCurrencies(), existing, "moneda");
+    assertCanRemoveOrDeactivate(db.listCurrencies(), existing, "currency");
     await withStockLock(() => db.deleteCurrency(existing.code));
     json(response, 200, { ok: true });
     return true;
@@ -5090,11 +5098,11 @@ async function handleAdminApi(request, response, pathname) {
     const currencyCode = String(body.currencyCode || "").trim().toUpperCase();
 
     if (!db.getLanguageByCode(languageCode)) {
-      json(response, 400, { error: "Limba selectata nu exista." });
+      json(response, 400, { error: "Selected language does not exist." });
       return true;
     }
     if (!db.getCurrencyByCode(currencyCode)) {
-      json(response, 400, { error: "Moneda selectata nu exista." });
+      json(response, 400, { error: "Selected currency does not exist." });
       return true;
     }
 
@@ -5117,7 +5125,7 @@ async function handleAdminApi(request, response, pathname) {
     // without this check, an in-use deletion would fail deep inside SQLite
     // with a raw foreign-key-constraint error instead of a clear message.
     if (db.countryConfigInUse(countryCode)) {
-      json(response, 400, { error: "Aceasta tara are preturi de produs sau livrare configurate. Sterge-le mai intai." });
+      json(response, 400, { error: "This country has product or shipping prices configured. Remove them first." });
       return true;
     }
     await withStockLock(() => db.deleteCountryConfig(countryCode));
@@ -5140,15 +5148,15 @@ async function handleAdminApi(request, response, pathname) {
     const value = stripHtmlToText(body.value);
 
     if (!key) {
-      json(response, 400, { error: "Cheia este obligatorie." });
+      json(response, 400, { error: "Key is required." });
       return true;
     }
     if (!db.getLanguageByCode(languageCode)) {
-      json(response, 400, { error: "Limba selectata nu exista." });
+      json(response, 400, { error: "Selected language does not exist." });
       return true;
     }
     if (!value) {
-      json(response, 400, { error: "Valoarea este obligatorie (sterge cheia daca vrei sa elimini suprascrierea)." });
+      json(response, 400, { error: "Value is required (delete the key if you want to remove the override)." });
       return true;
     }
 
@@ -5189,7 +5197,7 @@ async function handleAdminApi(request, response, pathname) {
     const name = String(body.name || "").trim().slice(0, 80);
 
     if (!name) {
-      json(response, 400, { error: "Zona are nevoie de un nume." });
+      json(response, 400, { error: "Zone needs a name." });
       return true;
     }
 
@@ -5212,14 +5220,14 @@ async function handleAdminApi(request, response, pathname) {
   if (shippingZoneMatch && request.method === "PUT") {
     const existing = db.getShippingZoneById(shippingZoneMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Zona nu exista." });
+      json(response, 404, { error: "Zone does not exist." });
       return true;
     }
 
     const body = await readBody(request);
     const name = body.name !== undefined ? String(body.name).trim().slice(0, 80) : existing.name;
     if (!name) {
-      json(response, 400, { error: "Zona are nevoie de un nume." });
+      json(response, 400, { error: "Zone needs a name." });
       return true;
     }
 
@@ -5239,7 +5247,7 @@ async function handleAdminApi(request, response, pathname) {
   if (shippingZoneMatch && request.method === "DELETE") {
     const existing = db.getShippingZoneById(shippingZoneMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Zona nu exista." });
+      json(response, 404, { error: "Zone does not exist." });
       return true;
     }
     // ON DELETE CASCADE removes this zone's methods too. Past orders keep
@@ -5254,7 +5262,7 @@ async function handleAdminApi(request, response, pathname) {
     const body = await readBody(request);
     const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
     if (!ids.length) {
-      json(response, 400, { error: "Lipseste ordinea zonelor." });
+      json(response, 400, { error: "Zone order is missing." });
       return true;
     }
 
@@ -5273,14 +5281,14 @@ async function handleAdminApi(request, response, pathname) {
     const body = await readBody(request);
     const zone = db.getShippingZoneById(String(body.zoneId || ""));
     if (!zone) {
-      json(response, 400, { error: "Selecteaza o zona valida." });
+      json(response, 400, { error: "Select a valid zone." });
       return true;
     }
 
     const name = String(body.name || "").trim().slice(0, 80);
     const price = Number(body.price);
     if (!name || !Number.isFinite(price) || price < 0) {
-      json(response, 400, { error: "Metoda are nevoie de nume si pret valide." });
+      json(response, 400, { error: "Method needs a valid name and price." });
       return true;
     }
 
@@ -5312,7 +5320,7 @@ async function handleAdminApi(request, response, pathname) {
   if (shippingMethodMatch && request.method === "PUT") {
     const existing = db.getShippingMethodById(shippingMethodMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Metoda nu exista." });
+      json(response, 404, { error: "Method does not exist." });
       return true;
     }
 
@@ -5320,7 +5328,7 @@ async function handleAdminApi(request, response, pathname) {
     const name = body.name !== undefined ? String(body.name).trim().slice(0, 80) : existing.name;
     const price = body.price !== undefined ? Number(body.price) : existing.price;
     if (!name || !Number.isFinite(price) || price < 0) {
-      json(response, 400, { error: "Metoda are nevoie de nume si pret valide." });
+      json(response, 400, { error: "Method needs a valid name and price." });
       return true;
     }
 
@@ -5328,7 +5336,7 @@ async function handleAdminApi(request, response, pathname) {
     if (body.zoneId !== undefined) {
       const zone = db.getShippingZoneById(String(body.zoneId));
       if (!zone) {
-        json(response, 400, { error: "Selecteaza o zona valida." });
+        json(response, 400, { error: "Select a valid zone." });
         return true;
       }
       zoneId = zone.id;
@@ -5358,7 +5366,7 @@ async function handleAdminApi(request, response, pathname) {
   if (shippingMethodMatch && request.method === "DELETE") {
     const existing = db.getShippingMethodById(shippingMethodMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Metoda nu exista." });
+      json(response, 404, { error: "Method does not exist." });
       return true;
     }
     await withStockLock(() => db.deleteShippingMethod(shippingMethodMatch[1]));
@@ -5370,7 +5378,7 @@ async function handleAdminApi(request, response, pathname) {
   if (shippingMethodPricesMatch && request.method === "GET") {
     const method = db.getShippingMethodById(shippingMethodPricesMatch[1]);
     if (!method) {
-      json(response, 404, { error: "Metoda nu exista." });
+      json(response, 404, { error: "Method does not exist." });
       return true;
     }
     json(response, 200, { prices: db.listShippingMethodPrices(method.id) });
@@ -5380,7 +5388,7 @@ async function handleAdminApi(request, response, pathname) {
   if (shippingMethodPricesMatch && request.method === "PUT") {
     const methodId = shippingMethodPricesMatch[1];
     if (!db.getShippingMethodById(methodId)) {
-      json(response, 404, { error: "Metoda nu exista." });
+      json(response, 404, { error: "Method does not exist." });
       return true;
     }
     const body = await readBody(request);
@@ -5405,7 +5413,7 @@ async function handleAdminApi(request, response, pathname) {
     const zoneId = String(body.zoneId || "");
     const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
     if (!zoneId || !ids.length) {
-      json(response, 400, { error: "Lipseste ordinea metodelor." });
+      json(response, 400, { error: "Method order is missing." });
       return true;
     }
 
@@ -5434,7 +5442,7 @@ async function handleAdminApi(request, response, pathname) {
     const rate = Number(body.rate);
 
     if (!name || !/^[A-Z]{2}$/.test(country) || !Number.isFinite(rate) || rate < 0) {
-      json(response, 400, { error: "Nume, tara si cota de taxa valide sunt obligatorii." });
+      json(response, 400, { error: "Valid name, country and tax rate are required." });
       return true;
     }
 
@@ -5460,7 +5468,7 @@ async function handleAdminApi(request, response, pathname) {
   if (taxRateMatch && request.method === "PUT") {
     const existing = db.getTaxRateById(taxRateMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Taxa nu exista." });
+      json(response, 404, { error: "Tax does not exist." });
       return true;
     }
 
@@ -5470,7 +5478,7 @@ async function handleAdminApi(request, response, pathname) {
     const rate = body.rate !== undefined ? Number(body.rate) : existing.rate;
 
     if (!name || !/^[A-Z]{2}$/.test(country) || !Number.isFinite(rate) || rate < 0) {
-      json(response, 400, { error: "Nume, tara si cota de taxa valide sunt obligatorii." });
+      json(response, 400, { error: "Valid name, country and tax rate are required." });
       return true;
     }
 
@@ -5493,7 +5501,7 @@ async function handleAdminApi(request, response, pathname) {
   if (taxRateMatch && request.method === "DELETE") {
     const existing = db.getTaxRateById(taxRateMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Taxa nu exista." });
+      json(response, 404, { error: "Tax does not exist." });
       return true;
     }
     await withStockLock(() => db.deleteTaxRate(taxRateMatch[1]));
@@ -5533,7 +5541,7 @@ async function handleAdminApi(request, response, pathname) {
   if (emailTemplatePreviewMatch && request.method === "POST") {
     const def = EMAIL_TEMPLATE_DEF_BY_ID.get(emailTemplatePreviewMatch[1]);
     if (!def) {
-      json(response, 404, { error: "Sablonul nu exista." });
+      json(response, 404, { error: "Template does not exist." });
       return true;
     }
 
@@ -5551,12 +5559,12 @@ async function handleAdminApi(request, response, pathname) {
   if (emailTemplateTestSendMatch && request.method === "POST") {
     const def = EMAIL_TEMPLATE_DEF_BY_ID.get(emailTemplateTestSendMatch[1]);
     if (!def) {
-      json(response, 404, { error: "Sablonul nu exista." });
+      json(response, 404, { error: "Template does not exist." });
       return true;
     }
 
     if (isRateLimited(`email-template-test:${session.user.id}`, 5, 60000)) {
-      json(response, 429, { error: "Prea multe incercari. Mai asteapta putin." });
+      json(response, 429, { error: "Too many attempts. Please wait a moment." });
       return true;
     }
 
@@ -5569,10 +5577,10 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     const failureMessages = {
-      "invalid-recipient": "Adresa de email a contului tau de admin nu este valida.",
-      "smtp-not-configured": "Niciun serviciu de email (SMTP/Resend) nu este configurat pe acest server.",
-      "send-failed": "Serverul SMTP a refuzat trimiterea.",
-      "resend-send-failed": "Resend a refuzat trimiterea."
+      "invalid-recipient": "Your admin account's email address is not valid.",
+      "smtp-not-configured": "No email service (SMTP/Resend) is configured on this server.",
+      "send-failed": "The SMTP server refused to send it.",
+      "resend-send-failed": "Resend refused to send it."
     };
     json(response, result.ok ? 200 : 502, {
       ok: result.ok,
@@ -5586,7 +5594,7 @@ async function handleAdminApi(request, response, pathname) {
   if (emailTemplateMatch && request.method === "PUT") {
     const def = EMAIL_TEMPLATE_DEF_BY_ID.get(emailTemplateMatch[1]);
     if (!def) {
-      json(response, 404, { error: "Sablonul nu exista." });
+      json(response, 404, { error: "Template does not exist." });
       return true;
     }
 
@@ -5594,13 +5602,13 @@ async function handleAdminApi(request, response, pathname) {
     const subject = String(body.subject || "").trim().slice(0, 200);
     const templateBody = String(body.body || "").trim().slice(0, 5000);
     if (!subject || !templateBody) {
-      json(response, 400, { error: "Subiectul si continutul sunt obligatorii." });
+      json(response, 400, { error: "Subject and content are required." });
       return true;
     }
     const requestedLang = String(body.languageCode || "").trim().toLowerCase();
     const language = requestedLang ? db.getLanguageByCode(requestedLang) : null;
     if (requestedLang && !language) {
-      json(response, 400, { error: "Limba selectata nu exista." });
+      json(response, 400, { error: "Selected language does not exist." });
       return true;
     }
     const languageCode = language ? language.code : db.getDefaultLanguageCode();
@@ -5636,7 +5644,7 @@ async function handleAdminApi(request, response, pathname) {
     const slug = toSlug(name);
 
     if (!name || !slug) {
-      json(response, 400, { error: "Eticheta are nevoie de un nume." });
+      json(response, 400, { error: "Tag needs a name." });
       return true;
     }
 
@@ -5649,7 +5657,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (outcome.conflict) {
-      json(response, 409, { error: "Exista deja o eticheta cu acest nume." });
+      json(response, 409, { error: "A tag with this name already exists." });
       return true;
     }
 
@@ -5661,7 +5669,7 @@ async function handleAdminApi(request, response, pathname) {
   if (tagMatch && request.method === "PUT") {
     const existing = db.getTagById(tagMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Eticheta nu exista." });
+      json(response, 404, { error: "Tag does not exist." });
       return true;
     }
 
@@ -5669,7 +5677,7 @@ async function handleAdminApi(request, response, pathname) {
     const name = String(body.name || "").trim().slice(0, 40);
     const slug = toSlug(name);
     if (!name || !slug) {
-      json(response, 400, { error: "Eticheta are nevoie de un nume." });
+      json(response, 400, { error: "Tag needs a name." });
       return true;
     }
 
@@ -5679,7 +5687,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (outcome.conflict) {
-      json(response, 409, { error: "Exista deja o eticheta cu acest nume." });
+      json(response, 409, { error: "A tag with this name already exists." });
       return true;
     }
 
@@ -5690,7 +5698,7 @@ async function handleAdminApi(request, response, pathname) {
   if (tagMatch && request.method === "DELETE") {
     const existing = db.getTagById(tagMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Eticheta nu exista." });
+      json(response, 404, { error: "Tag does not exist." });
       return true;
     }
     // ON DELETE CASCADE removes this tag from every product that had it;
@@ -5795,44 +5803,44 @@ async function handleAdminApi(request, response, pathname) {
   if (pathname === "/api/admin/export/orders.csv" && request.method === "GET") {
     const orders = db.listOrdersAdmin();
     const csv = toCsv(orders, [
-      { label: "Numar", value: (o) => o.number },
+      { label: "Number", value: (o) => o.number },
       { label: "Status", value: (o) => o.status },
-      { label: "Client", value: (o) => o.customerName },
+      { label: "Customer", value: (o) => o.customerName },
       { label: "Email", value: (o) => o.customerEmail },
-      { label: "Telefon", value: (o) => o.customerPhone },
-      { label: "Adresa", value: (o) => o.customerAddress },
+      { label: "Phone", value: (o) => o.customerPhone },
+      { label: "Address", value: (o) => o.customerAddress },
       { label: "Total", value: (o) => o.total },
-      { label: "Moneda", value: (o) => o.currency },
-      { label: "Reducere", value: (o) => o.discount || 0 },
-      { label: "Cupon", value: (o) => o.couponCode || "" },
-      { label: "Produse", value: (o) => (o.items || []).map((item) => `${item.qty}x ${item.name}${item.size ? ` (${item.size})` : ""}`).join("; ") },
-      { label: "Creat la", value: (o) => o.createdAt }
+      { label: "Currency", value: (o) => o.currency },
+      { label: "Discount", value: (o) => o.discount || 0 },
+      { label: "Coupon", value: (o) => o.couponCode || "" },
+      { label: "Products", value: (o) => (o.items || []).map((item) => `${item.qty}x ${item.name}${item.size ? ` (${item.size})` : ""}`).join("; ") },
+      { label: "Created at", value: (o) => o.createdAt }
     ]);
-    sendCsv(response, "comenzi.csv", csv);
+    sendCsv(response, "orders.csv", csv);
     return true;
   }
 
   if (pathname === "/api/admin/export/users.csv" && request.method === "GET") {
     const users = db.listUsers();
     const csv = toCsv(users, [
-      { label: "Nume", value: (u) => u.name },
+      { label: "Name", value: (u) => u.name },
       { label: "Email", value: (u) => u.email },
-      { label: "Rol", value: (u) => u.role },
-      { label: "Email verificat", value: (u) => (u.emailVerified ? "da" : "nu") },
-      { label: "Creat la", value: (u) => u.createdAt }
+      { label: "Role", value: (u) => u.role },
+      { label: "Email verified", value: (u) => (u.emailVerified ? "yes" : "no") },
+      { label: "Created at", value: (u) => u.createdAt }
     ]);
-    sendCsv(response, "useri.csv", csv);
+    sendCsv(response, "users.csv", csv);
     return true;
   }
 
   if (pathname === "/api/admin/export/notifications.csv" && request.method === "GET") {
     const notifications = readJson("notifications.json", []);
     const csv = toCsv(notifications, [
-      { label: "Produs", value: (n) => n.productName },
-      { label: "Nume", value: (n) => n.name },
+      { label: "Product", value: (n) => n.productName },
+      { label: "Name", value: (n) => n.name },
       { label: "Email", value: (n) => n.email },
-      { label: "Marime preferata", value: (n) => n.preferredSize || "" },
-      { label: "Creat la", value: (n) => n.createdAt }
+      { label: "Preferred size", value: (n) => n.preferredSize || "" },
+      { label: "Created at", value: (n) => n.createdAt }
     ]);
     sendCsv(response, "waitlist.csv", csv);
     return true;
@@ -5843,7 +5851,7 @@ async function handleAdminApi(request, response, pathname) {
     const product = applyProductCategory(sanitizeProduct(body));
 
     if (!product.name) {
-      json(response, 400, { error: "Produsul are nevoie de nume." });
+      json(response, 400, { error: "Product needs a name." });
       return true;
     }
 
@@ -5866,7 +5874,7 @@ async function handleAdminApi(request, response, pathname) {
     }));
 
     if (!product.name) {
-      json(response, 400, { error: "Produsul are nevoie de nume." });
+      json(response, 400, { error: "Product needs a name." });
       return true;
     }
 
@@ -5902,7 +5910,7 @@ async function handleAdminApi(request, response, pathname) {
     const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
 
     if (!ids.length) {
-      json(response, 400, { error: "Lipseste ordinea produselor." });
+      json(response, 400, { error: "Product order is missing." });
       return true;
     }
 
@@ -5912,7 +5920,7 @@ async function handleAdminApi(request, response, pathname) {
     const reordered = await withStockLock(() => db.reorderProducts(ids));
 
     if (!reordered) {
-      json(response, 404, { error: "Un produs din lista nu exista." });
+      json(response, 404, { error: "A product in the list does not exist." });
       return true;
     }
 
@@ -5930,11 +5938,11 @@ async function handleAdminApi(request, response, pathname) {
     const action = String(body.action || "");
 
     if (!requestedIds.length) {
-      json(response, 400, { error: "Selecteaza cel putin un produs." });
+      json(response, 400, { error: "Select at least one product." });
       return true;
     }
     if (!BULK_PRODUCT_ACTIONS.has(action)) {
-      json(response, 400, { error: "Actiune necunoscuta." });
+      json(response, 400, { error: "Unknown action." });
       return true;
     }
 
@@ -5946,7 +5954,7 @@ async function handleAdminApi(request, response, pathname) {
       // applies to a single product's tagIds.
       tagIdsForAction = tagIdsForAction.filter((id) => db.getTagById(id));
       if (!tagIdsForAction.length) {
-        json(response, 400, { error: "Selecteaza cel putin o eticheta valida." });
+        json(response, 400, { error: "Select at least one valid tag." });
         return true;
       }
     }
@@ -6035,7 +6043,7 @@ async function handleAdminApi(request, response, pathname) {
     const existingForBody = db.getProductById(productId);
 
     if (!existingForBody) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
 
@@ -6054,7 +6062,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (!result) {
-      json(response, 404, { error: "Produsul nu mai exista." });
+      json(response, 404, { error: "Product no longer exists." });
       return true;
     }
 
@@ -6083,7 +6091,7 @@ async function handleAdminApi(request, response, pathname) {
     const textureUrl = saveDataUrlImage(body.textureImage || "", "studio-texture");
 
     if (!textureUrl) {
-      json(response, 400, { error: "Imaginea texturii lipseste." });
+      json(response, 400, { error: "Texture image is missing." });
       return true;
     }
 
@@ -6091,7 +6099,7 @@ async function handleAdminApi(request, response, pathname) {
       const current = db.getProductById(productId);
       if (!current) return null;
       if (!current.studio) {
-        const error = new Error("Acest produs nu are un model 3D - foloseste 3D Studio ca sa il creezi intai.");
+        const error = new Error("This product doesn't have a 3D model - use 3D Studio to create one first.");
         error.statusCode = 400;
         throw error;
       }
@@ -6099,7 +6107,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (!result) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
 
@@ -6114,7 +6122,7 @@ async function handleAdminApi(request, response, pathname) {
     const imageUrl = saveDataUrlImage(body.image || "", "scene-product");
 
     if (!imageUrl) {
-      json(response, 400, { error: "Imaginea scenei lipseste." });
+      json(response, 400, { error: "Scene image is missing." });
       return true;
     }
 
@@ -6124,7 +6132,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (!result) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
 
@@ -6145,7 +6153,7 @@ async function handleAdminApi(request, response, pathname) {
   if (productPricesMatch && request.method === "GET") {
     const product = db.getProductById(productPricesMatch[1]);
     if (!product) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
     json(response, 200, { prices: product.prices });
@@ -6155,7 +6163,7 @@ async function handleAdminApi(request, response, pathname) {
   if (productPricesMatch && request.method === "PUT") {
     const productId = productPricesMatch[1];
     if (!db.getProductById(productId)) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
     const body = await readBody(request);
@@ -6179,7 +6187,7 @@ async function handleAdminApi(request, response, pathname) {
   if (productTranslationsMatch && request.method === "GET") {
     const product = db.getProductById(productTranslationsMatch[1]);
     if (!product) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
     json(response, 200, { translations: product.translations });
@@ -6189,7 +6197,7 @@ async function handleAdminApi(request, response, pathname) {
   if (productTranslationsMatch && request.method === "PUT") {
     const productId = productTranslationsMatch[1];
     if (!db.getProductById(productId)) {
-      json(response, 404, { error: "Produsul nu exista." });
+      json(response, 404, { error: "Product does not exist." });
       return true;
     }
     const body = await readBody(request);
@@ -6218,13 +6226,13 @@ async function handleAdminApi(request, response, pathname) {
   if (categoryMatch && request.method === "PUT") {
     const existing = db.getCategoryById(categoryMatch[1]);
     if (!existing) {
-      json(response, 404, { error: "Categoria nu exista." });
+      json(response, 404, { error: "Category does not exist." });
       return true;
     }
     const body = await readBody(request);
     const defaultName = body.defaultName !== undefined ? String(body.defaultName).trim().slice(0, 60) : existing.defaultName;
     if (!defaultName) {
-      json(response, 400, { error: "Numele categoriei este obligatoriu." });
+      json(response, 400, { error: "Category name is required." });
       return true;
     }
     let translationEntries;
@@ -6250,7 +6258,7 @@ async function handleAdminApi(request, response, pathname) {
 
   if (categoryMatch && request.method === "DELETE") {
     if (!db.getCategoryById(categoryMatch[1])) {
-      json(response, 404, { error: "Categoria nu exista." });
+      json(response, 404, { error: "Category does not exist." });
       return true;
     }
     await withStockLock(() => db.deleteCategory(categoryMatch[1]));
@@ -6265,12 +6273,12 @@ async function handleAdminApi(request, response, pathname) {
     const allowedStatuses = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
 
     if (!allowedStatuses.includes(status)) {
-      json(response, 400, { error: "Status invalid." });
+      json(response, 400, { error: "Invalid status." });
       return true;
     }
 
     if (body.paymentStatus !== undefined && !PAYMENT_STATUSES.includes(String(body.paymentStatus))) {
-      json(response, 400, { error: "Status de plata invalid." });
+      json(response, 400, { error: "Invalid payment status." });
       return true;
     }
 
@@ -6289,7 +6297,7 @@ async function handleAdminApi(request, response, pathname) {
 
         if (chargePayment) {
           if (!square.isConfigured()) {
-            json(response, 503, { error: "Square nu este configurat - nu pot procesa rambursarea." });
+            json(response, 503, { error: "Square is not configured - cannot process the refund." });
             return true;
           }
           const refundResult = await square.refundPayment({
@@ -6302,8 +6310,8 @@ async function handleAdminApi(request, response, pathname) {
           if (!refundResult.ok) {
             json(response, refundResult.ambiguous ? 502 : 402, {
               error: refundResult.ambiguous
-                ? "Nu am putut confirma rambursarea din cauza unei erori de retea. Verifica manual in Square inainte de a reincerca."
-                : (refundResult.errors?.[0]?.detail || refundResult.errors?.[0]?.code || "Rambursarea a fost refuzata de Square.")
+                ? "We couldn't confirm the refund due to a network error. Check manually in Square before retrying."
+                : (refundResult.errors?.[0]?.detail || refundResult.errors?.[0]?.code || "The refund was declined by Square.")
             });
             return true;
           }
@@ -6321,7 +6329,7 @@ async function handleAdminApi(request, response, pathname) {
       const existing = db.getOrderById(orderMatch[1]);
 
       if (!existing) {
-        return { error: "Comanda nu exista.", status: 404 };
+        return { error: "Order does not exist.", status: 404 };
       }
 
       const previousStatus = existing.status;
@@ -6330,7 +6338,7 @@ async function handleAdminApi(request, response, pathname) {
       // Enforce the order state machine: no resurrecting delivered/cancelled
       // orders, no skipping forward outside the allowed flow.
       if (!isAllowedOrderTransition(previousStatus, status)) {
-        return { error: `Tranzitie invalida: ${previousStatus} -> ${status}.`, status: 400 };
+        return { error: `Invalid transition: ${previousStatus} -> ${status}.`, status: 400 };
       }
 
       const nextFulfillment = {
@@ -6343,7 +6351,7 @@ async function handleAdminApi(request, response, pathname) {
       };
 
       if (status === "shipped" && !(nextFulfillment.courierName && (nextFulfillment.trackingNumber || nextFulfillment.trackingUrl))) {
-        return { error: "Adauga curier si tracking (AWB sau link) inainte de a marca comanda drept expediata.", status: 400 };
+        return { error: "Add a courier and tracking (AWB or link) before marking the order as shipped.", status: 400 };
       }
 
       const cancellationReason = body.cancellationReason !== undefined
@@ -6532,7 +6540,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (!finalOrder) {
-      json(response, 404, { error: "Comanda nu mai exista." });
+      json(response, 404, { error: "Order no longer exists." });
       return true;
     }
 
@@ -6551,7 +6559,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (!order) {
-      json(response, 404, { error: "Comanda nu exista." });
+      json(response, 404, { error: "Order does not exist." });
       return true;
     }
 
@@ -6637,7 +6645,7 @@ async function handleAdminApi(request, response, pathname) {
     });
 
     if (!finalOrder) {
-      json(response, 404, { error: "Comanda nu mai exista." });
+      json(response, 404, { error: "Order no longer exists." });
       return true;
     }
 

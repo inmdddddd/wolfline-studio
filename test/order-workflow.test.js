@@ -213,7 +213,7 @@ test("confirmed -> shipped (skipping processing) is rejected by the state machin
     trackingNumber: "AWB123456"
   });
   assert.equal(status, 400);
-  assert.match(payload.error, /Tranzitie invalida/);
+  assert.match(payload.error, /Invalid transition/);
   assert.equal(getOrder(order.id).status, "confirmed");
 });
 

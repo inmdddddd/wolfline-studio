@@ -121,7 +121,11 @@ async function placeCheckout(baseUrl, { cookie = "", couponCode } = {}) {
       // Romanian hardcoded email subject (e.g. /primita/i) as a proxy for
       // "the right email was sent" - customerLanguage is now a real,
       // validated checkout field, so it must be set explicitly rather than
-      // relying on whatever the store's default language happens to be.
+      // relying on whatever the store's default language happens to be. A
+      // fresh test database always seeds "ro" active (see lib/db.js's
+      // unconditional language seed) even though production has since
+      // deactivated it by hand - this exercises the still-active,
+      // still-supported path, not a stale assumption.
       customerLanguage: "ro",
       ...(couponCode ? { couponCode } : {})
     })
@@ -168,7 +172,8 @@ test("beca: orders, checkout, coupons, content and static protections", async (t
 
       // The received email says "primita", never "confirmata". Scoped to
       // the customer's own address: the same checkout also fires an
-      // internal "Comanda noua" alert to admin accounts, which shares the
+      // internal "New ... order" alert to admin accounts (English -
+      // buildAdminNewOrderEmail has no language branch), which shares the
       // order number in its subject but is a different email entirely.
       const outbox = JSON.parse(fs.readFileSync(path.join(tempDir, "email-outbox.json"), "utf8"));
       const received = outbox.find((entry) => entry.subject.includes(order.number) && entry.to === order.customerEmail);
@@ -242,7 +247,7 @@ test("beca: orders, checkout, coupons, content and static protections", async (t
         body: { status: "shipped", sendEmail: false, courierName: "X", trackingNumber: "1" }
       });
       assert.equal(invalid.status, 400, "pending -> shipped is not allowed");
-      assert.match(invalid.payload.error, /Tranzitie invalida/);
+      assert.match(invalid.payload.error, /Invalid transition/);
     });
 
     await t.test("cancellation restores stock exactly once (idempotent)", async () => {
@@ -348,7 +353,7 @@ test("beca: orders, checkout, coupons, content and static protections", async (t
       // placeCheckout's single-item cart is far under 1000 for this catalog.
       const tooLow = await placeCheckout(baseUrl, { couponCode: "MINSPEND" });
       assert.equal(tooLow.status, 400);
-      assert.match(tooLow.error, /minima/i);
+      assert.match(tooLow.error, /minimum/i);
 
       const create2 = await jsonRequest(baseUrl, "/api/admin/coupons", {
         method: "POST",

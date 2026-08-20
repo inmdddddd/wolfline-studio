@@ -46,7 +46,7 @@ test("buildOrderConfirmationEmail includes order details and no internal fields"
   assert.match(message.text, /order-id-123/);
 });
 
-test("buildOrderStatusEmail uses the Romanian status label", () => {
+test("buildOrderStatusEmail uses the English status label", () => {
   const order = {
     id: "order-id-456",
     number: "BC-0002",
@@ -59,7 +59,7 @@ test("buildOrderStatusEmail uses the Romanian status label", () => {
   const message = email.buildOrderStatusEmail(order, "https://beca-wlf.com/thank-you.html?order=order-id-456");
 
   assert.match(message.subject, /BC-0002/);
-  assert.match(message.text, /Expediata/);
+  assert.match(message.text, /Shipped/);
 });
 
 test("statusLabelRo falls back to the raw status for unknown values", () => {

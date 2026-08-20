@@ -117,7 +117,7 @@ test("tags: admin CRUD, product attach/detach, cascade, and public filtering", a
         method: "POST", cookie: adminCookie, body: { name: "Sale" }
       });
       assert.equal(status, 409);
-      assert.match(payload.error, /exista/i);
+      assert.match(payload.error, /exist/i);
     });
 
     await t.test("rejects an empty tag name", async () => {

@@ -142,7 +142,7 @@ test("translations: admin CRUD, public lookup, and graceful fallback for unknown
         method: "POST", cookie: adminCookie, body: { key: "cart", languageCode: "zz", value: "x" }
       });
       assert.equal(badLang.status, 400);
-      assert.match(badLang.payload.error, /limba/i);
+      assert.match(badLang.payload.error, /language/i);
 
       const emptyValue = await jsonRequest(baseUrl, "/api/admin/translations", {
         method: "POST", cookie: adminCookie, body: { key: "cart", languageCode: "en", value: "" }

@@ -78,7 +78,7 @@ test("crash alerting: logs, emails admins once, exits cleanly - with a cooldown 
     const outbox = readOutbox(dataDir);
     assert.equal(outbox.length, 1, "exactly one alert email");
     assert.equal(outbox[0].to, ADMIN_EMAIL);
-    assert.match(outbox[0].subject, /serverul a picat/);
+    assert.match(outbox[0].subject, /crashed/);
     assert.match(outbox[0].text, /first crash - real bug simulation/);
 
     assert.ok(fs.existsSync(path.join(dataDir, ".crash-alert-sent")), "cooldown marker written");
