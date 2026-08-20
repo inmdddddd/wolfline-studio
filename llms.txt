@@ -1,0 +1,27 @@
+# BeCa
+
+> Strictly limited streetwear. Small-batch drops, no restocks — once a size or a drop sells out, it's gone.
+
+BeCa (beca-wlf.com) is a UK-based online streetwear shop. Products ship worldwide. Payments are processed by Square; card details are entered directly with Square and never reach BeCa's own servers.
+
+## Shop
+
+- [Home / current drop](https://beca-wlf.com/): the active limited drop and countdown to the next one.
+- [About](https://beca-wlf.com/about.html): the brand's origin story.
+
+## Support
+
+- [FAQ](https://beca-wlf.com/faq.html)
+- [Support](https://beca-wlf.com/support.html): contact details and support hours.
+- [Shipping](https://beca-wlf.com/shipping.html)
+- [Returns](https://beca-wlf.com/returns.html)
+
+## Legal
+
+- [Terms & conditions](https://beca-wlf.com/terms.html)
+- [Privacy policy](https://beca-wlf.com/privacy.html)
+- [Cookies](https://beca-wlf.com/cookies.html)
+
+## Full page/product index
+
+- [Sitemap](https://beca-wlf.com/sitemap.xml): complete, current list of every page and live product.

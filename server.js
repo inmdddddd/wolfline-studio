@@ -4,6 +4,7 @@ const http = require("http");
 const path = require("path");
 const zlib = require("zlib");
 const { DatabaseSync } = require("node:sqlite");
+const esbuild = require("esbuild");
 
 // Minimal local-only .env loader (no npm dependency). Real hosting env vars
 // (e.g. Render's Environment Variables panel) are set before the process
@@ -6693,6 +6694,36 @@ function resolveStaticFilePath(safePath) {
   return null;
 }
 
+// In-memory cache of minified JS/CSS, invalidated by mtime so an edited file
+// (or a fresh deploy) is picked up without a server restart. Only applies to
+// the plain fs.readFile path below, not HTTP Range requests - those exist
+// for video/large-binary seeking, never realistically hit for .js/.css, and
+// a Range response is self-consistent either way (a real slice of whichever
+// version of the file it read), so it isn't worth restructuring the
+// stream-based Range path to unify the two. Minification failures (a bad
+// parse, or the esbuild platform binary being unavailable) fall back to the
+// original content rather than breaking the response - the same defensive
+// posture as wrapResponseWithCompression's own try/catch.
+const MINIFIABLE_LOADER = { ".js": "js", ".css": "css" };
+const minifyCache = new Map(); // filePath -> { mtimeMs, data }
+
+function minifyIfApplicable(filePath, data, mtimeMs) {
+  const loader = MINIFIABLE_LOADER[path.extname(filePath)];
+  if (!loader) return data;
+
+  const cached = minifyCache.get(filePath);
+  if (cached && cached.mtimeMs === mtimeMs) return cached.data;
+
+  try {
+    const result = esbuild.transformSync(data.toString("utf8"), { loader, minify: true });
+    const minified = Buffer.from(result.code, "utf8");
+    minifyCache.set(filePath, { mtimeMs, data: minified });
+    return minified;
+  } catch (error) {
+    return data;
+  }
+}
+
 function serveFile(request, response, pathname) {
   // Resolved at most once per request, and only if a gated page asks for it.
   let cachedSession = null;
@@ -6809,7 +6840,9 @@ function serveFile(request, response, pathname) {
         return;
       }
 
-      send(response, 200, data, {
+      const body = minifyIfApplicable(filePath, data, stats.mtimeMs);
+
+      send(response, 200, body, {
         "Content-Type": contentType,
         "Cache-Control": cacheControl,
         "Accept-Ranges": "bytes"

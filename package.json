@@ -15,6 +15,7 @@
     "node": ">=22.13"
   },
   "dependencies": {
+    "esbuild": "^0.28.2",
     "resend": "^6.19.0"
   }
 }
