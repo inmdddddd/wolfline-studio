@@ -39,9 +39,9 @@ function requireFreshServer() {
   return require("../server.js");
 }
 
-function rawRequest(port, pathname, acceptEncoding) {
+function rawRequest(port, pathname, acceptEncoding, extraHeaders) {
   return new Promise((resolve, reject) => {
-    const headers = acceptEncoding ? { "Accept-Encoding": acceptEncoding } : {};
+    const headers = { ...(acceptEncoding ? { "Accept-Encoding": acceptEncoding } : {}), ...extraHeaders };
     http.get({ host: "127.0.0.1", port, path: pathname, headers }, (res) => {
       const chunks = [];
       res.on("data", (chunk) => chunks.push(chunk));
@@ -120,6 +120,27 @@ test("response compression: gzip/brotli applied to text, skipped for binary/smal
       assert.equal(res.status, 200);
       assert.ok(res.body.length < 1024, "precondition: this response is actually small");
       assert.equal(res.headers["content-encoding"], undefined);
+    });
+
+    await t.test("REGRESSION: an HTTP Range request alongside Accept-Encoding must not corrupt or crash the response", async () => {
+      // serveFile's partial-content path calls stream.pipe(response), which
+      // calls the raw response.write() directly - a request that combines a
+      // Range header (video seeking, resumable downloads) with a normal
+      // browser's Accept-Encoding header exercises exactly the interaction
+      // that first shipped broken: write() bypassed the compression
+      // wrapper's deferred writeHead, so Node flushed the wrong (default)
+      // headers on the first chunk, then end() tried to writeHead again and
+      // threw ERR_HTTP_HEADERS_SENT - which, unhandled, would have taken the
+      // whole process down, not just the one request.
+      const full = await rawRequest(port, "/assets/beca-logo.png", null);
+      assert.ok(full.body.length > 100, "precondition: need a real file bigger than the slice below");
+
+      const ranged = await rawRequest(port, "/assets/beca-logo.png", "gzip, br", { Range: "bytes=0-99" });
+      assert.equal(ranged.status, 206);
+      assert.equal(ranged.headers["content-range"], `bytes 0-99/${full.body.length}`);
+      assert.equal(ranged.headers["content-encoding"], undefined, "range chunks must never be compressed");
+      assert.equal(ranged.body.length, 100);
+      assert.deepEqual(ranged.body, full.body.subarray(0, 100), "byte range must match the real file exactly, not be corrupted");
     });
   } finally {
     server.stop();

@@ -967,12 +967,21 @@ const CONTENT_SECURITY_POLICY = [
   "frame-ancestors 'none'"
 ].join("; ");
 
-// Every text response (HTML, script.js, styles.css, JSON, sitemap.xml) goes
-// through send()/json() or a direct writeHead+end pair (confirmed - nothing
-// in this file streams via response.write), so wrapping the response object
-// once here catches all of them without touching send()'s many call sites.
-// Deferring writeHead's actual headers until end() is what makes it possible
-// to compress the body first and only then write a correct Content-Length.
+// Every non-streamed text response (HTML, script.js, styles.css, JSON,
+// sitemap.xml) goes through send()/json() or a direct writeHead+end pair, so
+// wrapping the response object once here catches all of them without
+// touching send()'s many call sites. Deferring writeHead's actual headers
+// until end() is what makes it possible to compress the body first and only
+// then write a correct Content-Length.
+//
+// HTTP Range requests (serveFile's partial-content path, used for video
+// seeking) are the one thing that calls response.write() directly via
+// stream.pipe(response) - those chunks are binary and were never going to
+// match COMPRESSIBLE_CONTENT_TYPE anyway, but write() has to be intercepted
+// too so it flushes the real (deferred) headers on first chunk instead of
+// letting Node's default implicit-header flush fire with the wrong
+// status/headers, which would then make end()'s writeHead call throw
+// ERR_HTTP_HEADERS_SENT.
 const COMPRESSIBLE_CONTENT_TYPE = /^(text\/|application\/json|application\/xml|application\/javascript|image\/svg)/i;
 const MIN_COMPRESS_BYTES = 1024; // below this, compression overhead can exceed the savings
 
@@ -983,9 +992,11 @@ function wrapResponseWithCompression(request, response) {
   if (!supportsBrotli && !supportsGzip) return;
 
   const realWriteHead = response.writeHead.bind(response);
+  const realWrite = response.write.bind(response);
   const realEnd = response.end.bind(response);
   let pendingStatus = 200;
   let pendingHeaders = {};
+  let streaming = false;
 
   response.writeHead = (status, headers) => {
     pendingStatus = status;
@@ -993,7 +1004,19 @@ function wrapResponseWithCompression(request, response) {
     return response;
   };
 
+  response.write = (chunk, ...rest) => {
+    if (!streaming) {
+      streaming = true;
+      realWriteHead(pendingStatus, pendingHeaders);
+    }
+    return realWrite(chunk, ...rest);
+  };
+
   response.end = (body) => {
+    if (streaming) {
+      return realEnd(body);
+    }
+
     const contentType = String(pendingHeaders["Content-Type"] || pendingHeaders["content-type"] || "");
     const bodyBuffer = body === undefined ? Buffer.alloc(0) : Buffer.from(body);
 
