@@ -124,6 +124,20 @@
     return code === "en" || code === "ro";
   }
 
+  // Deliberately looser than isKnownLanguage: that one's pre-fetch fallback
+  // only ever guessed "en"/"ro" (the original two-language hardcode), so
+  // using it to gate a country_config-mapped language would wrongly reject
+  // a real, already-configured mapping to any third language (e.g. "fr")
+  // for as long as languagesCache hasn't loaded yet - not what detect()
+  // needs. This only rejects a language once languagesCache has loaded and
+  // positively shows it inactive; unloaded reads as "don't know yet, don't
+  // block it speculatively", same as every other detect() input above.
+  function isKnownOrUnconfirmedLanguage(code) {
+    if (!code) return false;
+    if (!languagesCache) return true;
+    return languagesCache.some((entry) => entry.code === code && entry.active);
+  }
+
   // Optional override layer on top of the dictionary below (see the
   // translations table's comment in lib/db.js) - fetched lazily per
   // language the first time text() actually needs it, not eagerly for
@@ -393,8 +407,14 @@
     // guess this file has always made - not defaultLanguageCode() alone,
     // which would show English to a Romanian visitor for as long as the
     // country-config fetch is still in flight (or in non-fetch contexts,
-    // like this file's own unit tests).
-    const language = mapping?.languageCode || (country === "RO" ? "ro" : defaultLanguageCode());
+    // like this file's own unit tests). Both paths are guarded by
+    // isKnownOrUnconfirmedLanguage so a deactivated language never comes
+    // back out of detect() just because a stale country_config row (or
+    // this hardcoded RO guess) still points at it - see that function for
+    // why isKnownLanguage itself isn't the right guard here.
+    const mappedLanguage = mapping?.languageCode && isKnownOrUnconfirmedLanguage(mapping.languageCode) ? mapping.languageCode : null;
+    const legacyRoGuess = country === "RO" && isKnownOrUnconfirmedLanguage("ro") ? "ro" : null;
+    const language = mappedLanguage || legacyRoGuess || defaultLanguageCode();
     const locale = language === "ro" ? "ro-RO" : "en-GB";
 
     // The CURRENCY half stays exactly as narrow/opt-in as it always was,

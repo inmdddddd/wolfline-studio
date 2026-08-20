@@ -121,6 +121,34 @@ test("detect resolves LANGUAGE from a real country_config mapping once loaded, o
   assert.equal(profile.language, "hu", "a real country_config mapping overrides the built-in RO->ro guess");
 });
 
+test("REGRESSION: a deactivated language never comes back out of detect(), even when a stale country_config row still maps to it", () => {
+  const region = loadRegion({ languages: ["ro-RO"] });
+  region.setLanguages([
+    { code: "en", isDefault: true, active: true },
+    { code: "ro", isDefault: false, active: false }
+  ]);
+  region.setCountryConfig([{ countryCode: "RO", languageCode: "ro", currencyCode: "RON" }]);
+  const profile = region.detect();
+  assert.equal(profile.language, "en", "deactivating ro must fall through to the default language, not the stale mapping");
+});
+
+test("REGRESSION: the built-in RO->ro guess itself is also suppressed once ro is deactivated (no country_config row at all)", () => {
+  const region = loadRegion({ languages: ["ro-RO"] });
+  region.setLanguages([
+    { code: "en", isDefault: true, active: true },
+    { code: "ro", isDefault: false, active: false }
+  ]);
+  const profile = region.detect();
+  assert.equal(profile.language, "en", "the hardcoded RO->ro fallback must respect deactivation too, not just the country_config path");
+});
+
+test("a country_config mapping to a language other than en/ro is trusted before languagesCache has loaded (not wrongly rejected as unknown)", () => {
+  const region = loadRegion({ languages: ["fr-FR"], timeZone: "Europe/Paris" });
+  region.setCountryConfig([{ countryCode: "GB", languageCode: "fr", currencyCode: "GBP" }]);
+  const profile = region.detect();
+  assert.equal(profile.language, "fr", "an unloaded languagesCache must not block a real mapping to a third language");
+});
+
 test("detect's CURRENCY half stays narrow even once country_config has loaded - never labels an unconverted price with a currency that has no real conversion rate", () => {
   const region = loadRegion({ languages: ["fr-FR"], timeZone: "Europe/Paris" });
   region.setCountryConfig([{ countryCode: "GB", languageCode: "fr", currencyCode: "EUR" }]);
