@@ -407,13 +407,25 @@
     // guess this file has always made - not defaultLanguageCode() alone,
     // which would show English to a Romanian visitor for as long as the
     // country-config fetch is still in flight (or in non-fetch contexts,
-    // like this file's own unit tests). Both paths are guarded by
+    // like this file's own unit tests). The mapping path is guarded by
     // isKnownOrUnconfirmedLanguage so a deactivated language never comes
-    // back out of detect() just because a stale country_config row (or
-    // this hardcoded RO guess) still points at it - see that function for
-    // why isKnownLanguage itself isn't the right guard here.
+    // back out of detect() just because a stale country_config row still
+    // points at it, while still trusting a real mapping to a third
+    // language before its own data has loaded.
+    //
+    // The hardcoded RO guess below is deliberately held to the STRICTER
+    // standard (languagesCache loaded AND positively active) rather than
+    // the same leniency: unlike the mapping above, this guess has no
+    // external data of its own to wait for - it's a static assumption
+    // baked into this file, so "not loaded yet" is never a good reason to
+    // trust it. Getting this wrong is exactly how a one-shot, non-reactive
+    // render (e.g. order-confirmation.js's error state, called once and
+    // never re-rendered on beca:locale-change) could permanently show
+    // Romanian to an English-only site's visitor: it would call detect()
+    // during the brief pre-fetch window, get "ro" back, and never get a
+    // second chance to correct it once languagesCache actually loads.
     const mappedLanguage = mapping?.languageCode && isKnownOrUnconfirmedLanguage(mapping.languageCode) ? mapping.languageCode : null;
-    const legacyRoGuess = country === "RO" && isKnownOrUnconfirmedLanguage("ro") ? "ro" : null;
+    const legacyRoGuess = country === "RO" && languagesCache && isKnownLanguage("ro") ? "ro" : null;
     const language = mappedLanguage || legacyRoGuess || defaultLanguageCode();
     const locale = language === "ro" ? "ro-RO" : "en-GB";
 

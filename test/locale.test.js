@@ -68,8 +68,18 @@ function loadRegion({ languages = ["en-GB"], storage = {}, timeZone = "America/N
   return sandbox.window.BecaRegion;
 }
 
+// languagesCache must be loaded and positively show "ro" active for
+// detect()'s RO guess to apply (see locale.js's detect() comment) - tests
+// that want to exercise real Romanian-language behavior, not just the
+// pre-fetch guess itself, call region.setLanguages(RO_ACTIVE) for that.
+const RO_ACTIVE = [
+  { code: "en", isDefault: true, active: true },
+  { code: "ro", isDefault: false, active: true }
+];
+
 test("detect returns a Romanian profile for ro browser languages once a rate is configured", () => {
   const region = loadRegion({ languages: ["ro-RO", "en-US"] });
+  region.setLanguages(RO_ACTIVE);
   region.setRates({ gbpToRon: 5.85, gbpToRonUpdatedAt: "2026-07-20" });
   const profile = region.detect();
 
@@ -81,6 +91,7 @@ test("detect returns a Romanian profile for ro browser languages once a rate is 
 
 test("without a configured rate, Romanian visitors see the original currency (GBP)", () => {
   const region = loadRegion({ languages: ["ro-RO"] });
+  region.setLanguages(RO_ACTIVE);
   const profile = region.detect();
 
   assert.equal(profile.country, "RO");
@@ -157,8 +168,28 @@ test("detect's CURRENCY half stays narrow even once country_config has loaded - 
   assert.equal(profile.currency, "GBP", "currency does NOT follow it - browsing-price currency stays GBP/RON-only, by design (decision #7)");
 });
 
-test("without any country_config loaded yet, detect still resolves RO->ro exactly like before (pre-fetch / test-sandbox safe)", () => {
+test("REGRESSION: before languagesCache has loaded, the RO guess defaults to the safe default language rather than assuming ro is active", () => {
+  // Superseded behavior: this used to assume "ro" pre-fetch (matching the
+  // original two-language-only codebase). Once a language can be
+  // deactivated, that guess is no longer safe to make speculatively - a
+  // one-shot, non-reactive render (order-confirmation.js's error state is
+  // a real example: it calls text() once and never re-renders on
+  // beca:locale-change) could call detect() during exactly this window,
+  // get "ro" back, and never get a second chance to correct it even after
+  // ro is deactivated and languagesCache loads moments later. Defaulting
+  // to the store's default language here is always safe; the mapping
+  // path above still trusts a real country_config entry pre-fetch, since
+  // that always has real (if not-yet-loaded) data behind it.
   const region = loadRegion({ languages: ["ro-RO"] });
+  assert.equal(region.detect().language, "en", "no languagesCache loaded yet => default language, not a speculative ro guess");
+});
+
+test("once languagesCache confirms ro is active, the RO guess is trusted again", () => {
+  const region = loadRegion({ languages: ["ro-RO"] });
+  region.setLanguages([
+    { code: "en", isDefault: true, active: true },
+    { code: "ro", isDefault: false, active: true }
+  ]);
   assert.equal(region.detect().language, "ro");
 });
 
@@ -190,6 +221,7 @@ test("text looks up the active language and applies replacements", () => {
   assert.equal(en.text("missingKey"), "", "an unknown key must NEVER surface the raw key itself - the permanent fix, not a per-key patch");
 
   const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setLanguages(RO_ACTIVE);
   assert.equal(ro.text("addToCart"), "Adauga in cos");
 });
 
@@ -222,6 +254,7 @@ test("text falls back to a DB override for the DEFAULT language, then the Englis
 
 test("a DB override for a language with its own code-defined baseline (ro) wins over that baseline", () => {
   const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setLanguages(RO_ACTIVE);
   ro.setTranslations("ro", { addToCart: "Cumpara acum" });
   assert.equal(ro.text("addToCart"), "Cumpara acum");
 });
@@ -312,6 +345,7 @@ test("stockText and countText pluralize based on the number", () => {
 
 test("displayProduct picks localized names, descriptions and category", () => {
   const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setLanguages(RO_ACTIVE);
   const display = ro.displayProduct({
     name: "Golden Hour Tee",
     nameRo: "Tricou Ora de Aur",
@@ -332,6 +366,7 @@ test("displayProduct falls back to the base name when a locale name is absent", 
 
 test("displayProduct prefers the normalized product_translations row over nameRo/descriptionRo (the new admin form's own data source)", () => {
   const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setLanguages(RO_ACTIVE);
   const display = ro.displayProduct({
     name: "Golden Hour Tee",
     nameRo: "Tricou Ora de Aur (vechi)",
@@ -349,6 +384,7 @@ test("displayProduct prefers the normalized product_translations row over nameRo
 
 test("displayProduct falls back to nameRo/descriptionRo when no product_translations row exists for the active language", () => {
   const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setLanguages(RO_ACTIVE);
   const display = ro.displayProduct({
     name: "Golden Hour Tee",
     nameRo: "Tricou Ora de Aur",
@@ -363,6 +399,7 @@ test("displayProduct falls back to nameRo/descriptionRo when no product_translat
 
 test("displayProduct prefers categoryTranslations over the hardcoded tee/piece/drop matching", () => {
   const ro = loadRegion({ languages: ["ro-RO"] });
+  ro.setLanguages(RO_ACTIVE);
   const display = ro.displayProduct({
     name: "Custom Piece",
     category: "Hoodie",
