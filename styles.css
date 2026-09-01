@@ -2718,15 +2718,6 @@ body.beca-minimal {
   text-transform: uppercase;
 }
 
-.hero-trust-bar {
-  position: relative;
-  z-index: 10;
-  width: min(1180px, calc(100% - 44px));
-  margin: 0 auto;
-  padding: 20px 0 0;
-  justify-content: flex-start;
-}
-
 .section-heading .drop-promo {
   margin: 14px 0 0;
   text-transform: none;
@@ -4209,11 +4200,6 @@ button.checkout-back:hover {
     order: 1;
     min-height: 560px;
     transform: none;
-  }
-
-  .hero-trust-bar {
-    justify-content: center;
-    text-align: center;
   }
 
   .feature-grid,
