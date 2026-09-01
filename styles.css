@@ -2312,7 +2312,7 @@ body.beca-minimal {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 64px;
+  height: 76px;
   color: var(--text);
   text-decoration: none;
   opacity: 1;
@@ -2322,7 +2322,7 @@ body.beca-minimal {
 
 .beca-logo-img {
   width: auto;
-  height: 64px;
+  height: 76px;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.16));
 }
@@ -4325,7 +4325,7 @@ button.checkout-back:hover {
 
 .auth-brand img {
   width: auto;
-  height: 74px;
+  height: 86px;
   object-fit: contain;
 }
 
@@ -6207,7 +6207,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
   .beca-logo-img,
   .auth-brand img {
     width: auto;
-    height: 48px;
+    height: 56px;
   }
 
   .beca-header nav {
@@ -6826,7 +6826,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
   .beca-logo-img {
     width: auto;
-    height: 50px;
+    height: 58px;
     flex: 0 0 auto;
   }
 
