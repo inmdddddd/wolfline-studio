@@ -57,7 +57,8 @@ function applyLiquidGlass() {
 
 const defaultCopy = {
   en: {
-    "nav.drop": "Drop",
+    "nav.drop": "Shop",
+    "nav.about": "About",
     "nav.quality": "Craft",
     "nav.contact": "Contact",
     "nav.register": "Register",
@@ -116,10 +117,11 @@ const defaultCopy = {
     "orders.hero.kicker": "Account",
     "orders.hero.title": "My orders.",
     "orders.hero.lede": "The status and history of your BeCa orders, with a direct link to each invoice.",
-    "hero.kicker": "Drop 001 — strictly limited",
-    "hero.title": "The next drop is loading. Get in before it's gone.",
+    "hero.kicker": "BECA",
+    "hero.dropLabel": "Drop 001",
+    "hero.title": "Premium streetwear made to be seen.",
     "hero.body": "Bold prints, heavyweight cotton, capped numbers — no restocks, ever. Spin the 3D tee, then lock in early access before the public launch.",
-    "hero.primary": "See the drop",
+    "hero.primary": "Shop the collection",
     "hero.secondary": "Get early access",
     "hero.account": "My account",
     "auth.back": "Back",
@@ -160,8 +162,8 @@ const defaultCopy = {
     "quality.card1.body": "Structured, soft cotton picked for daily wear, layering and a fit that actually holds up.",
     "quality.card2.title": "Print-first design",
     "quality.card2.body": "Every graphic is the main character: balanced placement, sharp contrast, zero clutter.",
-    "quality.card3.title": "Capped runs",
-    "quality.card3.body": "We print tight numbers on purpose. When a drop is gone, it's gone for good.",
+    "quality.card3.title": "Small-batch runs",
+    "quality.card3.body": "We print in small batches on purpose, so every drop stays intentional.",
     "design.kicker": "Design direction",
     "design.title": "New graphics. Bold energy. Pieces you'll actually wear.",
     "design.body": "Every release starts from one idea — a symbol, a mood, a typeface. The goal: pieces that hit on launch day and still go months later.",
@@ -169,8 +171,9 @@ const defaultCopy = {
     "design.note1.body": "Every print is designed in-house, drop by drop. Nothing recycled, nothing generic.",
     "design.note2.title": "Easy to style",
     "design.note2.body": "Built around black, white and sharp accent graphics that slot into fits you already wear.",
-    "drop.kicker": "Next drop",
-    "drop.title": "First look before it goes public.",
+    "drop.kicker": "Drop 001",
+    "drop.title": "Shop the current drop.",
+    "drop.promo": "First 30 orders get 10% off — code BECA10",
     "drop.item1.meta": "Tee / graphic print",
     "drop.item1.title": "Oversized statement tee",
     "drop.item2.meta": "Accessory / limited",
@@ -185,10 +188,10 @@ const defaultCopy = {
     "trust.returns": "Easy 14-day returns",
     "trust.payment": "Order verified & confirmed by our team",
     "contact.kicker": "Don't miss it",
-    "contact.title": "First access. Capped numbers. No restocks.",
+    "contact.title": "Early access to every new drop.",
     "contact.button": "Get early access",
     "contact.account": "Open my account",
-    "footer.tagline": "Strictly limited streetwear, made in Romania.",
+    "footer.tagline": "Premium streetwear, made in Romania.",
     "footer.company": "Company",
     "footer.help": "Help",
     "footer.legal": "Legal",
@@ -451,7 +454,8 @@ const defaultCopy = {
     "nav.logout": "Logout"
   },
   ro: {
-    "nav.drop": "Drop",
+    "nav.drop": "Shop",
+    "nav.about": "Despre",
     "nav.quality": "Calitate",
     "nav.contact": "Contact",
     "nav.register": "Inregistrare",
@@ -510,10 +514,11 @@ const defaultCopy = {
     "orders.hero.kicker": "Cont",
     "orders.hero.title": "Comenzile mele.",
     "orders.hero.lede": "Statusul si istoricul comenzilor tale BeCa, cu link direct catre factura fiecareia.",
-    "hero.kicker": "Drop 001 — editie strict limitata",
-    "hero.title": "Urmatorul drop se incarca. Prinde‑l inainte sa dispara.",
+    "hero.kicker": "BECA",
+    "hero.dropLabel": "Drop 001",
+    "hero.title": "Streetwear premium, facut sa fie vazut.",
     "hero.body": "Printuri indraznete, bumbac gros, numere limitate — fara restock, niciodata. Roteste tricoul 3D, apoi asigura-ti accesul devreme inainte de lansarea publica.",
-    "hero.primary": "Vezi dropul",
+    "hero.primary": "Cumpara colectia",
     "hero.secondary": "Acces devreme",
     "hero.account": "Contul meu",
     "auth.back": "Inapoi",
@@ -554,8 +559,8 @@ const defaultCopy = {
     "quality.card1.body": "Bumbac moale si structurat, ales pentru purtare zilnica, layering si un fit care rezista.",
     "quality.card2.title": "Printul e vedeta",
     "quality.card2.body": "Fiecare grafica e personajul principal: pozitionare echilibrata, contrast puternic, zero aglomerare.",
-    "quality.card3.title": "Serii limitate, cu adevarat",
-    "quality.card3.body": "Printam numere mici intentionat. Cand un drop s-a terminat, s-a terminat definitiv.",
+    "quality.card3.title": "Serii mici, intentionat",
+    "quality.card3.body": "Printam in serii mici intentionat, ca fiecare drop sa ramana special.",
     "design.kicker": "Directie de design",
     "design.title": "Grafica noua. Energie indrazneata. Piese pe care chiar le porti.",
     "design.body": "Fiecare lansare porneste de la o singura idee — un simbol, o stare, o tipografie. Scopul: piese care lovesc tare la lansare si inca functioneaza luni mai tarziu.",
@@ -563,8 +568,9 @@ const defaultCopy = {
     "design.note1.body": "Fiecare print e desenat in casa, drop cu drop. Nimic reciclat, nimic generic.",
     "design.note2.title": "Usor de stilizat",
     "design.note2.body": "Construite in jurul negrului, albului si accentelor grafice care merg in orice outfit.",
-    "drop.kicker": "Urmatorul drop",
-    "drop.title": "Primul preview, inainte sa devina public.",
+    "drop.kicker": "Drop 001",
+    "drop.title": "Cumpara dropul curent.",
+    "drop.promo": "Primele 30 de comenzi primesc 10% reducere — cod BECA10",
     "drop.item1.meta": "Tricou / print grafic",
     "drop.item1.title": "Tricou oversized statement",
     "drop.item2.meta": "Accesoriu / limitat",
@@ -579,10 +585,10 @@ const defaultCopy = {
     "trust.returns": "Retur usor in 14 zile",
     "trust.payment": "Comanda verificata si confirmata de echipa noastra",
     "contact.kicker": "Nu rata",
-    "contact.title": "Acces devreme. Numere limitate. Fara restock.",
+    "contact.title": "Acces devreme la fiecare drop nou.",
     "contact.button": "Acces devreme",
     "contact.account": "Deschide contul meu",
-    "footer.tagline": "Streetwear in editie strict limitata, facut in Romania.",
+    "footer.tagline": "Streetwear premium, facut in Romania.",
     "footer.company": "Companie",
     "footer.help": "Ajutor",
     "footer.legal": "Legal",
@@ -904,31 +910,6 @@ function renderLanguageSwitchers() {
   });
 }
 
-// Sales open Monday at midnight, Romania time - same hardcoded-offset
-// convention as product.js's PRODUCT_DROP_UNLOCK_AT, so every visitor's
-// countdown hits zero at the same real instant regardless of their own
-// timezone.
-const GLOBAL_DROP_LIVE_AT = new Date("2026-08-17T00:00:00+03:00").getTime();
-
-function updateHeroGlitchCountdown() {
-  const pad = (value) => String(value).padStart(2, "0");
-  const remaining = Math.max(0, GLOBAL_DROP_LIVE_AT - Date.now());
-  const totalSeconds = Math.floor(remaining / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  document.querySelectorAll("[data-glitch-hours]").forEach((element) => {
-    element.textContent = pad(hours);
-  });
-  document.querySelectorAll("[data-glitch-minutes]").forEach((element) => {
-    element.textContent = pad(minutes);
-  });
-  document.querySelectorAll("[data-glitch-seconds]").forEach((element) => {
-    element.textContent = pad(seconds);
-  });
-}
-
 function detectLanguage() {
   // A brand page can pin its language (<html data-force-lang="en">),
   // overriding both the visitor's saved choice and auto-detection -
@@ -983,8 +964,6 @@ function setLanguage(language, options = {}) {
 }
 
 setLanguage(detectLanguage(), { source: "auto" });
-updateHeroGlitchCountdown();
-window.setInterval(updateHeroGlitchCountdown, 1000);
 applyLiquidGlass();
 
 function applyBrandingImages(branding) {

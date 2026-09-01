@@ -2312,7 +2312,7 @@ body.beca-minimal {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 56px;
+  height: 64px;
   color: var(--text);
   text-decoration: none;
   opacity: 1;
@@ -2321,8 +2321,8 @@ body.beca-minimal {
 }
 
 .beca-logo-img {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.16));
 }
@@ -2700,6 +2700,38 @@ body.beca-minimal {
   color: rgba(242, 242, 236, 0.7);
   font-size: clamp(0.95rem, 1.08vw, 1.08rem);
   line-height: 1.58;
+}
+
+.beca-hero-copy p.hero-drop-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: none;
+  margin: 0 0 28px;
+  padding: 6px 14px;
+  border: 1px solid rgba(232, 184, 75, 0.4);
+  border-radius: 999px;
+  color: var(--accent);
+  background: rgba(232, 184, 75, 0.08);
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-trust-bar {
+  position: relative;
+  z-index: 10;
+  width: min(1180px, calc(100% - 44px));
+  margin: 0 auto;
+  padding: 20px 0 0;
+  justify-content: flex-start;
+}
+
+.section-heading .drop-promo {
+  margin: 14px 0 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.86rem;
 }
 
 .error-code {
@@ -4169,9 +4201,19 @@ button.checkout-back:hover {
     padding-top: 106px;
   }
 
+  .beca-hero-copy {
+    order: 2;
+  }
+
   .beca-shirt-stage {
+    order: 1;
     min-height: 560px;
     transform: none;
+  }
+
+  .hero-trust-bar {
+    justify-content: center;
+    text-align: center;
   }
 
   .feature-grid,
@@ -4227,6 +4269,11 @@ button.checkout-back:hover {
 
   .beca-hero-copy h1 {
     font-size: clamp(2.6rem, 13vw, 4.5rem);
+  }
+
+  .shirt-scene {
+    width: min(420px, 100%);
+    margin-left: 0;
   }
 
   .product-page .beca-header {
@@ -6173,8 +6220,8 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
   .beca-logo-img,
   .auth-brand img {
-    width: 42px;
-    height: 42px;
+    width: 48px;
+    height: 48px;
   }
 
   .beca-header nav {
@@ -6792,8 +6839,8 @@ body[data-hero-auth="login"] .beca-hero-copy {
   }
 
   .beca-logo-img {
-    width: 44px;
-    height: 44px;
+    width: 50px;
+    height: 50px;
     flex: 0 0 auto;
   }
 
