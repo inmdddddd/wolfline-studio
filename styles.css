@@ -2321,7 +2321,7 @@ body.beca-minimal {
 }
 
 .beca-logo-img {
-  width: 64px;
+  width: auto;
   height: 64px;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.16));
@@ -4324,7 +4324,7 @@ button.checkout-back:hover {
 }
 
 .auth-brand img {
-  width: 74px;
+  width: auto;
   height: 74px;
   object-fit: contain;
 }
@@ -6206,7 +6206,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
 
   .beca-logo-img,
   .auth-brand img {
-    width: 48px;
+    width: auto;
     height: 48px;
   }
 
@@ -6825,7 +6825,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
   }
 
   .beca-logo-img {
-    width: 50px;
+    width: auto;
     height: 50px;
     flex: 0 0 auto;
   }
@@ -7125,7 +7125,7 @@ body[data-hero-auth="login"] .beca-hero-copy {
 }
 
 .footer-top .beca-logo-img {
-  width: 140px;
+  width: auto;
   height: 140px;
 }
 

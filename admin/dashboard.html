@@ -6,7 +6,7 @@
   <title>Admin Dashboard / BeCa</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23050706%27/%3E%3Ctext x=%2732%27 y=%2746%27 font-family=%27Georgia,serif%27 font-size=%2742%27 font-weight=%27700%27 fill=%27%23e8b84b%27 text-anchor=%27middle%27%3EB%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="../styles.css?v=2026-08-20-1">
+  <link rel="stylesheet" href="../styles.css?v=2026-09-01-2">
   <script type="importmap">
     {
       "imports": {
@@ -21,7 +21,7 @@
 
   <header class="admin-topbar">
     <a class="auth-brand" href="/">
-      <img src="../assets/beca-logo.png?v=2" alt="" data-content-img="logoUrl">
+      <img src="../assets/beca-logo.png?v=3" alt="" data-content-img="logoUrl">
     </a>
     <button type="button" data-logout>Logout</button>
   </header>
@@ -163,19 +163,25 @@
         <div class="admin-view-head">
           <div>
             <p>3D Studio</p>
-            <h2>Build a tee from a print.</h2>
+            <h2>Build a piece from a print.</h2>
           </div>
         </div>
         <div class="studio-shell">
           <div class="studio-viewer-card">
             <div class="studio-viewer" id="studioViewer" data-model="../assets/models/tshirt-web.glb">
-              <span class="studio-loader">Loading 3D tee...</span>
+              <span class="studio-loader">Loading 3D model...</span>
             </div>
           </div>
           <form class="studio-controls" data-studio-form>
             <div class="admin-form-grid">
-              <label>Product name<input name="name" value="Studio tee" required></label>
-              <label>Category<input name="category" value="Tee"></label>
+              <label>Garment
+                <select data-studio-garment>
+                  <option value="tee">Tee</option>
+                  <option value="hoodie">Hoodie</option>
+                </select>
+              </label>
+              <label>Product name<input name="name" value="Studio tee" required data-studio-name></label>
+              <label>Category<input name="category" value="Tee" data-studio-category></label>
               <label>Price<input name="price" type="number" min="0" step="0.01" value="59"></label>
               <label>Currency<input name="currency" value="GBP"></label>
               <label>Stock<input name="stock" type="number" min="0" value="25"></label>
@@ -195,7 +201,7 @@
               <label>Shirt color<input name="shirtColor" type="color" value="#ffffff" data-studio-color></label>
               <label>Upload texture / print<input name="print" type="file" accept="image/png,image/jpeg,image/webp" data-studio-print></label>
             </div>
-            <a class="studio-template-link" href="../assets/models/tshirt-photoshop-template.png" download>
+            <a class="studio-template-link" href="../assets/models/tshirt-photoshop-template.png" download data-studio-template-link>
               Download Photoshop texture template
             </a>
             <div class="studio-sliders">
@@ -205,7 +211,7 @@
               <label>Rotation<input type="range" min="-45" max="45" value="0" data-studio-rotation></label>
               <label>Opacity<input type="range" min="20" max="100" value="100" data-studio-opacity></label>
             </div>
-            <label>Description<textarea name="description" rows="3">Fresh tee created in the 3D studio.</textarea></label>
+            <label>Description<textarea name="description" rows="3" data-studio-description>Fresh tee created in the 3D studio.</textarea></label>
             <p class="admin-form-hint">Alte limbi: adauga traduceri dupa salvare, din lista de produse.</p>
             <div class="studio-actions">
               <button type="button" data-studio-reset>Reset print</button>
